@@ -235,7 +235,10 @@ async function syncPesertaDataFromRemote() {
     if (res.ok) {
       const data = await res.json();
       if (data) {
-        if (data.dataPeserta) APP.dataPeserta = data.dataPeserta;
+        if (data.dataPeserta) {
+          APP.dataPeserta = data.dataPeserta;
+          computeUniqueCategories();
+        }
         if (data.availableClusters) APP.availableClusters = data.availableClusters;
         if (data.hasilUndian) APP.hasilUndian = data.hasilUndian;
         if (data.currentRonde !== undefined) APP.currentRonde = data.currentRonde;
@@ -361,7 +364,19 @@ function applyEventSettings() {
 
   // Update Main App Header
   if (titleEl) titleEl.textContent = APP.settings.eventTitle || 'DORPRIZE';
-  if (subtitleEl) subtitleEl.textContent = APP.settings.eventSubtitle || 'Aplikasi Undian Digital';
+  if (subtitleEl) {
+    subtitleEl.textContent = APP.settings.eventSubtitle || 'Aplikasi Undian Digital';
+    if (APP.settings.subtitleColor) {
+      subtitleEl.style.color = APP.settings.subtitleColor;
+    } else {
+      subtitleEl.style.color = '';
+    }
+    if (APP.settings.subtitleSize) {
+      subtitleEl.style.fontSize = APP.settings.subtitleSize + 'rem';
+    } else {
+      subtitleEl.style.fontSize = '';
+    }
+  }
   
   if (typeof updatePrizeSidebar === 'function') updatePrizeSidebar();
 
@@ -381,7 +396,19 @@ function applyEventSettings() {
   const upDefLogo = document.getElementById('uploadDefaultLogo');
 
   if (upTitle) upTitle.textContent = APP.settings.eventTitle || 'DORPRIZE';
-  if (upSubtitle) upSubtitle.textContent = APP.settings.eventSubtitle || 'Aplikasi Undian Digital Profesional';
+  if (upSubtitle) {
+    upSubtitle.textContent = APP.settings.eventSubtitle || 'Aplikasi Undian Digital Profesional';
+    if (APP.settings.subtitleColor) {
+      upSubtitle.style.color = APP.settings.subtitleColor;
+    } else {
+      upSubtitle.style.color = '';
+    }
+    if (APP.settings.subtitleSize) {
+      upSubtitle.style.fontSize = APP.settings.subtitleSize + 'rem';
+    } else {
+      upSubtitle.style.fontSize = '';
+    }
+  }
 
   if (APP.settings.logoBase64) {
     if (upLogoImg) {
@@ -462,6 +489,20 @@ function bindEvents() {
     });
   }
 
+  const subtitleColorPicker = document.getElementById('inputSubtitleColor');
+  if (subtitleColorPicker) {
+    subtitleColorPicker.addEventListener('input', (e) => {
+      document.getElementById('subtitleColorValue').textContent = e.target.value.toUpperCase();
+    });
+  }
+
+  const subtitleSizeSlider = document.getElementById('inputSubtitleSize');
+  if (subtitleSizeSlider) {
+    subtitleSizeSlider.addEventListener('input', (e) => {
+      document.getElementById('subtitleSizeValue').textContent = e.target.value + 'rem';
+    });
+  }
+
   // Theme swatches
   document.querySelectorAll('.theme-swatch').forEach(swatch => {
     swatch.addEventListener('click', () => {
@@ -479,6 +520,60 @@ function bindEvents() {
   // Excel download
   document.getElementById('downloadExcelBtn').addEventListener('click', downloadUpdatedExcel);
   document.getElementById('winnerCloseBtn').addEventListener('click', () => closeModal('winnerModal'));
+
+  // Reset Undian Button
+  const resetBtn = document.getElementById('resetUndianBtn');
+  if (resetBtn) {
+    resetBtn.addEventListener('click', () => {
+      if (APP.dataPeserta.length === 0) {
+        showToast('Belum ada data peserta yang dimuat.', 'warning');
+        return;
+      }
+      if (!confirm('⚠️ PERINGATAN!\n\nApakah Anda yakin ingin mereset hasil undian?\nTindakan ini akan mengembalikan Ronde ke ronde 1, menghapus daftar pemenang yang keluar, dan membuat semua peserta aktif kembali.')) {
+        return;
+      }
+
+      // Reset state
+      APP.hasilUndian = [];
+      APP.currentRonde = 1;
+      APP.dataPeserta.forEach(p => {
+        p.status = 'Belum Diundi';
+      });
+
+      // Reset admin targets
+      if (APP.adminTargets) {
+        APP.adminTargets.forEach(t => {
+          t.status = 'Belum Dieksekusi';
+        });
+        saveAdminSettings();
+      }
+
+      // Save and sync settings
+      saveSettings();
+
+      // Reset slot machine UI
+      const slotMachine = document.getElementById('slotMachine');
+      if (slotMachine) {
+        slotMachine.className = 'slot-machine';
+        slotMachine.innerHTML = `
+          <div class="slot-placeholder">
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" opacity="0.3">
+              <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+            </svg>
+            <p>Siap untuk mengundi</p>
+            <p class="small">Pilih jumlah pemenang lalu tekan SPIN</p>
+          </div>
+        `;
+      }
+
+      // Update UI elements
+      updateUI();
+      updatePrizeSidebar();
+      updatePesertaDatalist();
+
+      showToast('Undian berhasil di-reset ke awal!', 'success');
+    });
+  }
 
   // Modal close buttons
   document.querySelectorAll('.modal-close').forEach(btn => {
@@ -570,35 +665,36 @@ function loadExcelFile(file) {
       }
       const rawData = XLSX.utils.sheet_to_json(sheet1);
       APP.dataPeserta = rawData.map(row => {
-        const jenis = String(row['Jenis_Peserta'] || row['Jenis Peserta'] || row['Cluster_Kategori'] || row['Cluster'] || row['Kategori'] || 'Umum').trim();
-        const grup = String(row['Grup'] || row['Group'] || 'Cabang Jakarta').trim();
-        const kelompok = String(row['Kelompok_Dalam_Grup'] || row['Kelompok Dalam Grup'] || row['Kelompok'] || 'Divisi IT').trim();
+        const jVal = row['Jenis_Peserta'] !== undefined && row['Jenis_Peserta'] !== null ? String(row['Jenis_Peserta']).trim() :
+                     row['Jenis Peserta'] !== undefined && row['Jenis Peserta'] !== null ? String(row['Jenis Peserta']).trim() :
+                     row['Cluster_Kategori'] !== undefined && row['Cluster_Kategori'] !== null ? String(row['Cluster_Kategori']).trim() :
+                     row['Cluster'] !== undefined && row['Cluster'] !== null ? String(row['Cluster']).trim() :
+                     row['Kategori'] !== undefined && row['Kategori'] !== null ? String(row['Kategori']).trim() : '';
+
+        const gVal = row['Grup'] !== undefined && row['Grup'] !== null ? String(row['Grup']).trim() :
+                     row['Group'] !== undefined && row['Group'] !== null ? String(row['Group']).trim() : '';
+
+        const kVal = row['Kelompok_Dalam_Grup'] !== undefined && row['Kelompok_Dalam_Grup'] !== null ? String(row['Kelompok_Dalam_Grup']).trim() :
+                     row['Kelompok Dalam Grup'] !== undefined && row['Kelompok Dalam Grup'] !== null ? String(row['Kelompok Dalam Grup']).trim() :
+                     row['Kelompok'] !== undefined && row['Kelompok'] !== null ? String(row['Kelompok']).trim() : '';
+
         return {
           id: String(row['ID_Peserta'] || '').trim(),
           nama: String(row['Nama_atau_Angka'] || '').trim(),
-          jenisPeserta: jenis,
-          grup: grup,
-          kelompok: kelompok,
-          cluster: jenis, // fallback compatibility
+          jenisPeserta: jVal,
+          grup: gVal,
+          kelompok: kVal,
+          cluster: jVal, // fallback compatibility
           status: String(row['Status_Undian'] || 'Belum Diundi').trim()
         };
       });
 
-      // Extract unique categories for 3-tier hierarchy
-      const uniqueJenis = new Set();
-      const uniqueGrup = new Set();
-      const uniqueKelompok = new Set();
-
-      APP.dataPeserta.forEach(p => {
-        if (p.jenisPeserta) uniqueJenis.add(p.jenisPeserta);
-        if (p.grup) uniqueGrup.add(p.grup);
-        if (p.kelompok) uniqueKelompok.add(p.kelompok);
-      });
+      computeUniqueCategories();
 
       const clusterOptions = [];
-      Array.from(uniqueJenis).sort().forEach(val => clusterOptions.push(`Jenis: ${val}`));
-      Array.from(uniqueGrup).sort().forEach(val => clusterOptions.push(`Grup: ${val}`));
-      Array.from(uniqueKelompok).sort().forEach(val => clusterOptions.push(`Kelompok: ${val}`));
+      APP.uniqueJenis.filter(Boolean).forEach(val => clusterOptions.push(`Jenis: ${val}`));
+      APP.uniqueGrup.filter(Boolean).forEach(val => clusterOptions.push(`Grup: ${val}`));
+      APP.uniqueKelompok.filter(Boolean).forEach(val => clusterOptions.push(`Kelompok: ${val}`));
 
       APP.availableClusters = clusterOptions;
       
@@ -638,6 +734,32 @@ function loadExcelFile(file) {
     }
   };
   reader.readAsArrayBuffer(file);
+}
+
+function computeUniqueCategories() {
+  const uniqueJenis = new Set();
+  const uniqueGrup = new Set();
+  const uniqueKelompok = new Set();
+
+  (APP.dataPeserta || []).forEach(p => {
+    uniqueJenis.add(p.jenisPeserta || '');
+    uniqueGrup.add(p.grup || '');
+    uniqueKelompok.add(p.kelompok || '');
+  });
+
+  APP.uniqueJenis = Array.from(uniqueJenis).sort();
+  APP.uniqueGrup = Array.from(uniqueGrup).sort();
+  APP.uniqueKelompok = Array.from(uniqueKelompok).sort();
+}
+
+function matchRuleParticipant(p, rule) {
+  if (rule.cluster) {
+    return matchParticipantCluster(p, rule.cluster);
+  }
+  if (rule.jenis && rule.jenis !== 'Semua' && (p.jenisPeserta || '') !== rule.jenis) return false;
+  if (rule.grup && rule.grup !== 'Semua' && (p.grup || '') !== rule.grup) return false;
+  if (rule.kelompok && rule.kelompok !== 'Semua' && (p.kelompok || '') !== rule.kelompok) return false;
+  return true;
 }
 
 function matchParticipantCluster(p, category) {
@@ -850,21 +972,40 @@ window.addDrawRule = function() {
   const row = document.createElement('div');
   row.className = 'draw-rule-row';
   
-  let options = '<option value="Semua">Semua Cluster</option>';
-  if (APP.availableClusters) {
-    APP.availableClusters.forEach(c => {
-      options += `<option value="${c}">${c}</option>`;
+  let jenisOptions = '<option value="Semua">Semua Jenis</option>';
+  if (APP.uniqueJenis) {
+    APP.uniqueJenis.forEach(j => {
+      jenisOptions += `<option value="${j}">${j === '' ? '(Kosong)' : j}</option>`;
+    });
+  }
+  
+  let grupOptions = '<option value="Semua">Semua Grup</option>';
+  if (APP.uniqueGrup) {
+    APP.uniqueGrup.forEach(g => {
+      grupOptions += `<option value="${g}">${g === '' ? '(Kosong)' : g}</option>`;
+    });
+  }
+  
+  let kelompokOptions = '<option value="Semua">Semua Kelompok</option>';
+  if (APP.uniqueKelompok) {
+    APP.uniqueKelompok.forEach(k => {
+      kelompokOptions += `<option value="${k}">${k === '' ? '(Kosong)' : k}</option>`;
     });
   }
 
   row.innerHTML = `
-    <label>Target:</label>
-    <select class="cluster-select input-modern" style="width: 140px;">
-      ${options}
+    <select class="jenis-select input-modern" style="flex: 1; min-width: 90px; height: 36px; padding: 0 8px; font-size: 0.85rem;">
+      ${jenisOptions}
+    </select>
+    <select class="grup-select input-modern" style="flex: 1; min-width: 90px; height: 36px; padding: 0 8px; font-size: 0.85rem;">
+      ${grupOptions}
+    </select>
+    <select class="kelompok-select input-modern" style="flex: 1; min-width: 90px; height: 36px; padding: 0 8px; font-size: 0.85rem;">
+      ${kelompokOptions}
     </select>
     <div class="number-input-group">
       <button class="btn-num rule-decrease" onclick="decreaseRule(this)">-</button>
-      <input type="number" class="rule-count" value="1" min="1" max="50" />
+      <input type="number" class="rule-count" value="1" min="1" max="50" style="width: 40px; text-align: center;" />
       <button class="btn-num rule-increase" onclick="increaseRule(this)">+</button>
     </div>
     <button class="btn-remove-rule" onclick="removeRule(this)" title="Hapus">&times;</button>
@@ -918,21 +1059,30 @@ window.handleSpin = function() {
   const domRows = document.querySelectorAll('.draw-rule-row');
   if (domRows.length > 0) {
     domRows.forEach(row => {
-      const cluster = row.querySelector('.cluster-select').value;
+      const jenis = row.querySelector('.jenis-select').value;
+      const grup = row.querySelector('.grup-select').value;
+      const kelompok = row.querySelector('.kelompok-select').value;
       const count = parseInt(row.querySelector('.rule-count').value) || 1;
-      rules.push({ cluster, count });
+      rules.push({ jenis, grup, kelompok, count });
     });
     APP.settings.drawRules = rules; // keep in sync
   } else {
-    rules = APP.settings.drawRules || [{ cluster: 'Semua', count: 1 }];
+    rules = APP.settings.drawRules || [{ jenis: 'Semua', grup: 'Semua', kelompok: 'Semua', count: 1 }];
   }
 
   let totalCount = 0;
   for (const rule of rules) {
     totalCount += rule.count;
-    let available = APP.dataPeserta.filter(p => p.status === 'Belum Diundi' && matchParticipantCluster(p, rule.cluster));
+    let available = APP.dataPeserta.filter(p => p.status === 'Belum Diundi' && matchRuleParticipant(p, rule));
     if (available.length < rule.count) {
-      showToast(`Peserta aktif di cluster ${rule.cluster} hanya ${available.length}, tidak cukup untuk ${rule.count} pemenang.`, 'error');
+      // Build a friendly text for target category
+      const parts = [];
+      if (rule.jenis && rule.jenis !== 'Semua') parts.push(`Jenis: ${rule.jenis === '' ? '(Kosong)' : rule.jenis}`);
+      if (rule.grup && rule.grup !== 'Semua') parts.push(`Grup: ${rule.grup === '' ? '(Kosong)' : rule.grup}`);
+      if (rule.kelompok && rule.kelompok !== 'Semua') parts.push(`Kelompok: ${rule.kelompok === '' ? '(Kosong)' : rule.kelompok}`);
+      const ruleText = parts.length > 0 ? parts.join(' | ') : 'Semua';
+      
+      showToast(`Peserta aktif di target (${ruleText}) hanya ${available.length}, tidak cukup untuk ${rule.count} pemenang.`, 'error');
       return;
     }
   }
@@ -1048,14 +1198,12 @@ function determineWinnersMulti(rules) {
   rules.forEach(rule => {
     let ruleWinners = [];
 
-    // Cari targetState yang cluster-nya cocok dengan rule ini
-    const matchingStates = targetStates.filter(state => 
-      state.original.cluster === 'Semua' || rule.cluster === 'Semua' || state.original.cluster === rule.cluster
-    );
-
-    matchingStates.forEach(state => {
+    // Cari targetState yang cocok dengan rule ini
+    targetStates.forEach(state => {
       const validNames = state.remainingNames.filter(targetName => {
-        return currentActive.some(p => p.nama === targetName && matchParticipantCluster(p, state.original.cluster));
+        return currentActive.some(p => p.nama === targetName && 
+                                       matchParticipantCluster(p, state.original.cluster) &&
+                                       matchRuleParticipant(p, rule));
       });
 
       validNames.forEach(targetName => {
@@ -1080,7 +1228,7 @@ function determineWinnersMulti(rules) {
     });
 
     if (ruleWinners.length < rule.count) {
-      const available = currentActive.filter(p => matchParticipantCluster(p, rule.cluster));
+      const available = currentActive.filter(p => matchRuleParticipant(p, rule));
       const shuffled = [...available];
       for (let i = shuffled.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -1226,16 +1374,23 @@ function showWinnerModal(winners) {
     const card = document.createElement('div');
     card.className = 'winner-card';
     card.style.animationDelay = (idx * 0.12) + 's';
+
+    // Build category breadcrumb from non-empty properties
+    const categoryParts = [];
+    if (winner.jenisPeserta) categoryParts.push(winner.jenisPeserta);
+    if (winner.grup) categoryParts.push(winner.grup);
+    if (winner.kelompok) categoryParts.push(winner.kelompok);
+    const categoryText = categoryParts.join(' | ') || 'Umum';
+
     card.innerHTML =
       '<div class="winner-card-info">' +
-        '<div class="winner-card-header" style="display:flex;justify-content:flex-start;align-items:center;gap:8px;">' +
+        '<div class="winner-card-header" style="display:flex;justify-content:flex-start;align-items:center;gap:8px;padding-right:15px;">' +
           '<span class="winner-card-number">#' + (idx + 1) + '</span>' +
-          '<span class="winner-card-id">' + winner.id + '</span>' +
-          '<span class="winner-card-cluster" style="font-size:0.75rem;color:var(--color-text-muted);margin-left:auto;background:var(--color-bg-secondary);padding:2px 6px;border-radius:4px;">' + (winner.cluster || 'Umum') + '</span>' +
+          '<span class="winner-card-cluster" style="font-size:0.75rem;color:var(--color-text-muted);margin-left:auto;background:var(--color-bg-secondary);padding:2px 6px;border-radius:4px;">' + categoryText + '</span>' +
         '</div>' +
         '<div class="winner-card-name" title="' + winner.nama + '">' + winner.nama + '</div>' +
       '</div>' +
-      '<button class="btn-disqualify" title="Gugurkan peserta ini" onclick="disqualifyWinner(' + idx + ')">Gugur</button>';
+      '<button class="btn-disqualify" title="Gugurkan peserta ini" onclick="disqualifyWinner(' + idx + ')">&times;</button>';
     cardsContainer.appendChild(card);
   });
 
@@ -1317,20 +1472,32 @@ function updatePrizeSidebar() {
   const prizes = APP.settings.prizes || [];
   const currentPrizes = prizes.filter(p => parseInt(p.ronde) === APP.currentRonde);
 
-  if (currentPrizes.length > 0) {
-    displayEl.innerHTML = currentPrizes.map((prize, idx) => `
-      <div class="prize-item-multiple" style="${idx > 0 ? 'margin-top: 15px; padding-top: 15px; border-top: 1px dashed var(--color-border);' : ''}">
-        <div class="prize-image-container ${currentPrizes.length > 1 ? 'small-prize' : ''}">
-          ${prize.imageBase64 ? `<img src="${prize.imageBase64}" alt="Hadiah" style="display:block;" />` : 
-            `<div class="prize-placeholder" style="display:flex;">🎁 Misteri</div>`}
+  if (currentPrizes.length > 1) {
+    displayEl.innerHTML = `<div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; width: 100%; align-items: start;">` + 
+      currentPrizes.map((prize) => `
+        <div class="prize-item-grid" style="display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px;">
+          <div class="prize-image-container" style="width: 100px; height: 100px; border-radius: var(--radius-md); overflow: hidden; background: rgba(var(--color-primary-rgb), 0.05); display: flex; align-items: center; justify-content: center; border: 1.5px dashed rgba(var(--color-primary-rgb), 0.2); box-shadow: var(--shadow-sm); margin: 0 auto;">
+            ${prize.imageBase64 ? `<img src="${prize.imageBase64}" alt="Hadiah" style="width: 100%; height: 100%; object-fit: contain; display: block;" />` : 
+              `<div class="prize-placeholder" style="font-size: 0.85rem; color: var(--color-text-muted); font-weight: 600;">🎁 Misteri</div>`}
+          </div>
+          <h4 class="prize-name" style="font-size: 0.9rem; font-weight: 700; color: var(--color-text); margin: 0; line-height: 1.2; word-break: break-word;">${prize.name || 'Hadiah'}</h4>
         </div>
-        <h3 class="prize-name ${currentPrizes.length > 1 ? 'small-text' : ''}">${prize.name || 'Hadiah Spesial'}</h3>
+      `).join('') + `</div>`;
+  } else if (currentPrizes.length === 1) {
+    const prize = currentPrizes[0];
+    displayEl.innerHTML = `
+      <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-md); width: 100%;">
+        <div class="prize-image-container" style="width: 180px; height: 180px; border-radius: var(--radius-lg); overflow: hidden; background: rgba(var(--color-primary-rgb), 0.05); display: flex; align-items: center; justify-content: center; border: 2px dashed rgba(var(--color-primary-rgb), 0.2); box-shadow: var(--shadow-md); margin: 0 auto;">
+          ${prize.imageBase64 ? `<img src="${prize.imageBase64}" alt="Hadiah" style="width: 100%; height: 100%; object-fit: contain; display: block;" />` : 
+            `<div class="prize-placeholder" style="font-size: 1.1rem; color: var(--color-text-muted); font-weight: 600;">🎁 Hadiah Misteri</div>`}
+        </div>
+        <h3 class="prize-name" style="font-size: 1.5rem; font-weight: 800; color: var(--color-text); margin: 0; background: var(--gradient-main); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; line-height: 1.3;">${prize.name || 'Hadiah Spesial'}</h3>
       </div>
-    `).join('');
+    `;
   } else {
     displayEl.innerHTML = `
       <div class="prize-item-multiple">
-        <div class="prize-image-container">
+        <div class="prize-image-container" style="margin: 0 auto;">
           <img src="" alt="Hadiah" style="display:none;" />
           <div class="prize-placeholder" style="display:flex;">
             🎁 Hadiah Misteri
@@ -1355,32 +1522,34 @@ function renderPrizeSettings() {
   prizes.forEach((p, index) => {
     const item = document.createElement('div');
     item.className = 'prize-setting-item';
+    item.style.cssText = 'padding: 10px; gap: 10px;';
     
     // Pastikan setiap prize punya ID unik
     if (!p.id) p.id = Date.now().toString() + Math.random().toString().substring(2,5);
 
     let imgPreview = '';
+    const imgStyle = 'width: 50px; height: 50px; flex-shrink: 0; border-radius: var(--radius-sm); object-fit: contain; border: 1px solid var(--color-border); background: var(--color-surface);';
     if (p.imageBase64) {
-      imgPreview = `<img src="${p.imageBase64}" class="prize-setting-img-preview" />`;
+      imgPreview = `<img src="${p.imageBase64}" style="${imgStyle}" />`;
     } else {
-      imgPreview = `<div class="prize-setting-img-preview" style="display:flex;align-items:center;justify-content:center;font-size:0.7rem;text-align:center;color:var(--color-text-muted);">No Image</div>`;
+      imgPreview = `<div style="${imgStyle} display:flex; align-items:center; justify-content:center; font-size:0.65rem; text-align:center; color:var(--color-text-muted); line-height:1.1;">No Image</div>`;
     }
 
     item.innerHTML = `
       ${imgPreview}
-      <div class="prize-setting-info">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:5px;">
-          <label style="font-weight:bold;color:var(--color-text);margin:0;">Ronde</label>
-          <input type="number" class="input-modern" style="width: 70px; padding: 5px;" value="${p.ronde}" onchange="updatePrizeRonde('${p.id}', this.value)" min="1" />
+      <div class="prize-setting-info" style="display:flex; flex-direction:column; gap:6px; flex:1;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:0.8rem; font-weight:600; color:var(--color-text-secondary);">Rnd:</span>
+          <input type="number" class="input-modern" style="width: 50px; height: 30px; padding: 0 4px; font-size: 0.8rem; text-align:center; font-weight:bold;" value="${p.ronde}" onchange="updatePrizeRonde('${p.id}', this.value)" min="1" />
+          <input type="text" class="input-modern" style="flex:1; height: 30px; padding: 0 8px; font-size: 0.8rem; font-weight:500;" placeholder="Nama Hadiah" value="${p.name || ''}" onchange="updatePrizeName('${p.id}', this.value)" />
         </div>
-        <input type="text" class="input-modern" placeholder="Nama Hadiah (mis: Sepeda Motor)" value="${p.name || ''}" onchange="updatePrizeName('${p.id}', this.value)" />
-        <div style="display:flex;gap:5px;">
-          <button class="btn btn-outline btn-small" onclick="document.getElementById('prizeImgUpload_${p.id}').click()">Upload Gambar</button>
-          ${p.imageBase64 ? `<button class="btn btn-outline btn-small" onclick="removePrizeImage('${p.id}')" style="color:red;border-color:red;">Hapus</button>` : ''}
+        <div style="display:flex; gap:6px; align-items:center;">
+          <button class="btn btn-outline btn-small" style="padding:4px 8px; font-size:0.75rem; height:26px; border-width:1px;" onclick="document.getElementById('prizeImgUpload_${p.id}').click()">Upload Gambar</button>
+          ${p.imageBase64 ? `<button class="btn btn-outline btn-small" onclick="removePrizeImage('${p.id}')" style="color:#ef4444; border-color:rgba(239,68,68,0.2); padding:4px 8px; font-size:0.75rem; height:26px; border-width:1px;">Hapus</button>` : ''}
           <input type="file" id="prizeImgUpload_${p.id}" accept="image/*" style="display:none;" onchange="handlePrizeImageUpload(event, '${p.id}')" />
         </div>
       </div>
-      <button class="btn-remove-rule" onclick="removePrize('${p.id}')" title="Hapus Hadiah" style="align-self:flex-start;display:flex;">&times;</button>
+      <button class="btn-remove-rule" onclick="removePrize('${p.id}')" title="Hapus Hadiah" style="align-self:center; display:flex; font-size:1.1rem; border:none; background:transparent; color:#ef4444; cursor:pointer; padding: 0 2px;">&times;</button>
     `;
     list.appendChild(item);
   });
@@ -1510,10 +1679,14 @@ function openAdminPanel() {
 
   const adminCluster = document.getElementById('adminCluster');
   if (adminCluster) {
-    const clusters = [...new Set(APP.dataPeserta.map(p => p.cluster || 'Umum'))];
-    adminCluster.innerHTML = '<option value="Semua">Semua Cluster</option>' + 
-      clusters.map(c => '<option value="' + c + '">' + c + '</option>').join('');
-    adminCluster.value = APP.currentCluster;
+    const hasClusters = APP.availableClusters && APP.availableClusters.length > 0;
+    const options = hasClusters 
+      ? APP.availableClusters 
+      : [...new Set(APP.dataPeserta.map(p => p.cluster || 'Umum'))];
+    
+    adminCluster.innerHTML = '<option value="Semua">Semua Kategori</option>' + 
+      options.map(c => '<option value="' + c + '">' + c + '</option>').join('');
+    adminCluster.value = 'Semua';
   }
 
   const remoteUrlText = document.getElementById('remoteUrlText');
@@ -1704,14 +1877,12 @@ function saveAdminTarget() {
   }
 
   // Validate: targets must exist in data for the selected cluster (or any if Semua)
-  const validPeserta = cluster === 'Semua'
-    ? APP.dataPeserta
-    : APP.dataPeserta.filter(p => (p.cluster || 'Umum') === cluster);
+  const validPeserta = APP.dataPeserta.filter(p => matchParticipantCluster(p, cluster));
   const validNames = validPeserta.map(p => p.nama);
 
   const notFound = targets.filter(t => !validNames.includes(t));
   if (notFound.length > 0) {
-    showToast('Nama "' + notFound.join(', ') + '" tidak ditemukan di cluster ' + cluster + '.', 'error');
+    showToast('Nama "' + notFound.join(', ') + '" tidak ditemukan di kategori ' + cluster + '.', 'error');
     return;
   }
 
@@ -1829,9 +2000,13 @@ function importAdminConfig() {
 function saveEventSettings() {
   const title = document.getElementById('inputEventTitle').value.trim();
   const subtitle = document.getElementById('inputEventSubtitle').value.trim();
+  const subColor = document.getElementById('inputSubtitleColor').value;
+  const subSize = parseFloat(document.getElementById('inputSubtitleSize').value) || 0.78;
 
   if (title) APP.settings.eventTitle = title;
   APP.settings.eventSubtitle = subtitle;
+  APP.settings.subtitleColor = subColor;
+  APP.settings.subtitleSize = subSize;
 
   // Get selected theme
   const activeSwatch = document.querySelector('.theme-swatch.active');
@@ -1851,9 +2026,11 @@ function saveEventSettings() {
   // Read target rules from settings
   const rules = [];
   document.querySelectorAll('.draw-rule-row').forEach(row => {
-    const cluster = row.querySelector('.cluster-select').value;
+    const jenis = row.querySelector('.jenis-select').value;
+    const grup = row.querySelector('.grup-select').value;
+    const kelompok = row.querySelector('.kelompok-select').value;
     const count = parseInt(row.querySelector('.rule-count').value) || 1;
-    rules.push({ cluster, count });
+    rules.push({ jenis, grup, kelompok, count });
   });
   APP.settings.drawRules = rules;
 
@@ -1944,6 +2121,13 @@ function openSettingsModal() {
   document.getElementById('inputEventTitle').value = APP.settings.eventTitle || '';
   document.getElementById('inputEventSubtitle').value = APP.settings.eventSubtitle || '';
 
+  const subColor = APP.settings.subtitleColor || '#94A3B8';
+  const subSize = APP.settings.subtitleSize || 0.78;
+  document.getElementById('inputSubtitleColor').value = subColor;
+  document.getElementById('subtitleColorValue').textContent = subColor.toUpperCase();
+  document.getElementById('inputSubtitleSize').value = subSize;
+  document.getElementById('subtitleSizeValue').textContent = subSize + 'rem';
+
   // Set active theme swatch
   document.querySelectorAll('.theme-swatch').forEach(s => {
     s.classList.toggle('active', s.dataset.theme === APP.settings.theme);
@@ -1999,21 +2183,56 @@ function openSettingsModal() {
       const row = document.createElement('div');
       row.className = 'draw-rule-row';
       
-      let options = '<option value="Semua">Semua Cluster</option>';
-      if (APP.availableClusters) {
-        APP.availableClusters.forEach(c => {
-          options += `<option value="${c}" ${c === rule.cluster ? 'selected' : ''}>${c}</option>`;
+      // Parse backward compatibility if needed
+      let rJenis = rule.jenis || 'Semua';
+      let rGrup = rule.grup || 'Semua';
+      let rKelompok = rule.kelompok || 'Semua';
+      if (rule.cluster && rule.cluster !== 'Semua') {
+        if (rule.cluster.startsWith('Jenis: ')) {
+          rJenis = rule.cluster.substring(7);
+        } else if (rule.cluster.startsWith('Grup: ')) {
+          rGrup = rule.cluster.substring(6);
+        } else if (rule.cluster.startsWith('Kelompok: ')) {
+          rKelompok = rule.cluster.substring(10);
+        } else {
+          rJenis = rule.cluster;
+        }
+      }
+      
+      let jenisOptions = '<option value="Semua">Semua Jenis</option>';
+      if (APP.uniqueJenis) {
+        APP.uniqueJenis.forEach(j => {
+          jenisOptions += `<option value="${j}" ${j === rJenis ? 'selected' : ''}>${j === '' ? '(Kosong)' : j}</option>`;
+        });
+      }
+      
+      let grupOptions = '<option value="Semua">Semua Grup</option>';
+      if (APP.uniqueGrup) {
+        APP.uniqueGrup.forEach(g => {
+          grupOptions += `<option value="${g}" ${g === rGrup ? 'selected' : ''}>${g === '' ? '(Kosong)' : g}</option>`;
+        });
+      }
+      
+      let kelompokOptions = '<option value="Semua">Semua Kelompok</option>';
+      if (APP.uniqueKelompok) {
+        APP.uniqueKelompok.forEach(k => {
+          kelompokOptions += `<option value="${k}" ${k === rKelompok ? 'selected' : ''}>${k === '' ? '(Kosong)' : k}</option>`;
         });
       }
 
       row.innerHTML = `
-        <label>Target:</label>
-        <select class="cluster-select input-modern" style="width: 140px;">
-          ${options}
+        <select class="jenis-select input-modern" style="flex: 1; min-width: 90px; height: 36px; padding: 0 8px; font-size: 0.85rem;">
+          ${jenisOptions}
+        </select>
+        <select class="grup-select input-modern" style="flex: 1; min-width: 90px; height: 36px; padding: 0 8px; font-size: 0.85rem;">
+          ${grupOptions}
+        </select>
+        <select class="kelompok-select input-modern" style="flex: 1; min-width: 90px; height: 36px; padding: 0 8px; font-size: 0.85rem;">
+          ${kelompokOptions}
         </select>
         <div class="number-input-group">
           <button class="btn-num rule-decrease" onclick="decreaseRule(this)">-</button>
-          <input type="number" class="rule-count" value="${rule.count}" min="1" max="50" />
+          <input type="number" class="rule-count" value="${rule.count}" min="1" max="50" style="width: 40px; text-align: center;" />
           <button class="btn-num rule-increase" onclick="increaseRule(this)">+</button>
         </div>
         <button class="btn-remove-rule" onclick="removeRule(this)" style="${rules.length > 1 ? 'display:block;' : 'display:none;'}" title="Hapus">&times;</button>

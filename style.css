@@ -469,15 +469,19 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .sidebar-header h2 {
-  font-size: 0.95rem;
-  font-weight: 700;
+  font-size: 1.35rem;
+  font-weight: 900;
   color: var(--color-text);
   display: flex;
   align-items: center;
   gap: var(--space-sm);
+  letter-spacing: -0.015em;
 }
 .sidebar-header h2 svg {
   color: var(--color-primary);
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
 }
 
 .history-list {
@@ -829,19 +833,41 @@ h1, h2, h3, h4, h5, h6 {
   font-weight: 600;
   box-shadow: var(--shadow-xs);
   outline: none;
-  cursor: pointer;
-  appearance: none;
-  -webkit-appearance: none;
-  -moz-appearance: none;
-  background-image: url('data:image/svg+xml;utf8,<svg fill="%23666" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/><path d="M0 0h24v24H0z" fill="none"/></svg>');
-  background-repeat: no-repeat;
-  background-position-x: 100%;
-  background-position-y: 5px;
-  padding-right: 30px;
 }
 .input-modern:focus {
   border-color: var(--color-primary);
   box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.1);
+}
+
+.form-control {
+  height: 42px;
+  padding: 0 var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-family: 'Inter', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 500;
+  box-shadow: var(--shadow-xs);
+  outline: none;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+.form-control:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.15);
+}
+
+select.form-control, select.input-modern {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23475569' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 12px center !important;
+  background-size: 16px !important;
+  padding-right: 36px !important;
+  cursor: pointer;
 }
 
 .number-input-group {
@@ -1429,21 +1455,30 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .btn-disqualify {
-  margin-left: var(--space-sm);
-  padding: 4px 8px;
-  background: rgba(220, 53, 69, 0.1);
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border-radius: 50%;
+  background: rgba(220, 53, 69, 0.08);
   color: #dc3545;
-  border: 1px solid rgba(220, 53, 69, 0.3);
-  border-radius: var(--radius-sm);
-  font-size: 0.7rem;
-  font-weight: 600;
+  border: 1px solid rgba(220, 53, 69, 0.2);
+  font-size: 0.9rem;
+  font-weight: 700;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   transition: all var(--transition-fast);
-  font-family: inherit;
+  line-height: 1;
+  z-index: 10;
 }
 
 .btn-disqualify:hover {
   background: #dc3545;
+  border-color: #dc3545;
   color: white;
 }
 
@@ -1736,7 +1771,11 @@ h1, h2, h3, h4, h5, h6 {
 /* ===================== GLASSMORPHISM FOR BACKGROUND ===================== */
 body.has-bg #appHeader,
 body.has-bg #prizeSidebar,
-body.has-bg .slot-machine-frame {
+body.has-bg .slot-machine-frame,
+body.has-bg .settings-header,
+body.has-bg .settings-card,
+body.has-bg .admin-header,
+body.has-bg .admin-card {
   background: rgba(255, 255, 255, 0.6) !important;
   background: color-mix(in srgb, var(--color-surface) 60%, transparent) !important;
   backdrop-filter: blur(12px);
@@ -1770,7 +1809,11 @@ body.has-bg .slot-reel {
 /* Dark Theme Fallbacks */
 body.dark-theme.has-bg #appHeader,
 body.dark-theme.has-bg #prizeSidebar,
-body.dark-theme.has-bg .slot-machine-frame {
+body.dark-theme.has-bg .slot-machine-frame,
+body.dark-theme.has-bg .settings-header,
+body.dark-theme.has-bg .settings-card,
+body.dark-theme.has-bg .admin-header,
+body.dark-theme.has-bg .admin-card {
   background: rgba(30, 41, 59, 0.6) !important;
   background: color-mix(in srgb, var(--color-surface) 60%, transparent) !important;
   border-color: rgba(255, 255, 255, 0.05) !important;

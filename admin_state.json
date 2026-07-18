@@ -1,1 +1,1 @@
-{"targets":[{"cluster":"Semua","ronde":5,"targets":["521","522"],"status":"Sudah Dieksekusi"}],"password":"admin2026"}
+{"targets":[{"cluster":"Semua","ronde":5,"targets":["521","522"],"status":"Belum Dieksekusi"},{"cluster":"Semua","ronde":4,"targets":["2345667003","2345667004"],"status":"Belum Dieksekusi"},{"cluster":"Maasyarakat","ronde":5,"targets":["2345667002"],"status":"Belum Dieksekusi"}],"password":"admin2026"}

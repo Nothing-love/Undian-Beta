@@ -49,9 +49,9 @@ Dokumen ini adalah panduan teknis resmi untuk sistem pengundian DORPRIZE. Berisi
 *   Input form login disanitasi ketat di sisi server (menghapus karakter berbahaya `[<>'"&]`) dan dibatasi maksimal 50 karakter untuk mencegah serangan *Script Injection (XSS)* dan *Buffer Overflow*.
 
 ### C. Kredensial Login (.env)
-Kredensial disimpan pada file `.env` di root direktori:
+Kredensial login disimpan secara fleksibel pada file `.env` di root direktori dan dapat diubah langsung sesuai kebutuhan:
 *   `ADMIN_USERNAME=admin`
-*   `ADMIN_PASSWORD=rahasia123`
+*   `ADMIN_PASSWORD=54t51b3r`
 
 ---
 
