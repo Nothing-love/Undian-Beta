@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pengaturan Acara — DORPRIZE</title>
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  
+  <!-- SheetJS -->
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+  
+  <link rel="stylesheet" href="style.css" />
+  
+  <style>
+    :root {
+      --card-bg: var(--color-surface);
+      --card-border: var(--color-border-light);
+    }
+    
+    body {
+      background-color: var(--color-bg);
+      color: var(--color-text);
+      font-family: 'Inter', sans-serif;
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto !important;
+    }
+    
+    /* Premium Header */
+    .settings-header {
+      background: var(--color-surface);
+      border-bottom: 1px solid var(--color-border-light);
+      padding: var(--space-md) var(--space-xl);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+    }
+    
+    .header-title-group {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+    
+    .btn-back-dashboard {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 18px;
+      border-radius: var(--radius-lg);
+      background: var(--color-bg-secondary);
+      border: 1px solid var(--color-border-light);
+      color: var(--color-text);
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.9rem;
+      transition: all var(--transition-fast);
+    }
+    
+    .btn-back-dashboard:hover {
+      background: var(--color-border-light);
+      transform: translateX(-3px);
+    }
+    
+    .settings-page-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.5rem;
+      font-weight: 800;
+      margin: 0;
+      background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    
+    /* Layout Container */
+    .settings-container {
+      max-width: 1200px;
+      width: 100%;
+      margin: var(--space-xl) auto;
+      padding: 0 var(--space-lg);
+      box-sizing: border-box;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-xl);
+      padding-bottom: 100px; /* Space for sticky save bar */
+    }
+    
+    .settings-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-xl);
+    }
+    
+    @media (max-width: 900px) {
+      .settings-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+    
+    /* Premium Cards */
+    .settings-card {
+      background: var(--color-surface);
+      border-radius: var(--radius-xl);
+      border: 1px solid var(--color-border-light);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.02);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    
+    .settings-card-header {
+      padding: var(--space-lg) var(--space-xl);
+      border-bottom: 1px solid var(--color-border-light);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    
+    .settings-card-header h2 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--color-text);
+    }
+    
+    .settings-card-body {
+      padding: var(--space-xl);
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-lg);
+    }
+    
+    /* Upload Section Improvements */
+    .upload-area {
+      border: 2px dashed var(--color-border);
+      border-radius: var(--radius-lg);
+      padding: var(--space-xl) var(--space-md);
+      text-align: center;
+      background: var(--color-bg);
+      cursor: pointer;
+      transition: all var(--transition-normal);
+    }
+    
+    .upload-area:hover, .upload-area.drag-over {
+      border-color: var(--color-primary);
+      background: rgba(var(--color-primary-rgb), 0.04);
+    }
+    
+    /* Status Tag */
+    .status-tag {
+      display: inline-block;
+      padding: 6px 12px;
+      border-radius: var(--radius-sm);
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-align: center;
+      margin-top: 5px;
+    }
+    
+    .status-tag.success {
+      background: rgba(5, 150, 105, 0.1);
+      color: #059669;
+    }
+    
+    .status-tag.warning {
+      background: rgba(245, 158, 11, 0.1);
+      color: #d97706;
+    }
+    
+    /* Dynamic targets spacing */
+    .draw-rule-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--color-bg);
+      padding: var(--space-sm) var(--space-md);
+      border-radius: var(--radius-md);
+      border: 1px solid var(--color-border-light);
+      margin-bottom: 10px;
+    }
+    
+    /* Theme Swatch Grid */
+    .theme-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 10px;
+    }
+    
+    .theme-swatch {
+      cursor: pointer;
+      border: 2px solid transparent;
+      padding: 10px;
+      border-radius: var(--radius-md);
+      background: var(--color-bg-secondary);
+      text-align: center;
+      transition: all var(--transition-fast);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .theme-swatch:hover {
+      transform: translateY(-2px);
+      background: var(--color-border-light);
+    }
+    
+    .theme-swatch.active {
+      border-color: var(--color-primary);
+      background: var(--color-surface);
+      box-shadow: 0 4px 12px rgba(var(--color-primary-rgb), 0.15);
+    }
+    
+    .swatch-colors {
+      display: flex;
+      gap: 4px;
+    }
+    
+    .swatch-colors span {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+    }
+    
+    .swatch-label {
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+    
+    /* Floating Save Bar */
+    .floating-save-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: rgba(255, 255, 255, 0.8);
+      backdrop-filter: blur(10px);
+      border-top: 1px solid var(--color-border-light);
+      padding: var(--space-md) var(--space-xl);
+      display: flex;
+      justify-content: flex-end;
+      gap: var(--space-md);
+      z-index: 99;
+      box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.05);
+    }
+    
+    /* Dark mode adjustments for floating bar */
+    body.dark .floating-save-bar {
+      background: rgba(22, 22, 43, 0.8);
+    }
+    
+    .logo-upload-area, .bg-upload-area {
+      border: 2px dashed var(--color-border);
+      border-radius: var(--radius-md);
+      padding: 15px;
+      text-align: center;
+      background: var(--color-bg);
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      min-height: 80px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .logo-upload-area img, .bg-upload-area img {
+      max-height: 80px;
+      object-fit: contain;
+      z-index: 1;
+    }
+    
+    /* Premium Scrollbar */
+    ::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
+    }
+    ::-webkit-scrollbar-track {
+      background: var(--color-bg);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(0, 0, 0, 0.15) !important;
+      border-radius: 5px;
+      border: 2px solid var(--color-bg);
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(0, 0, 0, 0.3) !important;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- HEADER -->
+  <header class="settings-header">
+    <div class="header-title-group">
+      <a href="/dashboard" class="btn-back-dashboard">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="19" y1="12" x2="5" y2="12"></line>
+          <polyline points="12 19 5 12 12 5"></polyline>
+        </svg>
+        Kembali
+      </a>
+      <h1 class="settings-page-title">Pengaturan Acara</h1>
+    </div>
+    
+    <div style="font-size: 0.85rem; color: var(--color-text-muted);">
+      Status Database: <span id="uploadStatusText" class="status-tag warning">Belum ada data</span>
+    </div>
+  </header>
+
+  <!-- CONTAINER -->
+  <div class="settings-container">
+    
+    <div class="settings-grid">
+      
+      <!-- COLUMN 1: DATABASE & BRANDING -->
+      <div style="display: flex; flex-direction: column; gap: var(--space-xl);">
+        
+        <!-- CARD: Participant Excel -->
+        <section class="settings-card">
+          <div class="settings-card-header">
+            <h2>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+              Database Peserta (.xlsx)
+            </h2>
+          </div>
+          <div class="settings-card-body">
+            
+            <div class="upload-area" id="dropZone">
+              <div class="upload-icon" style="color: var(--color-primary); margin-bottom: 10px;">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="17 8 12 3 7 8" />
+                  <line x1="12" y1="3" x2="12" y2="15" />
+                </svg>
+              </div>
+              <p class="upload-text" style="font-weight: 600; margin: 0 0 5px 0;">Drag & Drop file Excel di sini</p>
+              <p class="upload-text-small" style="font-size: 0.8rem; color: var(--color-text-muted); margin: 0;">atau klik untuk menelusuri folder Anda</p>
+              <input type="file" id="fileInput" accept=".xlsx,.xls" hidden />
+            </div>
+            
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 15px; margin-top: 10px;">
+              <button class="btn btn-outline" id="downloadTemplateBtn" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Download Template
+              </button>
+            </div>
+            <p style="font-size: 0.8rem; color: var(--color-text-muted); margin: 0; text-align: center;">
+              Unduh template di atas untuk melihat struktur kolom yang didukung sistem (ID, Nama, Jenis_Peserta, Grup, Kelompok, Status).
+            </p>
+          </div>
+        </section>
+
+        <!-- CARD: Event Branding -->
+        <section class="settings-card">
+          <div class="settings-card-header">
+            <h2>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+              Identitas & Branding Acara
+            </h2>
+          </div>
+          <div class="settings-card-body">
+            
+            <div class="form-group">
+              <label for="inputEventTitle" style="font-weight: 600; margin-bottom: 6px; display: block;">Judul Acara Utama</label>
+              <input type="text" id="inputEventTitle" class="form-control" placeholder="Contoh: Undian Tahunan PT Digital Sejahtera" style="width: 100%; box-sizing: border-box;" />
+            </div>
+            
+            <div class="form-group">
+              <label for="inputEventSubtitle" style="font-weight: 600; margin-bottom: 6px; display: block;">Sub-judul Acara</label>
+              <input type="text" id="inputEventSubtitle" class="form-control" placeholder="Contoh: Grand Prize Drawing 2026" style="width: 100%; box-sizing: border-box;" />
+            </div>
+
+            <div class="settings-grid" style="grid-template-columns: 1fr 1fr; gap: 15px;">
+              <div class="form-group">
+                <label style="font-weight: 600; margin-bottom: 6px; display: block; font-size: 0.9rem;">Logo Acara (Upload)</label>
+                <div class="logo-upload-area" id="logoUploadArea">
+                  <span id="logoUploadText" style="font-size: 0.75rem; color: var(--color-text-muted);">Format PNG / JPG</span>
+                  <img id="logoPreview" src="" alt="Logo Preview" style="display:none;" />
+                </div>
+                <input type="file" id="logoFileInput" accept="image/png, image/jpeg" hidden />
+                <button class="btn btn-small btn-outline hidden" id="removeLogoBtn" style="margin-top: 8px; width: 100%; color: red; border-color: rgba(255,0,0,0.2);">Hapus Logo</button>
+              </div>
+
+              <div class="form-group">
+                <label style="font-weight: 600; margin-bottom: 6px; display: block; font-size: 0.9rem;">Background (Upload)</label>
+                <div class="logo-upload-area" id="bgUploadArea">
+                  <span id="bgUploadText" style="font-size: 0.75rem; color: var(--color-text-muted);">Background Custom</span>
+                  <img id="bgPreview" src="" alt="Background Preview" style="display:none;" />
+                </div>
+                <input type="file" id="bgFileInput" accept="image/png, image/jpeg, image/webp" hidden />
+                <button class="btn btn-small btn-outline hidden" id="removeBgBtn" style="margin-top: 8px; width: 100%; color: red; border-color: rgba(255,0,0,0.2);">Hapus BG</button>
+              </div>
+            </div>
+            
+            <div class="form-group hidden" id="bgOpacityGroup">
+              <label for="inputBgOpacity" style="font-weight: 600; margin-bottom: 6px; display: block; font-size: 0.9rem;">Transparansi Background</label>
+              <div style="display:flex; align-items:center; gap: 12px;">
+                <input type="range" id="inputBgOpacity" min="0" max="1" step="0.05" value="0.15" style="flex:1; cursor:pointer;" />
+                <span id="bgOpacityValue" style="min-width: 40px; font-weight:700; font-size: 0.9rem;">15%</span>
+              </div>
+            </div>
+            
+          </div>
+        </section>
+
+      </div>
+      
+      <!-- COLUMN 2: THEME, TARGETS, & PRIZES -->
+      <div style="display: flex; flex-direction: column; gap: var(--space-xl);">
+        
+        <!-- CARD: Visual Theme Presets -->
+        <section class="settings-card">
+          <div class="settings-card-header">
+            <h2>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 14.7255 3.09032 17.1962 4.85857 19C4.85857 19 5.5 18 6 17C6.5 16 7.5 16 8 16.5C8.5 17 8.5 18 8 19C7.5 20 8.5 21.5 9.5 21.8284C10.2891 21.9413 11.1352 22 12 22Z"/><circle cx="7.5" cy="10.5" r="1.5"/><circle cx="11.5" cy="7.5" r="1.5"/><circle cx="16.5" cy="9.5" r="1.5"/><circle cx="15.5" cy="14.5" r="1.5"/></svg>
+              Tema & Warna Tampilan
+            </h2>
+          </div>
+          <div class="settings-card-body">
+            
+            <div class="theme-grid">
+              <button class="theme-swatch active" data-theme="professional_blue" title="Profesional Biru">
+                <div class="swatch-colors">
+                  <span style="background:#2563EB"></span><span style="background:#7C3AED"></span><span style="background:#F59E0B"></span>
+                </div>
+                <span class="swatch-label">Profesional Biru</span>
+              </button>
+              <button class="theme-swatch" data-theme="gala_gold" title="Gala Emas">
+                <div class="swatch-colors">
+                  <span style="background:#1A1A2E"></span><span style="background:#C9A84C"></span><span style="background:#F4E4BA"></span>
+                </div>
+                <span class="swatch-label">Gala Emas</span>
+              </button>
+              <button class="theme-swatch" data-theme="festive_red" title="Festive Merah">
+                <div class="swatch-colors">
+                  <span style="background:#DC2626"></span><span style="background:#991B1B"></span><span style="background:#FCD34D"></span>
+                </div>
+                <span class="swatch-label">Festive Merah</span>
+              </button>
+              <button class="theme-swatch" data-theme="nature_green" title="Nature Hijau">
+                <div class="swatch-colors">
+                  <span style="background:#059669"></span><span style="background:#047857"></span><span style="background:#A7F3D0"></span>
+                </div>
+                <span class="swatch-label">Nature Hijau</span>
+              </button>
+              <button class="theme-swatch" data-theme="royal_purple" title="Royal Ungu">
+                <div class="swatch-colors">
+                  <span style="background:#7C3AED"></span><span style="background:#4C1D95"></span><span style="background:#C4B5FD"></span>
+                </div>
+                <span class="swatch-label">Royal Ungu</span>
+              </button>
+              <button class="theme-swatch" data-theme="custom" title="Custom Warna">
+                <div class="swatch-colors">
+                  <span style="background: conic-gradient(red, yellow, lime, aqua, blue, magenta, red)"></span>
+                </div>
+                <span class="swatch-label">Custom Warna</span>
+              </button>
+            </div>
+            
+            <!-- Custom Theme Section -->
+            <div id="customColorSection" class="custom-colors hidden" style="background: var(--color-bg-secondary); padding: 15px; border-radius: var(--radius-md); border: 1px solid var(--color-border-light);">
+              <h4 style="margin: 0 0 12px 0; font-family:'Outfit';">Pilih Warna Custom:</h4>
+              <div style="display:flex; flex-direction:column; gap: 10px;">
+                <div style="display:flex; align-items:center; justify-content:space-between;">
+                  <label style="font-size:0.85rem; font-weight:600;">Warna Primer (Sistem)</label>
+                  <input type="color" id="customPrimary" value="#2563EB" style="border:none; cursor:pointer; width:45px; height:25px;" />
+                </div>
+                <div style="display:flex; align-items:center; justify-content:space-between;">
+                  <label style="font-size:0.85rem; font-weight:600;">Warna Sekunder (Tombol)</label>
+                  <input type="color" id="customSecondary" value="#7C3AED" style="border:none; cursor:pointer; width:45px; height:25px;" />
+                </div>
+                <div style="display:flex; align-items:center; justify-content:space-between;">
+                  <label style="font-size:0.85rem; font-weight:600;">Warna Aksen (Badge/Highlight)</label>
+                  <input type="color" id="customAccent" value="#F59E0B" style="border:none; cursor:pointer; width:45px; height:25px;" />
+                </div>
+              </div>
+            </div>
+            
+          </div>
+        </section>
+
+        <!-- CARD: Multi-Cluster Draw Rules -->
+        <section class="settings-card">
+          <div class="settings-card-header">
+            <h2>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              Target Pengundian per Spin
+            </h2>
+          </div>
+          <div class="settings-card-body">
+            <p style="color: var(--color-text-muted); font-size: 0.85rem; margin: 0 0 10px 0;">
+              Tentukan target kategori (Jenis/Grup/Kelompok) dan jumlah pemenang yang akan ditarik secara bersamaan saat tombol SPIN ditekan.
+            </p>
+            
+            <div id="drawRulesContainer" style="width: 100%;">
+              <!-- Dinamis via JS -->
+            </div>
+            
+            <button class="btn btn-outline btn-small" id="addRuleBtn" onclick="addDrawRule()" style="width: auto; margin-top: 5px;">
+              + Tambah Kategori Target
+            </button>
+          </div>
+        </section>
+
+      </div>
+      
+    </div>
+    
+    <!-- CARD: Prize Settings per Round (Full Width) -->
+    <section class="settings-card" style="margin-top: var(--space-sm);">
+      <div class="settings-card-header">
+        <h2>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+          Daftar Hadiah Spesial per Ronde
+        </h2>
+      </div>
+      <div class="settings-card-body">
+        <p style="color: var(--color-text-muted); font-size: 0.85rem; margin: 0 0 15px 0;">
+          Daftarkan nama dan gambar hadiah untuk tiap ronde. Hadiah ini otomatis tampil di sidebar layar utama/proyektor ketika ronde aktif berjalan.
+        </p>
+        
+        <div id="prizeSettingsList" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 15px;">
+          <!-- Dinamis via JS -->
+        </div>
+        
+        <div style="margin-top: 15px;">
+          <button class="btn btn-outline btn-small" id="addPrizeBtn" onclick="addPrizeRule()" style="width: auto;">
+            + Daftarkan Hadiah Ronde Baru
+          </button>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- FLOATING SAVE BAR -->
+  <div class="floating-save-bar">
+    <a href="/dashboard" class="btn btn-secondary" style="text-decoration:none; display:inline-flex; align-items:center; justify-content:center;">Batal</a>
+    <button class="btn btn-primary" id="saveSettingsBtn">Simpan Semua Pengaturan</button>
+  </div>
+
+  <div id="toastContainer" class="toast-container"></div>
+  
+  <script src="app.js"></script>
+</body>
+</html>

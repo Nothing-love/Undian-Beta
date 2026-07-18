@@ -745,6 +745,9 @@ h1, h2, h3, h4, h5, h6 {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.slot-cell.is-number {
+  font-weight: 900 !important;
+}
 
 .slot-cell.winner-cell {
   color: var(--color-primary);
@@ -1814,9 +1817,15 @@ body.dark-theme.has-bg .slot-reel {
   min-width: 140px;
 }
 .slot-machine.compact-reels .slot-cell {
-  font-size: 2.3rem !important;
   font-weight: 800;
   height: auto !important;
+  padding: 8px 6px !important;
+}
+.slot-machine.compact-reels .slot-cell.is-number {
+  font-size: 3.5rem !important;
+}
+.slot-machine.compact-reels .slot-cell.is-name {
+  font-size: 1.8rem !important;
 }
 .slot-machine.micro-reels .single-cell-reel {
   min-height: 40px;
@@ -1825,9 +1834,15 @@ body.dark-theme.has-bg .slot-reel {
   min-width: 100px;
 }
 .slot-machine.micro-reels .slot-cell {
-  font-size: 1.3rem !important;
   font-weight: 800;
   height: auto !important;
+  padding: 4px 4px !important;
+}
+.slot-machine.micro-reels .slot-cell.is-number {
+  font-size: 2.2rem !important;
+}
+.slot-machine.micro-reels .slot-cell.is-name {
+  font-size: 1.2rem !important;
 }
 .single-cell-reel.winner-reel {
   border-color: var(--color-accent) !important;
@@ -1845,9 +1860,18 @@ body.dark-theme.has-bg .slot-reel {
   padding: 10px 30px;
 }
 .slot-machine.massive-reel .slot-cell {
-  font-size: 7rem;
   font-weight: 900;
   letter-spacing: 2px;
+  line-height: 1.1 !important;
+}
+.slot-machine.massive-reel .slot-cell.is-number {
+  font-size: 11rem !important;
+}
+.slot-machine.massive-reel .slot-cell.is-name {
+  font-size: 4rem !important;
+  word-wrap: break-word;
+  white-space: normal;
+  padding: 10px 0 !important;
 }
 .slot-machine.large-reels .single-cell-reel {
   width: auto !important;
@@ -1857,8 +1881,14 @@ body.dark-theme.has-bg .slot-reel {
   padding: 15px 30px;
 }
 .slot-machine.large-reels .slot-cell {
-  font-size: 3rem;
   font-weight: 700;
+  line-height: 1.1 !important;
+}
+.slot-machine.large-reels .slot-cell.is-number {
+  font-size: 5rem !important;
+}
+.slot-machine.large-reels .slot-cell.is-name {
+  font-size: 2.2rem !important;
 }
 
 /* ===================== PRIZE SIDEBAR ===================== */

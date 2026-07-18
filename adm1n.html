@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Panel Admin — DORPRIZE</title>
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  
+  <link rel="stylesheet" href="style.css" />
+  
+  <style>
+    body {
+      background-color: var(--color-bg);
+      color: var(--color-text);
+      font-family: 'Inter', sans-serif;
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto !important;
+    }
+    
+    .admin-header {
+      background: var(--color-surface);
+      border-bottom: 1px solid var(--color-border-light);
+      padding: var(--space-md) var(--space-xl);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+    }
+    
+    .btn-back-dashboard {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 18px;
+      border-radius: var(--radius-lg);
+      background: var(--color-bg-secondary);
+      border: 1px solid var(--color-border-light);
+      color: var(--color-text);
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.9rem;
+      transition: all var(--transition-fast);
+    }
+    
+    .btn-back-dashboard:hover {
+      background: var(--color-border-light);
+      transform: translateX(-3px);
+    }
+    
+    .admin-page-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.5rem;
+      font-weight: 800;
+      margin: 0;
+      background: linear-gradient(135deg, #EF4444, #7C3AED);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    
+    .admin-container {
+      max-width: 1100px;
+      width: 100%;
+      margin: var(--space-xl) auto;
+      padding: 0 var(--space-lg);
+      box-sizing: border-box;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-xl);
+      padding-bottom: 50px;
+    }
+    
+    .admin-grid {
+      display: grid;
+      grid-template-columns: 1.2fr 1.8fr;
+      gap: var(--space-xl);
+    }
+    
+    @media (max-width: 900px) {
+      .admin-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+    
+    .admin-card {
+      background: var(--color-surface);
+      border-radius: var(--radius-xl);
+      border: 1px solid var(--color-border-light);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.02);
+      overflow: hidden;
+    }
+    
+    .admin-card-header {
+      padding: var(--space-lg) var(--space-xl);
+      border-bottom: 1px solid var(--color-border-light);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    
+    .admin-card-header h2 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--color-text);
+    }
+    
+    .admin-card-body {
+      padding: var(--space-xl);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-lg);
+    }
+    
+    /* Target chips styling */
+    .target-chip-box {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      min-height: 50px;
+      background: var(--color-bg-secondary);
+      border: 1px solid var(--color-border-light);
+      border-radius: var(--radius-md);
+      padding: var(--space-sm);
+    }
+    
+    /* Premium Scrollbar */
+    ::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
+    }
+    ::-webkit-scrollbar-track {
+      background: var(--color-bg);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.15) !important;
+      border-radius: 5px;
+      border: 2px solid var(--color-bg);
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.3) !important;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- HEADER -->
+  <header class="admin-header">
+    <div class="header-title-group" style="display:flex; align-items:center; gap:15px;">
+      <a href="/dashboard" class="btn-back-dashboard">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="19" y1="12" x2="5" y2="12"></line>
+          <polyline points="12 19 5 12 12 5"></polyline>
+        </svg>
+        Kembali
+      </a>
+      <h1 class="admin-page-title">Panel Kontrol Target</h1>
+    </div>
+  </header>
+
+  <!-- LOGIN BOX (CLIENT SIDE SECURE PROMPT) -->
+  <div id="adminLoginModal" style="max-width: 400px; margin: 100px auto; padding: 30px; background: var(--color-surface); border-radius: var(--radius-xl); border: 1px solid var(--color-border-light); box-shadow: var(--shadow-xl); text-align: center; display: block;">
+    <h2 style="font-family:'Outfit'; font-weight:700; margin:0 0 10px 0; color:var(--color-text);">🔒 Masuk Panel Admin</h2>
+    <p style="font-size:0.85rem; color:var(--color-text-muted); margin-bottom:20px;">Masukkan password otentikasi client-side admin.</p>
+    
+    <div id="adminLoginError" style="color: #EF4444; font-size: 0.85rem; font-weight: 600; margin-bottom: 15px; display: none;">
+      ❌ Password Admin Salah!
+    </div>
+    
+    <div class="form-group" style="text-align: left; margin-bottom: 20px;">
+      <label for="adminPassword" style="font-weight: 600; display: block; margin-bottom: 8px;">Password Admin</label>
+      <input type="password" id="adminPassword" class="form-control" placeholder="Masukkan password admin" style="width: 100%; box-sizing: border-box;" onkeydown="if(event.key === 'Enter') handleAdminLogin()" />
+    </div>
+    
+    <button class="btn btn-primary" id="adminLoginBtn" onclick="handleAdminLogin()" style="width: 100%; justify-content: center; padding: 12px; font-weight: 700;">
+      Masuk
+    </button>
+  </div>
+
+  <!-- CONTAINER (HIDDEN UNTIL LOGIN) -->
+  <div id="adminPanelWrapper" style="display: none;">
+    <div class="admin-container">
+      
+      <div class="admin-grid">
+        
+        <!-- COLUMN 1: TARGET CONFIG -->
+        <div style="display:flex; flex-direction:column; gap: var(--space-xl);">
+          
+          <!-- CARD: Configure Round Target -->
+          <section class="admin-card">
+            <div class="admin-card-header">
+              <h2>🎯 Manipulasi Target Ronde</h2>
+            </div>
+            <div class="admin-card-body">
+              
+              <div class="form-group">
+                <label for="adminCluster" style="font-weight:600; display:block; margin-bottom:6px;">Filter Kategori Target</label>
+                <select id="adminCluster" class="form-control" style="width: 100%;">
+                  <option value="Semua">Semua Kategori</option>
+                </select>
+              </div>
+              
+              <div class="form-group">
+                <label for="adminRonde" style="font-weight:600; display:block; margin-bottom:6px;">Ronde Target Pengundian</label>
+                <input type="number" id="adminRonde" class="form-control" min="1" value="1" style="width: 100%; box-sizing: border-box;" />
+              </div>
+
+              <div class="form-group">
+                <label style="font-weight:600; display:block; margin-bottom:6px;">
+                  Daftar Pemenang yang Ditargetkan
+                  <span id="targetChipCount" style="font-size:0.8rem; font-weight:normal; color:var(--color-primary); margin-left:5px;">(0 dipilih)</span>
+                </label>
+                
+                <!-- Trigger select list modal -->
+                <button type="button" class="btn btn-outline" onclick="openPesertaListModal(null)" style="width: 100%; justify-content: center; padding: 12px; margin-bottom: 10px; border-style: dashed; font-weight: 600;">
+                  🔍 Cari & Pilih Nama Peserta
+                </button>
+                
+                <div id="targetChipContainer" class="target-chip-box">
+                  <span id="chipPlaceholder" style="color:var(--color-text-muted); font-size:0.85rem; align-self:center;">Belum ada target dipilih...</span>
+                </div>
+                
+                <p style="font-size: 0.75rem; color: var(--color-text-muted); margin: 0; text-align: center;">
+                  Target yang Anda simpan di sini akan keluar secara otomatis saat spin ronde tersebut dijalankan.
+                </p>
+              </div>
+              
+              <button class="btn btn-primary" id="saveAdminTargetBtn" style="width: 100%; justify-content: center; padding: 12px; font-weight: 700; margin-top: 5px;">
+                Simpan Target Ronde
+              </button>
+              
+            </div>
+          </section>
+
+          <!-- CARD: Security & Password -->
+          <section class="admin-card">
+            <div class="admin-card-header">
+              <h2>🔒 Ubah Password Admin</h2>
+            </div>
+            <div class="admin-card-body">
+              <div class="form-group">
+                <input type="password" id="newAdminPassword" class="form-control" placeholder="Masukkan password baru" style="width:100%; box-sizing:border-box;" />
+              </div>
+              <button class="btn btn-outline" id="changePasswordBtn" style="width:100%; justify-content:center;">
+                Ubah Password
+              </button>
+            </div>
+          </section>
+
+        </div>
+        
+        <!-- COLUMN 2: ACTIVE TARGET TABLE & TOOLS -->
+        <div style="display:flex; flex-direction:column; gap: var(--space-xl);">
+          
+          <!-- CARD: Saved Target Table -->
+          <section class="admin-card">
+            <div class="admin-card-header">
+              <h2>📋 Daftar Target Aktif</h2>
+            </div>
+            <div class="admin-card-body" style="padding: 0;">
+              
+              <div id="adminTargetTable" class="admin-table-wrap" style="max-height: 400px; overflow-y: auto;">
+                <table class="admin-table" style="width: 100%; border-collapse: collapse;">
+                  <thead style="position: sticky; top: 0; z-index: 1; background: var(--color-surface); border-bottom: 2px solid var(--color-border-light);">
+                    <tr>
+                      <th style="padding: 12px var(--space-lg); text-align: left;">Kategori Target</th>
+                      <th style="padding: 12px var(--space-lg); text-align: left;">Ronde</th>
+                      <th style="padding: 12px var(--space-lg); text-align: left;">Target Pemenang</th>
+                      <th style="padding: 12px var(--space-lg); text-align: left;">Status</th>
+                      <th style="padding: 12px var(--space-lg); text-align: center;">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody id="adminTargetBody">
+                    <tr><td colspan="5" class="empty-row" style="padding: 30px; text-align: center; color: var(--color-text-muted);">Belum ada target</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              
+            </div>
+          </section>
+
+          <!-- CARD: Remote Access -->
+          <section class="admin-card">
+            <div class="admin-card-header">
+              <h2>🌐 Akses Remote (Layar Kedua)</h2>
+            </div>
+            <div class="admin-card-body">
+              <p style="font-size: 0.85rem; color: var(--color-text-muted); margin: 0;">
+                Gunakan link remote berikut jika Anda ingin memanipulasi target secara langsung dari HP atau Laptop terpisah dalam jaringan WiFi/Ngrok yang sama:
+              </p>
+              
+              <div class="remote-url-box" id="remoteUrlBox" style="display: flex; gap: 8px; margin-top: 10px;">
+                <code id="remoteUrlText" style="flex: 1; padding: 10px; background: var(--color-bg-secondary); border: 1px solid var(--color-border-light); border-radius: var(--radius-md); font-family: monospace; font-size: 0.9rem; overflow-x: auto; white-space: nowrap;">Menghubungkan...</code>
+                <button class="btn btn-primary" id="copyRemoteUrlBtn" style="padding: 10px 15px;">Salin</button>
+              </div>
+              <code id="remoteIpHint" style="display:none; font-size:0.75rem; color:var(--color-text-muted); margin-top:4px;"></code>
+            </div>
+          </section>
+
+          <!-- CARD: Import / Export Admin Config -->
+          <section class="admin-card">
+            <div class="admin-card-header">
+              <h2>🔄 Sinkronisasi Konfigurasi</h2>
+            </div>
+            <div class="admin-card-body">
+              <div style="display:flex; gap:10px;">
+                <button class="btn btn-outline" id="exportConfigBtn" style="flex: 1; justify-content: center;">📤 Export Konfig</button>
+                <button class="btn btn-outline" id="importConfigBtn" style="flex: 1; justify-content: center;">📥 Import Konfig</button>
+              </div>
+              <textarea id="configTextarea" class="config-textarea hidden" placeholder="Tempel kode konfigurasi di sini lalu klik Import Konfig kembali..." rows="3" style="width: 100%; margin-top: 10px; box-sizing: border-box; font-family: monospace; font-size: 0.8rem;"></textarea>
+            </div>
+          </section>
+
+        </div>
+        
+      </div>
+      
+    </div>
+  </div>
+
+  <!-- PESERTA LIST MODAL OVERLAY -->
+  <div class="modal-overlay" id="pesertaListModal">
+    <div class="modal" style="max-width: 450px; width: 100%; height: 80vh; display: flex; flex-direction: column; background: var(--color-surface); border-radius: var(--radius-xl); overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.3);">
+      <div class="modal-header" style="display: flex; align-items: center; justify-content: space-between; padding: var(--space-lg) var(--space-xl); border-bottom: 1px solid var(--color-border-light);">
+        <h2 style="font-family:'Outfit'; font-size:1.2rem; font-weight:700; margin:0;">Pilih Nama Target</h2>
+        <button class="modal-close" onclick="closeModal('pesertaListModal')" style="font-size: 1.5rem; border: none; background: transparent; cursor: pointer;">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: var(--space-xl); overflow: hidden; display: flex; flex-direction: column; gap: 12px; flex: 1;">
+        <input type="text" id="searchPesertaInput" class="form-control" placeholder="Ketik nama atau ID peserta..." onkeyup="filterPesertaList()" style="width: 100%; box-sizing: border-box;" />
+        <div style="font-size: 0.8rem; color: var(--color-text-muted); display: flex; align-items: center; gap: 8px;">
+          Filter Kategori: 
+          <select id="filterClusterSelect" onchange="filterPesertaList()" style="font-size: 0.8rem; padding: 4px 8px; border-radius: 6px; border: 1px solid var(--color-border);">
+            <option value="Semua">Semua</option>
+          </select>
+        </div>
+        <div id="pesertaListContainer" style="overflow-y: auto; flex: 1; border: 1px solid var(--color-border-light); border-radius: var(--radius-md); padding: 8px; background: var(--color-bg);">
+          <!-- List will be populated dynamically -->
+        </div>
+      </div>
+      <div class="modal-footer" style="padding: var(--space-lg) var(--space-xl); display: flex; justify-content: flex-end; border-top: 1px solid var(--color-border-light);">
+        <button class="btn btn-primary" onclick="closeModal('pesertaListModal')">Selesai Pilih</button>
+      </div>
+    </div>
+  </div>
+
+  <datalist id="pesertaDatalist"></datalist>
+  <div id="toastContainer" class="toast-container"></div>
+  
+  <script src="app.js"></script>
+</body>
+</html>

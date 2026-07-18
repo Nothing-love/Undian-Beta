@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="DORPRIZE — Aplikasi Undian Digital Profesional" />
+  <title>DORPRIZE — Aplikasi Undian Digital</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+
+  <!-- SheetJS -->
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+
+  <!-- Canvas Confetti -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ===================== UPLOAD SCREEN ===================== -->
+  <!-- ===================== MAIN APP ===================== -->
+  <div id="mainApp" class="screen active">
+    <!-- HEADER -->
+    <header id="appHeader">
+      <div class="header-left">
+        <div class="header-logo" id="headerLogo">
+          <svg width="40" height="40" viewBox="0 0 64 64" fill="none">
+            <rect width="64" height="64" rx="16" fill="url(#logoGrad)" />
+            <text x="32" y="42" text-anchor="middle" fill="white" font-family="Outfit" font-weight="800" font-size="28">D</text>
+          </svg>
+        </div>
+        <img id="customLogo" class="custom-logo hidden" alt="Logo Acara" />
+      </div>
+      <div class="header-center">
+        <h1 id="eventTitle" class="event-title">DORPRIZE</h1>
+        <p id="eventSubtitle" class="event-subtitle">Aplikasi Undian Digital</p>
+      </div>
+      <div class="header-right">
+        <div class="header-stats" id="headerStats">
+          <span class="stat-badge" id="pesertaBadge">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            <span id="pesertaCount">0</span> Peserta
+          </span>
+          <span class="stat-badge stat-badge-accent" id="rondeBadge">
+            Ronde <span id="rondeCount">1</span>
+          </span>
+        </div>
+        <a href="/setting" class="btn-icon" title="Pengaturan" style="display:inline-flex;align-items:center;justify-content:center;text-decoration:none;color:inherit;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg></a><a href="/setting" class="btn-icon" title="Upload Data Baru" style="display:inline-flex;align-items:center;justify-content:center;text-decoration:none;color:inherit;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+          </svg></a></div>
+    </header>
+
+    <!-- MAIN CONTENT -->
+    <main id="mainContent">
+      <!-- SIDEBAR: Prize -->
+      <aside id="prizeSidebar">
+        <div class="sidebar-header">
+          <h2>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 12v10H4V12"/><path d="M2 7h20v5H2z"/><path d="M12 22V7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>
+            Hadiah Ronde <span id="prizeRondeNumber">1</span>
+          </h2>
+        </div>
+        <div id="prizeDisplay" class="prize-display">
+          <div class="prize-image-container">
+            <img id="currentPrizeImage" src="" alt="Hadiah" style="display:none;" />
+            <div id="prizeImagePlaceholder" class="prize-placeholder">
+              🎁 Hadiah Misteri
+            </div>
+          </div>
+          <h3 id="currentPrizeName" class="prize-name">Menunggu...</h3>
+        </div>
+      </aside>
+
+      <!-- CENTER: Slot Machine -->
+      <section id="centerArea">
+        <!-- Slot Machine Frame -->
+        <div id="slotMachineFrame" class="slot-machine-frame">
+          <div class="slot-machine-header">
+            <div class="slot-light slot-light-1"></div>
+            <div class="slot-light slot-light-2"></div>
+            <div class="slot-light slot-light-3"></div>
+          </div>
+          <div id="slotMachine" class="slot-machine">
+            <div class="slot-placeholder">
+              <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" opacity="0.3">
+                <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+              </svg>
+              <p>Siap untuk mengundi</p>
+              <p class="small">Pilih jumlah pemenang lalu tekan SPIN</p>
+            </div>
+          </div>
+          <div class="slot-machine-footer">
+            <div class="slot-indicator"></div>
+          </div>
+        </div>
+
+        <!-- Controls -->
+        <div id="controlsArea" class="controls-area" style="margin-top: 60px;">
+          <div class="controls-row" style="flex-direction: column; align-items: center; gap: var(--space-md);">
+            <!-- Toggle Manual Stop -->
+            <div style="display:flex; align-items:center; justify-content:center; gap: 8px; margin-bottom: -10px;">
+              <label class="switch">
+                <input type="checkbox" id="manualStopToggle">
+                <span class="slider round"></span>
+              </label>
+              <span style="font-size: 0.9rem; color: var(--color-text-muted);">Mode Stop Manual</span>
+            </div>
+            <!-- Huge Spin Button -->
+            <button id="spinBtn" class="spin-button" onclick="handleSpin()" style="width: 250px; height: 75px; font-size: 1.8rem; border-radius: 40px;">
+              <span class="spin-icon">🏆</span>
+              SPIN
+            </button>
+          </div>
+          <div class="controls-row controls-secondary">
+
+            <button class="btn btn-secondary" id="downloadExcelBtn" disabled>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Simpan Excel
+            </button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- FOOTER -->
+    <footer id="appFooter">
+      <span id="statusText">Siap — Upload file Excel untuk memulai</span>
+      <span class="footer-brand">Powered by DORPRIZE</span>
+    </footer>
+  </div>
+
+  <!-- ===================== SETTINGS MODAL ===================== -->
+  <!-- ===================== WINNER MODAL ===================== -->
+  <div id="winnerModal" class="modal-overlay">
+    <div class="modal modal-winner">
+      <div class="winner-content">
+        <div class="winner-badge">🏆</div>
+        <h2 class="winner-title">SELAMAT!</h2>
+        <p class="winner-subtitle">Pemenang Ronde <span id="winnerRonde">1</span></p>
+        <div id="winnerCards" class="winner-cards">
+          <!-- Winner cards injected here -->
+        </div>
+        <div class="winner-actions">
+
+          <button class="btn btn-secondary" id="winnerCloseBtn">Lanjutkan</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== ADMIN MODAL ===================== -->
+  <!-- ===================== TOAST ===================== -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <!-- ===================== PESERTA LIST MODAL ===================== -->
+  <div class="modal-overlay" id="pesertaListModal">
+    <div class="modal" style="max-width: 400px; height: 80vh; display: flex; flex-direction: column;">
+      <div class="modal-header">
+        <h2>Daftar Peserta</h2>
+        <button class="modal-close" onclick="closeModal('pesertaListModal')">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: var(--space-md); overflow: hidden; display: flex; flex-direction: column;">
+        <input type="text" id="searchPesertaInput" class="form-control" placeholder="Cari nama atau ID peserta..." onkeyup="filterPesertaList()" style="margin-bottom: var(--space-sm); flex-shrink: 0;" />
+        <div style="font-size: 0.75rem; color: var(--color-text-muted); margin-bottom: var(--space-sm); flex-shrink: 0;">
+          Filter Cluster: <select id="filterClusterSelect" onchange="filterPesertaList()" style="font-size: 0.75rem; padding: 2px 4px;"><option value="Semua">Semua</option></select>
+        </div>
+        <div id="pesertaListContainer" style="overflow-y: auto; flex: 1; border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: 4px;">
+          <!-- List will be populated dynamically -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
