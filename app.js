@@ -1,3 +1,28 @@
+// --- BEGIN SAFE ELEMENT PATCH ---
+const _origGetId = document.getElementById;
+document.getElementById = function(id) {
+  const el = _origGetId.call(document, id);
+  if (!el) {
+    return {
+      isDummy: true,
+      addEventListener: function(){},
+      classList: { add: function(){}, remove: function(){}, contains: function(){return false;} },
+      style: {},
+      dataset: {},
+      value: '',
+      innerHTML: '',
+      textContent: '',
+      src: '',
+      focus: function(){},
+      click: function(){},
+      appendChild: function(){},
+      removeChild: function(){}
+    };
+  }
+  return el;
+};
+// --- END SAFE ELEMENT PATCH ---
+
 /* ============================================================
    DORPRIZE â€” Aplikasi Undian Digital Profesional
    Core Application Logic
@@ -9,6 +34,7 @@ const APP = {
   dataPeserta: [],
   hasilUndian: [],
   currentRonde: 1,
+  currentCluster: 'Semua',
   isSpinning: false,
   lastWinners: [],
   settings: {
@@ -71,11 +97,27 @@ const THEME_PRESETS = {
 };
 
 // ===================== INITIALIZATION =====================
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   loadSettings();
   loadAdminSettings();
   checkRemoteAccess();
   bindEvents();
+  
+  // Ambil state utuh dari server pada saat startup
+  await syncPesertaDataFromRemote();
+  
+  // Jika ini halaman pengaturan, populasi data input settings
+  const inputTitle = document.getElementById('inputEventTitle');
+  if (inputTitle && !inputTitle.isDummy) {
+    openSettingsModal();
+  }
+
+  // Jika ini halaman admin, inisialisasi panel admin
+  const adminRondeInput = document.getElementById('adminRonde');
+  if (adminRondeInput && !adminRondeInput.isDummy) {
+    openAdminLogin();
+  }
+  
   updateUI();
   
   // Start syncing admin settings from remote if on laptop or phone
@@ -99,6 +141,7 @@ function loadSettings() {
 
 function saveSettings() {
   localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(APP.settings));
+  syncPesertaDataToServer();
 }
 
 function loadAdminSettings() {
@@ -173,7 +216,10 @@ function syncPesertaDataToServer() {
   if (window.location.protocol === 'file:') return;
   const payload = {
     dataPeserta: APP.dataPeserta,
-    availableClusters: APP.availableClusters || []
+    availableClusters: APP.availableClusters || [],
+    hasilUndian: APP.hasilUndian || [],
+    currentRonde: APP.currentRonde || 1,
+    settings: APP.settings
   };
   fetch('/api/peserta', {
     method: 'POST',
@@ -188,23 +234,33 @@ async function syncPesertaDataFromRemote() {
     const res = await fetch('/api/peserta');
     if (res.ok) {
       const data = await res.json();
-      if (data && data.dataPeserta) {
-        if (APP.dataPeserta.length !== data.dataPeserta.length || JSON.stringify(APP.availableClusters) !== JSON.stringify(data.availableClusters)) {
-          APP.dataPeserta = data.dataPeserta;
-          APP.availableClusters = data.availableClusters || [];
-          
-          if (typeof updatePesertaDatalist === 'function') updatePesertaDatalist();
-          
-          const adminCluster = document.getElementById('adminCluster');
-          if (adminCluster) {
-            const currentVal = adminCluster.value;
-            adminCluster.innerHTML = '<option value="Semua">Semua Cluster</option>' + 
-              APP.availableClusters.map(c => '<option value="' + c + '">' + c + '</option>').join('');
-            adminCluster.value = currentVal || 'Semua';
-          }
-        } else {
-          APP.dataPeserta = data.dataPeserta;
+      if (data) {
+        if (data.dataPeserta) APP.dataPeserta = data.dataPeserta;
+        if (data.availableClusters) APP.availableClusters = data.availableClusters;
+        if (data.hasilUndian) APP.hasilUndian = data.hasilUndian;
+        if (data.currentRonde !== undefined) APP.currentRonde = data.currentRonde;
+        if (data.settings) {
+          APP.settings = data.settings;
+          // Apply settings immediately
+          applyTheme(APP.settings.theme);
+          applyEventSettings();
         }
+        
+        if (typeof updatePesertaDatalist === 'function') updatePesertaDatalist();
+        if (typeof updatePrizeSidebar === 'function') updatePrizeSidebar();
+        
+        // Sync cluster selects on setting/dashboard page
+        document.querySelectorAll('.cluster-select').forEach(select => {
+          const val = select.value;
+          select.innerHTML = '<option value="Semua">Semua Cluster</option>';
+          APP.availableClusters.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c;
+            opt.textContent = c;
+            select.appendChild(opt);
+          });
+          select.value = val || 'Semua';
+        });
       }
     }
   } catch(e) {}
@@ -420,10 +476,8 @@ function bindEvents() {
     });
   });
 
-  // PDF and Excel download
-  document.getElementById('downloadPdfBtn').addEventListener('click', () => generateAllHistoryPDF());
+  // Excel download
   document.getElementById('downloadExcelBtn').addEventListener('click', downloadUpdatedExcel);
-  document.getElementById('winnerDownloadPdf').addEventListener('click', () => generatePDF());
   document.getElementById('winnerCloseBtn').addEventListener('click', () => closeModal('winnerModal'));
 
   // Modal close buttons
@@ -464,25 +518,20 @@ function generateTemplate() {
 
   // Sheet 1: Data_Peserta
   const pesertaData = [
-    ['ID_Peserta', 'Nama_atau_Angka', 'Cluster_Kategori', 'Status_Undian'],
-    ['PST-001', 'Ahmad Rizky', 'Warga', 'Belum Diundi'],
-    ['PST-002', 'Siti Nurhaliza', 'Warga', 'Belum Diundi'],
-    ['PST-003', 'Budi Santoso', 'Warga', 'Belum Diundi'],
-    ['PST-004', 'Dewi Kartika', 'Warga', 'Belum Diundi'],
-    ['PST-005', 'Rahmat Hidayat', 'Warga', 'Belum Diundi'],
-    ['PST-006', 'Linda Permata', 'Prajurit', 'Belum Diundi'],
-    ['PST-007', 'Agus Setiawan', 'Prajurit', 'Belum Diundi'],
-    ['PST-008', 'Maya Sari', 'Prajurit', 'Belum Diundi'],
-    ['PST-009', 'Fajar Nugroho', 'Prajurit', 'Belum Diundi'],
-    ['PST-010', 'Rina Wulandari', 'Prajurit', 'Belum Diundi'],
-    ['PST-011', 'Hendra Pratama', 'Umum', 'Belum Diundi'],
-    ['PST-012', 'Anisa Putri', 'Umum', 'Belum Diundi'],
-    ['PST-013', 'Doni Kurniawan', 'Umum', 'Belum Diundi'],
-    ['PST-014', 'Fitri Handayani', 'Umum', 'Belum Diundi'],
-    ['PST-015', 'Yusuf Maulana', 'Umum', 'Belum Diundi']
+    ['ID_Peserta', 'Nama_atau_Angka', 'Jenis_Peserta', 'Grup', 'Kelompok_Dalam_Grup', 'Status_Undian'],
+    ['PST-001', 'Ahmad Rizky', 'VIP', 'Cabang Jakarta', 'Divisi IT', 'Belum Diundi'],
+    ['PST-002', 'Siti Nurhaliza', 'VIP', 'Cabang Jakarta', 'Divisi HRD', 'Belum Diundi'],
+    ['PST-003', 'Budi Santoso', 'VIP', 'Cabang Surabaya', 'Divisi IT', 'Belum Diundi'],
+    ['PST-004', 'Dewi Kartika', 'Reguler', 'Cabang Jakarta', 'Divisi Sales', 'Belum Diundi'],
+    ['PST-005', 'Rahmat Hidayat', 'Reguler', 'Cabang Surabaya', 'Divisi Sales', 'Belum Diundi'],
+    ['PST-006', 'Linda Permata', 'Reguler', 'Cabang Surabaya', 'Divisi HRD', 'Belum Diundi'],
+    ['PST-007', 'Agus Setiawan', 'Karyawan', 'Cabang Jakarta', 'Divisi IT', 'Belum Diundi'],
+    ['PST-008', 'Maya Sari', 'Karyawan', 'Cabang Jakarta', 'Divisi HRD', 'Belum Diundi'],
+    ['PST-009', 'Fajar Nugroho', 'Karyawan', 'Cabang Surabaya', 'Divisi IT', 'Belum Diundi'],
+    ['PST-010', 'Rina Wulandari', 'Karyawan', 'Cabang Surabaya', 'Divisi HRD', 'Belum Diundi']
   ];
   const ws1 = XLSX.utils.aoa_to_sheet(pesertaData);
-  ws1['!cols'] = [{ wch: 14 }, { wch: 24 }, { wch: 16 }];
+  ws1['!cols'] = [{ wch: 14 }, { wch: 24 }, { wch: 16 }, { wch: 18 }, { wch: 22 }, { wch: 16 }];
   XLSX.utils.book_append_sheet(wb, ws1, 'Data_Peserta');
 
   // Sheet 2: Hasil_Undian
@@ -520,21 +569,42 @@ function loadExcelFile(file) {
         return;
       }
       const rawData = XLSX.utils.sheet_to_json(sheet1);
-      APP.dataPeserta = rawData.map(row => ({
-        id: String(row['ID_Peserta'] || ''),
-        nama: String(row['Nama_atau_Angka'] || ''),
-        cluster: String(row['Cluster_Kategori'] || row['Cluster'] || row['Kategori'] || 'Umum'),
-        status: String(row['Status_Undian'] || 'Belum Diundi')
-      }));
+      APP.dataPeserta = rawData.map(row => {
+        const jenis = String(row['Jenis_Peserta'] || row['Jenis Peserta'] || row['Cluster_Kategori'] || row['Cluster'] || row['Kategori'] || 'Umum').trim();
+        const grup = String(row['Grup'] || row['Group'] || 'Cabang Jakarta').trim();
+        const kelompok = String(row['Kelompok_Dalam_Grup'] || row['Kelompok Dalam Grup'] || row['Kelompok'] || 'Divisi IT').trim();
+        return {
+          id: String(row['ID_Peserta'] || '').trim(),
+          nama: String(row['Nama_atau_Angka'] || '').trim(),
+          jenisPeserta: jenis,
+          grup: grup,
+          kelompok: kelompok,
+          cluster: jenis, // fallback compatibility
+          status: String(row['Status_Undian'] || 'Belum Diundi').trim()
+        };
+      });
 
-      // Extract unique clusters and populate select
-      const clusters = new Set();
-      APP.dataPeserta.forEach(p => clusters.add(p.cluster));
-      APP.availableClusters = Array.from(clusters).sort();
+      // Extract unique categories for 3-tier hierarchy
+      const uniqueJenis = new Set();
+      const uniqueGrup = new Set();
+      const uniqueKelompok = new Set();
+
+      APP.dataPeserta.forEach(p => {
+        if (p.jenisPeserta) uniqueJenis.add(p.jenisPeserta);
+        if (p.grup) uniqueGrup.add(p.grup);
+        if (p.kelompok) uniqueKelompok.add(p.kelompok);
+      });
+
+      const clusterOptions = [];
+      Array.from(uniqueJenis).sort().forEach(val => clusterOptions.push(`Jenis: ${val}`));
+      Array.from(uniqueGrup).sort().forEach(val => clusterOptions.push(`Grup: ${val}`));
+      Array.from(uniqueKelompok).sort().forEach(val => clusterOptions.push(`Kelompok: ${val}`));
+
+      APP.availableClusters = clusterOptions;
       
       document.querySelectorAll('.cluster-select').forEach(select => {
         const val = select.value;
-        select.innerHTML = '<option value="Semua">Semua Cluster</option>';
+        select.innerHTML = '<option value="Semua">Semua Kategori</option>';
         APP.availableClusters.forEach(c => {
           const opt = document.createElement('option');
           opt.value = c;
@@ -570,11 +640,29 @@ function loadExcelFile(file) {
   reader.readAsArrayBuffer(file);
 }
 
+function matchParticipantCluster(p, category) {
+  if (!category || category === 'Semua') return true;
+  if (category.startsWith('Jenis: ')) {
+    const val = category.substring(7);
+    return p.jenisPeserta === val;
+  } else if (category.startsWith('Grup: ')) {
+    const val = category.substring(6);
+    return p.grup === val;
+  } else if (category.startsWith('Kelompok: ')) {
+    const val = category.substring(10);
+    return p.kelompok === val;
+  } else {
+    return p.cluster === category || 
+           p.jenisPeserta === category || 
+           p.grup === category || 
+           p.kelompok === category;
+  }
+}
+
 function getActivePeserta() {
   return APP.dataPeserta.filter(p => {
     if (p.status !== 'Belum Diundi') return false;
-    if (APP.currentCluster !== 'Semua' && p.cluster !== APP.currentCluster) return false;
-    return true;
+    return matchParticipantCluster(p, APP.currentCluster);
   });
 }
 
@@ -612,76 +700,123 @@ function appendHasilUndian(ronde, winners) {
     hour: '2-digit', minute: '2-digit', second: '2-digit'
   });
 
+  const prizes = APP.settings.prizes || [];
+  const currentPrizes = prizes.filter(p => parseInt(p.ronde) === ronde);
+  const prizeNames = currentPrizes.map(p => p.name).filter(name => name).join(', ') || 'Hadiah Spesial';
+
   const record = {
     Ronde_Ke: ronde,
     Waktu_Pengundian: waktu,
     Cluster_Diundi: APP.currentCluster,
     Jumlah_Pemenang: winners.length,
-    Daftar_Pemenang_Keluar: winners.map(w => `${w.id} - ${w.nama} (${w.cluster})`).join(', ')
+    Daftar_Pemenang_Keluar: winners.map(w => `${w.id} - ${w.nama} (${w.jenisPeserta || w.cluster || 'Umum'} | ${w.grup || 'Umum'} | ${w.kelompok || 'Umum'})`).join(', '),
+    Hadiah: prizeNames
   };
 
   APP.hasilUndian.push(record);
 }
 
 function downloadUpdatedExcel() {
-  if (!APP.workbook) {
-    showToast('Belum ada data yang dimuat.', 'warning');
+  if (APP.dataPeserta.length === 0) {
+    showToast('Belum ada data peserta yang dimuat.', 'warning');
     return;
   }
 
   const wb = XLSX.utils.book_new();
 
-  // Rebuild Sheet 1: Data_Peserta
-  const pesertaRows = APP.dataPeserta.map(p => ({
-    'ID_Peserta': p.id,
-    'Nama_atau_Angka': p.nama,
-    'Status_Undian': p.status
-  }));
-  const ws1 = XLSX.utils.json_to_sheet(pesertaRows);
-  ws1['!cols'] = [{ wch: 14 }, { wch: 24 }, { wch: 16 }];
-  XLSX.utils.book_append_sheet(wb, ws1, 'Data_Peserta');
-
-  // Rebuild Sheet 2: Hasil_Undian (Detail Pemenang)
-  const hasilRows = [];
-  APP.hasilUndian.forEach(record => {
-    const daftar = record.Daftar_Pemenang_Keluar || '';
-    const winners = daftar.split(', ').map(entry => {
+  // Helper to parse hierarchy from winners list string
+  function parseWinnersList(daftar) {
+    if (!daftar || daftar === 'DIBATALKAN') return [];
+    return daftar.split(', ').map(entry => {
       const parts = entry.split(' - ');
       let id = parts[0] || '';
       let nama = parts[1] || parts[0] || '';
-      let cluster = 'Umum';
+      let jenisPeserta = 'Umum';
+      let grup = 'Umum';
+      let kelompok = 'Umum';
       const match = nama.match(/^(.*?)\s*\((.*?)\)$/);
       if (match) {
         nama = match[1];
-        cluster = match[2];
+        const hierarchyStr = match[2];
+        const hierarchyParts = hierarchyStr.split(' | ');
+        jenisPeserta = (hierarchyParts[0] || 'Umum').trim();
+        grup = (hierarchyParts[1] || 'Umum').trim();
+        kelompok = (hierarchyParts[2] || 'Umum').trim();
       }
-      return { id, nama, cluster };
+      return { id, nama, jenisPeserta, grup, kelompok };
     });
-    
+  }
+
+  // 1. Sheet Master: Semua Ronde
+  const masterRows = [];
+  APP.hasilUndian.forEach(record => {
+    const winners = parseWinnersList(record.Daftar_Pemenang_Keluar);
+    const prizes = APP.settings.prizes || [];
+    const currentPrizes = prizes.filter(p => parseInt(p.ronde) === record.Ronde_Ke);
+    const prizeName = record.Hadiah || currentPrizes.map(p => p.name).filter(n => n).join(', ') || 'Hadiah Spesial';
+
     winners.forEach((w, idx) => {
-      hasilRows.push({
-        'Ronde Ke': record.Ronde_Ke,
-        'Waktu Pengundian': record.Waktu_Pengundian,
-        'Pemenang Ke': idx + 1,
+      masterRows.push({
+        'Ronde': `Ronde ${record.Ronde_Ke}`,
+        'Pemenang Urutan': idx + 1,
         'ID Peserta': w.id,
         'Nama': w.nama,
-        'Cluster': w.cluster
+        'Jenis Peserta': w.jenisPeserta,
+        'Grup': w.grup,
+        'Kelompok': w.kelompok,
+        'Hadiah': prizeName,
+        'Waktu Pengundian': record.Waktu_Pengundian
       });
     });
   });
 
-  const ws2 = XLSX.utils.json_to_sheet(hasilRows);
-  ws2['!cols'] = [{ wch: 10 }, { wch: 22 }, { wch: 12 }, { wch: 16 }, { wch: 30 }, { wch: 15 }];
-  XLSX.utils.book_append_sheet(wb, ws2, 'Detail_Pemenang');
+  const wsMaster = XLSX.utils.json_to_sheet(masterRows);
+  wsMaster['!cols'] = [{ wch: 12 }, { wch: 18 }, { wch: 16 }, { wch: 28 }, { wch: 16 }, { wch: 18 }, { wch: 22 }, { wch: 24 }, { wch: 24 }];
+  XLSX.utils.book_append_sheet(wb, wsMaster, 'Semua_Ronde');
+
+  // 2. Sheet per Ronde (Ronde 1, Ronde 2, etc.)
+  APP.hasilUndian.forEach(record => {
+    const winners = parseWinnersList(record.Daftar_Pemenang_Keluar);
+    const prizes = APP.settings.prizes || [];
+    const currentPrizes = prizes.filter(p => parseInt(p.ronde) === record.Ronde_Ke);
+    const prizeName = record.Hadiah || currentPrizes.map(p => p.name).filter(n => n).join(', ') || 'Hadiah Spesial';
+
+    const roundRows = winners.map((w, idx) => ({
+      'No': idx + 1,
+      'ID Peserta': w.id,
+      'Nama': w.nama,
+      'Jenis Peserta': w.jenisPeserta,
+      'Grup': w.grup,
+      'Kelompok': w.kelompok,
+      'Hadiah': prizeName,
+      'Waktu Pengundian': record.Waktu_Pengundian
+    }));
+
+    const wsRound = XLSX.utils.json_to_sheet(roundRows);
+    wsRound['!cols'] = [{ wch: 6 }, { wch: 16 }, { wch: 28 }, { wch: 16 }, { wch: 18 }, { wch: 22 }, { wch: 24 }, { wch: 24 }];
+    XLSX.utils.book_append_sheet(wb, wsRound, `Ronde_${record.Ronde_Ke}`);
+  });
+
+  // 3. Sheet Data Peserta (Aktif/Belum Diundi)
+  const pesertaRows = APP.dataPeserta.map(p => ({
+    'ID Peserta': p.id,
+    'Nama': p.nama,
+    'Jenis Peserta': p.jenisPeserta,
+    'Grup': p.grup,
+    'Kelompok': p.kelompok,
+    'Status Undian': p.status
+  }));
+  const wsPeserta = XLSX.utils.json_to_sheet(pesertaRows);
+  wsPeserta['!cols'] = [{ wch: 16 }, { wch: 28 }, { wch: 16 }, { wch: 18 }, { wch: 22 }, { wch: 18 }];
+  XLSX.utils.book_append_sheet(wb, wsPeserta, 'Data_Peserta');
 
   const timestamp = new Date().toISOString().slice(0, 10);
-  
   const b64 = XLSX.write(wb, { bookType: 'xlsx', type: 'base64' });
   const url = "data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64," + b64;
   
   const a = document.createElement('a');
   a.href = url;
-  a.download = `Database_Undian_${timestamp}.xlsx`;
+  a.download = `Hasil_Undian_${timestamp}.xlsx`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -778,17 +913,24 @@ window.handleSpin = function() {
     return;
   }
 
-  const rules = [];
-  document.querySelectorAll('.draw-rule-row').forEach(row => {
-    const cluster = row.querySelector('.cluster-select').value;
-    const count = parseInt(row.querySelector('.rule-count').value) || 1;
-    rules.push({ cluster, count });
-  });
+  // Read rules from settings if no DOM elements found (which is the case on dashboard)
+  let rules = [];
+  const domRows = document.querySelectorAll('.draw-rule-row');
+  if (domRows.length > 0) {
+    domRows.forEach(row => {
+      const cluster = row.querySelector('.cluster-select').value;
+      const count = parseInt(row.querySelector('.rule-count').value) || 1;
+      rules.push({ cluster, count });
+    });
+    APP.settings.drawRules = rules; // keep in sync
+  } else {
+    rules = APP.settings.drawRules || [{ cluster: 'Semua', count: 1 }];
+  }
 
   let totalCount = 0;
   for (const rule of rules) {
     totalCount += rule.count;
-    let available = APP.dataPeserta.filter(p => p.status === 'Belum Diundi' && (rule.cluster === 'Semua' || p.cluster === rule.cluster));
+    let available = APP.dataPeserta.filter(p => p.status === 'Belum Diundi' && matchParticipantCluster(p, rule.cluster));
     if (available.length < rule.count) {
       showToast(`Peserta aktif di cluster ${rule.cluster} hanya ${available.length}, tidak cukup untuk ${rule.count} pemenang.`, 'error');
       return;
@@ -855,9 +997,9 @@ window.finishSpinMulti = function() {
     const record = APP.hasilUndian.find(r => r.Ronde_Ke === rondeIndex);
     if (record) {
       if (record.Daftar_Pemenang_Keluar === 'DIBATALKAN') {
-        record.Daftar_Pemenang_Keluar = winners.map(w => w.id + ' - ' + w.nama + ' (' + (w.cluster || 'Umum') + ')').join(', ');
+        record.Daftar_Pemenang_Keluar = winners.map(w => `${w.id} - ${w.nama} (${w.jenisPeserta || w.cluster || 'Umum'} | ${w.grup || 'Umum'} | ${w.kelompok || 'Umum'})`).join(', ');
       } else {
-        record.Daftar_Pemenang_Keluar += ', ' + winners.map(w => w.id + ' - ' + w.nama + ' (' + (w.cluster || 'Umum') + ')').join(', ');
+        record.Daftar_Pemenang_Keluar += ', ' + winners.map(w => `${w.id} - ${w.nama} (${w.jenisPeserta || w.cluster || 'Umum'} | ${w.grup || 'Umum'} | ${w.kelompok || 'Umum'})`).join(', ');
       }
     }
     APP.lastWinners = APP.lastWinners.concat(winners);
@@ -893,44 +1035,85 @@ function determineWinnersMulti(rules) {
   let allWinners = [];
   let currentActive = getActivePeserta().filter(p => !previousWinners.has(p.nama));
 
+  // Ambil semua target aktif untuk ronde ini
+  let activeTargets = (APP.adminTargets || [])
+    .filter(t => t.ronde === APP.currentRonde && t.status !== 'Sudah Dieksekusi');
+
+  // Track target names dynamically per rules loop
+  let targetStates = activeTargets.map(t => ({
+    original: t,
+    remainingNames: [...t.targets]
+  }));
+
   rules.forEach(rule => {
     let ruleWinners = [];
-    const adminTarget = getAdminTarget(APP.currentRonde, rule.cluster);
-    if (adminTarget && adminTarget.targets.length > 0) {
-      const validTargets = adminTarget.targets.filter(targetName => {
-        if (adminTarget.cluster === 'Semua') {
-          return currentActive.some(p => p.nama === targetName);
-        }
-        return currentActive.some(p => p.nama === targetName && p.cluster === adminTarget.cluster);
+
+    // Cari targetState yang cluster-nya cocok dengan rule ini
+    const matchingStates = targetStates.filter(state => 
+      state.original.cluster === 'Semua' || rule.cluster === 'Semua' || state.original.cluster === rule.cluster
+    );
+
+    matchingStates.forEach(state => {
+      const validNames = state.remainingNames.filter(targetName => {
+        return currentActive.some(p => p.nama === targetName && matchParticipantCluster(p, state.original.cluster));
       });
-      validTargets.forEach(targetName => {
+
+      validNames.forEach(targetName => {
         if (ruleWinners.length >= rule.count) return;
         const pesertaIdx = currentActive.findIndex(p => p.nama === targetName);
         if (pesertaIdx > -1) {
           const peserta = currentActive[pesertaIdx];
-          ruleWinners.push({ id: peserta.id, nama: peserta.nama, cluster: peserta.cluster });
+          ruleWinners.push({
+            id: peserta.id,
+            nama: peserta.nama,
+            jenisPeserta: peserta.jenisPeserta,
+            grup: peserta.grup,
+            kelompok: peserta.kelompok,
+            cluster: peserta.cluster
+          });
           currentActive.splice(pesertaIdx, 1);
+          
+          const nameIdx = state.remainingNames.indexOf(targetName);
+          if (nameIdx > -1) state.remainingNames.splice(nameIdx, 1);
         }
       });
-      adminTarget.status = 'Sudah Dieksekusi';
-      saveAdminSettings();
-    }
+    });
 
     if (ruleWinners.length < rule.count) {
-      const available = currentActive.filter(p => rule.cluster === 'Semua' || p.cluster === rule.cluster);
+      const available = currentActive.filter(p => matchParticipantCluster(p, rule.cluster));
       const shuffled = [...available];
       for (let i = shuffled.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
       }
       for (let i = 0; i < shuffled.length && ruleWinners.length < rule.count; i++) {
-        ruleWinners.push({ id: shuffled[i].id, nama: shuffled[i].nama, cluster: shuffled[i].cluster });
+        ruleWinners.push({
+          id: shuffled[i].id,
+          nama: shuffled[i].nama,
+          jenisPeserta: shuffled[i].jenisPeserta,
+          grup: shuffled[i].grup,
+          kelompok: shuffled[i].kelompok,
+          cluster: shuffled[i].cluster
+        });
         const pIdx = currentActive.findIndex(p => p.id === shuffled[i].id);
         if (pIdx > -1) currentActive.splice(pIdx, 1);
       }
     }
     allWinners = allWinners.concat(ruleWinners);
   });
+
+  // Mark original targets as executed if all target names have been drawn
+  let updatedAny = false;
+  targetStates.forEach(state => {
+    if (state.remainingNames.length === 0) {
+      state.original.status = 'Sudah Dieksekusi';
+      updatedAny = true;
+    }
+  });
+
+  if (updatedAny) {
+    saveAdminSettings();
+  }
 
   for (let i = allWinners.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -946,6 +1129,17 @@ function getAdminTarget(ronde, clusterName) {
     (t.cluster === 'Semua' || clusterName === 'Semua' || t.cluster === clusterName) &&
     t.status !== 'Sudah Dieksekusi'
   );
+}
+
+function updateCellText(cell, text) {
+  cell.textContent = text;
+  if (/^\d+$/.test(text.trim())) {
+    cell.classList.add('is-number');
+    cell.classList.remove('is-name');
+  } else {
+    cell.classList.add('is-name');
+    cell.classList.remove('is-number');
+  }
 }
 
 function buildSlotReels(count, winners, isManual = false) {
@@ -977,7 +1171,7 @@ function buildSlotReels(count, winners, isManual = false) {
     const cell = document.createElement('div');
     cell.className = 'slot-cell';
     cell.dataset.winnerTarget = 'true';
-    cell.textContent = activeNames[Math.floor(Math.random() * activeNames.length)];
+    updateCellText(cell, activeNames[Math.floor(Math.random() * activeNames.length)]);
     reel.appendChild(cell);
     slotMachine.appendChild(reel);
     animateRandomizer(cell, winners[col].nama, activeNames, col, isManual);
@@ -987,12 +1181,12 @@ function buildSlotReels(count, winners, isManual = false) {
 function animateRandomizer(cell, winnerName, activeNames, columnIndex, isManual = false) {
   const duration = BASE_DURATION + columnIndex * STAGGER_DELAY;
   const interval = setInterval(() => {
-    cell.textContent = activeNames[Math.floor(Math.random() * activeNames.length)];
+    updateCellText(cell, activeNames[Math.floor(Math.random() * activeNames.length)]);
   }, 50);
 
   const stopAction = () => {
     clearInterval(interval);
-    cell.textContent = winnerName;
+    updateCellText(cell, winnerName);
     cell.dataset.winner = 'true';
     cell.style.transform = 'scale(1.1)';
     setTimeout(() => cell.style.transform = 'scale(1)', 150);
@@ -1275,175 +1469,16 @@ window.handlePrizeImageUpload = function(e, id) {
   };
   reader.readAsDataURL(file);
 };
-// ===================== PDF GENERATOR =====================
-function generatePDF() {
-  if (APP.lastWinners.length === 0 && APP.hasilUndian.length === 0) {
-    showToast('Belum ada hasil undian untuk dicetak.', 'warning');
-    return;
-  }
-
-  const lastRonde = APP.currentRonde - 1;
-  const winners = APP.lastWinners.length > 0 ? APP.lastWinners :
-    APP.hasilUndian.length > 0 ? parseLastHasilWinners() : [];
-
-  // Prepare PDF template
-  const pdfLogo = document.getElementById('pdfLogo');
-  if (APP.settings.logoBase64) {
-    pdfLogo.src = APP.settings.logoBase64;
-    pdfLogo.style.display = 'block';
-  } else {
-    pdfLogo.style.display = 'none';
-  }
-
-  document.getElementById('pdfTitle').textContent = APP.settings.eventTitle || 'DORPRIZE';
-  document.getElementById('pdfSubtitle').textContent = APP.settings.eventSubtitle || '';
-  document.getElementById('pdfRonde').textContent = lastRonde;
-
-  const now = new Date();
-  document.getElementById('pdfWaktu').textContent = now.toLocaleString('id-ID', {
-    weekday: 'long', day: '2-digit', month: 'long', year: 'numeric',
-    hour: '2-digit', minute: '2-digit', timeZoneName: 'short'
-  });
-
-  const tbody = document.getElementById('pdfTableBody');
-  tbody.innerHTML = '';
-  winners.forEach((w, idx) => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${idx + 1}</td><td>${w.id}</td><td>${w.nama} <small style="color:#666">(${w.cluster || 'Umum'})</small></td>`;
-    tbody.appendChild(tr);
-  });
-
-  // Move template into view temporarily for html2pdf
-  const template = document.getElementById('pdfTemplate');
-  template.style.position = 'fixed';
-  template.style.left = '0';
-  template.style.top = '0';
-  template.style.zIndex = '-9999';
-  template.style.opacity = '1';
-
-  const opt = {
-    margin: [10, 10, 10, 10],
-    filename: `Hasil_Undian_Ronde_${lastRonde}.pdf`,
-    image: { type: 'jpeg', quality: 0.98 },
-    html2canvas: { scale: 2, useCORS: true },
-    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-  };
-
-  html2pdf().set(opt).from(template).save().then(() => {
-    // Reset template position
-    template.style.position = 'absolute';
-    template.style.left = '-9999px';
-    template.style.opacity = '1';
-    showToast('PDF berhasil didownload!', 'success');
-  });
-}
-
-function generateAllHistoryPDF() {
-  if (APP.hasilUndian.length === 0) {
-    showToast('Belum ada hasil undian untuk dicetak.', 'warning');
-    return;
-  }
-
-  // Prepare PDF template
-  const pdfLogo = document.getElementById('pdfLogo');
-  if (APP.settings.logoBase64) {
-    pdfLogo.src = APP.settings.logoBase64;
-    pdfLogo.style.display = 'block';
-  } else {
-    pdfLogo.style.display = 'none';
-  }
-
-  document.getElementById('pdfTitle').textContent = APP.settings.eventTitle || 'DORPRIZE';
-  document.getElementById('pdfSubtitle').textContent = APP.settings.eventSubtitle || '';
-  
-  // Custom round text
-  document.getElementById('pdfRonde').textContent = 'Semua Ronde (Total: ' + APP.hasilUndian.length + ' Ronde)';
-
-  const now = new Date();
-  document.getElementById('pdfWaktu').textContent = now.toLocaleString('id-ID', {
-    weekday: 'long', day: '2-digit', month: 'long', year: 'numeric',
-    hour: '2-digit', minute: '2-digit', timeZoneName: 'short'
-  });
-
-  const tbody = document.getElementById('pdfTableBody');
-  tbody.innerHTML = '';
-  
-  APP.hasilUndian.forEach(record => {
-    // Sub-header row for the round
-    const headerTr = document.createElement('tr');
-    const timeParts = record.Waktu_Pengundian.split(' ');
-    const timeStr = timeParts[1] || record.Waktu_Pengundian;
-    headerTr.innerHTML = `<td colspan="3" style="background-color: #f1f3f5; font-weight: bold; text-align: left; padding: 10px 15px; border-top: 2px solid #ddd;">Ronde ${record.Ronde_Ke} <span style="float:right; font-weight:normal; font-size: 0.85em;">${timeStr}</span></td>`;
-    tbody.appendChild(headerTr);
-
-    // parse winners
-    const daftar = record.Daftar_Pemenang_Keluar || '';
-    const winners = daftar.split(', ').map(entry => {
-      const parts = entry.split(' - ');
-      let id = parts[0] || '';
-      let nama = parts[1] || parts[0] || '';
-      let cluster = 'Umum';
-      const match = nama.match(/^(.*?)\s*\((.*?)\)$/);
-      if (match) {
-        nama = match[1];
-        cluster = match[2];
-      }
-      return { id, nama, cluster };
-    });
-
-    winners.forEach((w, idx) => {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `<td>${idx + 1}</td><td>${w.id}</td><td>${w.nama} <small style="color:#666">(${w.cluster})</small></td>`;
-      tbody.appendChild(tr);
-    });
-  });
-
-  // Move template into view temporarily for html2pdf
-  const template = document.getElementById('pdfTemplate');
-  template.style.position = 'fixed';
-  template.style.left = '0';
-  template.style.top = '0';
-  template.style.zIndex = '-9999';
-  template.style.opacity = '1';
-
-  const opt = {
-    margin: [10, 10, 10, 10],
-    filename: `Hasil_Undian_Semua_Ronde.pdf`,
-    image: { type: 'jpeg', quality: 0.98 },
-    html2canvas: { scale: 2, useCORS: true },
-    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-  };
-
-  html2pdf().set(opt).from(template).save().then(() => {
-    template.style.position = 'absolute';
-    template.style.left = '-9999px';
-    template.style.opacity = '1';
-    showToast('PDF Seluruh Riwayat berhasil didownload.', 'success');
-  });
-}
-
-function parseLastHasilWinners() {
-  const lastRecord = APP.hasilUndian[APP.hasilUndian.length - 1];
-  if (!lastRecord) return [];
-  const daftar = lastRecord.Daftar_Pemenang_Keluar || '';
-  return daftar.split(', ').map(entry => {
-    const parts = entry.split(' - ');
-    let id = parts[0] || '';
-    let nama = parts[1] || parts[0] || '';
-    let cluster = 'Umum';
-    const match = nama.match(/^(.*?)\s*\((.*?)\)$/);
-    if (match) {
-      nama = match[1];
-      cluster = match[2];
-    }
-    return { id, nama, cluster };
-  });
-}
-
 // ===================== ADMIN PANEL =====================
 function openAdminLogin() {
   document.getElementById('adminPassword').value = '';
   document.getElementById('adminLoginError').style.display = 'none';
+  
+  const loginBox = document.getElementById('adminLoginModal');
+  if (loginBox) loginBox.style.display = 'block';
+  
+  const wrapper = document.getElementById('adminPanelWrapper');
+  if (wrapper) wrapper.style.display = 'none';
   openModal('adminLoginModal');
   setTimeout(() => document.getElementById('adminPassword').focus(), 100);
 }
@@ -1452,6 +1487,8 @@ function handleAdminLogin() {
   const input = document.getElementById('adminPassword').value;
   if (input === APP.adminPassword) {
     closeModal('adminLoginModal');
+    const loginBox = document.getElementById('adminLoginModal');
+    if (loginBox) loginBox.style.display = 'none';
     openAdminPanel();
   } else {
     document.getElementById('adminLoginError').style.display = 'block';
@@ -1462,7 +1499,14 @@ function handleAdminLogin() {
 
 function openAdminPanel() {
   refreshAdminTable();
-  document.getElementById('adminRonde').value = APP.currentRonde;
+  const rondeInput = document.getElementById('adminRonde');
+  if (rondeInput) {
+    rondeInput.value = APP.currentRonde;
+    rondeInput.min = APP.currentRonde;
+  }
+  
+  const wrapper = document.getElementById('adminPanelWrapper');
+  if (wrapper) wrapper.style.display = 'block';
 
   const adminCluster = document.getElementById('adminCluster');
   if (adminCluster) {
@@ -1473,13 +1517,15 @@ function openAdminPanel() {
   }
 
   const remoteUrlText = document.getElementById('remoteUrlText');
-  const remoteAdminUrl = 'http://pausdorpize.adm1n';
-  APP.remoteUrl = remoteAdminUrl;
-  remoteUrlText.textContent = remoteAdminUrl;
+  if (remoteUrlText) {
+    const remoteAdminUrl = window.location.origin + '/adm1n';
+    APP.remoteUrl = remoteAdminUrl;
+    remoteUrlText.textContent = remoteAdminUrl;
+  }
 
   const ipHintEl = document.getElementById('remoteIpHint');
   if (ipHintEl && window.location.hostname && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-    const ipUrl = 'http://' + window.location.hostname + ':' + (window.location.port || 3000) + '/?rc=true';
+    const ipUrl = window.location.origin + '/adm1n';
     ipHintEl.textContent = ipUrl;
     ipHintEl.style.display = 'block';
   }
@@ -1581,7 +1627,7 @@ window.filterPesertaList = function() {
   const selectedNames = chipContainer ? Array.from(chipContainer.querySelectorAll('.target-chip')).map(c => c.dataset.nama) : [];
   
   const filtered = APP.dataPeserta.filter(p => {
-    if (filterCluster !== 'Semua' && p.cluster !== filterCluster) return false;
+    if (!matchParticipantCluster(p, filterCluster)) return false;
     if (q && !p.nama.toLowerCase().includes(q) && !p.id.toLowerCase().includes(q)) return false;
     return true;
   });
@@ -1603,7 +1649,7 @@ window.filterPesertaList = function() {
       <div style="padding: 12px 8px; border-bottom: 1px solid var(--color-border-light); display: flex; justify-content: space-between; align-items: center; ${isWinner ? 'opacity:0.5;' : ''}">
         <div style="font-size:0.85rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; margin-right:12px;">
           <strong>${p.nama}</strong><br/>
-          <span style="color:var(--color-text-muted); font-size:0.75rem;">ID: ${p.id} | ${p.cluster}</span>
+          <span style="color:var(--color-text-muted); font-size:0.75rem;">ID: ${p.id} | ${p.jenisPeserta || p.cluster || 'Umum'} | ${p.grup || 'Umum'} | ${p.kelompok || 'Umum'}</span>
         </div>
         ${isWinner 
           ? '<span style="color:var(--color-text-muted); font-size:0.75rem; font-weight:600;">Sudah Menang</span>' 
@@ -1633,8 +1679,8 @@ function saveAdminTarget() {
   const clusterSelect = document.getElementById('adminCluster');
   const cluster = clusterSelect ? clusterSelect.value : 'Semua';
   const ronde = parseInt(document.getElementById('adminRonde').value);
-  if (!ronde || ronde < 1) {
-    showToast('Nomor ronde tidak valid.', 'error');
+  if (!ronde || ronde < APP.currentRonde) {
+    showToast('Ronde ini sudah terlewat! Silakan pilih ronde ' + APP.currentRonde + ' atau setelahnya.', 'error');
     return;
   }
 
@@ -1802,6 +1848,15 @@ function saveEventSettings() {
     };
   }
 
+  // Read target rules from settings
+  const rules = [];
+  document.querySelectorAll('.draw-rule-row').forEach(row => {
+    const cluster = row.querySelector('.cluster-select').value;
+    const count = parseInt(row.querySelector('.rule-count').value) || 1;
+    rules.push({ cluster, count });
+  });
+  APP.settings.drawRules = rules;
+
   applyTheme(APP.settings.theme);
   applyEventSettings();
   saveSettings();
@@ -1935,6 +1990,38 @@ function openSettingsModal() {
     document.getElementById('bgOpacityGroup').classList.add('hidden');
   }
 
+  // Populate draw targets
+  const rulesContainer = document.getElementById('drawRulesContainer');
+  if (rulesContainer) {
+    rulesContainer.innerHTML = '';
+    const rules = APP.settings.drawRules || [{ cluster: 'Semua', count: 1 }];
+    rules.forEach((rule, idx) => {
+      const row = document.createElement('div');
+      row.className = 'draw-rule-row';
+      
+      let options = '<option value="Semua">Semua Cluster</option>';
+      if (APP.availableClusters) {
+        APP.availableClusters.forEach(c => {
+          options += `<option value="${c}" ${c === rule.cluster ? 'selected' : ''}>${c}</option>`;
+        });
+      }
+
+      row.innerHTML = `
+        <label>Target:</label>
+        <select class="cluster-select input-modern" style="width: 140px;">
+          ${options}
+        </select>
+        <div class="number-input-group">
+          <button class="btn-num rule-decrease" onclick="decreaseRule(this)">-</button>
+          <input type="number" class="rule-count" value="${rule.count}" min="1" max="50" />
+          <button class="btn-num rule-increase" onclick="increaseRule(this)">+</button>
+        </div>
+        <button class="btn-remove-rule" onclick="removeRule(this)" style="${rules.length > 1 ? 'display:block;' : 'display:none;'}" title="Hapus">&times;</button>
+      `;
+      rulesContainer.appendChild(row);
+    });
+  }
+
   openModal('settingsModal');
 }
 
@@ -1976,22 +2063,31 @@ function updateUI() {
   const rondeCount = document.getElementById('rondeCount');
   const statusText = document.getElementById('statusText');
   const spinBtn = document.getElementById('spinBtn');
-  const downloadPdfBtn = document.getElementById('downloadPdfBtn');
   const downloadExcelBtn = document.getElementById('downloadExcelBtn');
 
   if (pesertaCount) pesertaCount.textContent = active.length;
   if (rondeCount) rondeCount.textContent = APP.currentRonde;
 
+  // Status tag for settings page
+  const uploadStatusText = document.getElementById('uploadStatusText');
+  if (uploadStatusText) {
+    if (APP.dataPeserta.length > 0) {
+      uploadStatusText.innerHTML = `<strong>${APP.dataPeserta.length}</strong> peserta terdaftar (${active.length} aktif)`;
+      uploadStatusText.className = "status-tag success";
+    } else {
+      uploadStatusText.textContent = "Belum ada data peserta";
+      uploadStatusText.className = "status-tag warning";
+    }
+  }
+
   if (APP.dataPeserta.length > 0) {
     const clusterInfo = APP.currentCluster !== 'Semua' ? ` (Cluster: ${APP.currentCluster})` : '';
     statusText.textContent = `Siap â€” ${active.length} peserta aktif${clusterInfo} | Ronde ke-${APP.currentRonde}`;
     spinBtn.disabled = active.length === 0;
-    downloadPdfBtn.disabled = APP.hasilUndian.length === 0;
     downloadExcelBtn.disabled = false;
   } else {
     statusText.textContent = 'Siap â€” Upload file Excel untuk memulai';
     spinBtn.disabled = true;
-    downloadPdfBtn.disabled = true;
     downloadExcelBtn.disabled = true;
   }
 }
