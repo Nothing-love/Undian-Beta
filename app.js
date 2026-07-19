@@ -1060,13 +1060,13 @@ function matchRuleParticipant(p, rule) {
   if (rule.cluster) {
     return matchParticipantCluster(p, rule.cluster);
   }
-  if (rule.jenis && rule.jenis !== 'Semua') {
+  if (rule.jenis && normalizeStr(rule.jenis) !== 'semua') {
     if (normalizeStr(p.jenisPeserta) !== normalizeStr(rule.jenis)) return false;
   }
-  if (rule.grup && rule.grup !== 'Semua') {
+  if (rule.grup && normalizeStr(rule.grup) !== 'semua') {
     if (normalizeStr(p.grup) !== normalizeStr(rule.grup)) return false;
   }
-  if (rule.kelompok && rule.kelompok !== 'Semua') {
+  if (rule.kelompok && normalizeStr(rule.kelompok) !== 'semua') {
     if (normalizeStr(p.kelompok) !== normalizeStr(rule.kelompok)) return false;
   }
   return true;
@@ -1397,9 +1397,9 @@ window.handleSpin = function() {
     if (available.length < rule.count) {
       // Build a friendly text for target category
       const parts = [];
-      if (rule.jenis && rule.jenis !== 'Semua') parts.push(`Jenis: ${rule.jenis === '' ? '(Kosong)' : rule.jenis}`);
-      if (rule.grup && rule.grup !== 'Semua') parts.push(`Grup: ${rule.grup === '' ? '(Kosong)' : rule.grup}`);
-      if (rule.kelompok && rule.kelompok !== 'Semua') parts.push(`Kelompok: ${rule.kelompok === '' ? '(Kosong)' : rule.kelompok}`);
+      if (rule.jenis && normalizeStr(rule.jenis) !== 'semua') parts.push(`Jenis: ${rule.jenis === '' ? '(Kosong)' : rule.jenis}`);
+      if (rule.grup && normalizeStr(rule.grup) !== 'semua') parts.push(`Grup: ${rule.grup === '' ? '(Kosong)' : rule.grup}`);
+      if (rule.kelompok && normalizeStr(rule.kelompok) !== 'semua') parts.push(`Kelompok: ${rule.kelompok === '' ? '(Kosong)' : rule.kelompok}`);
       const ruleText = parts.length > 0 ? parts.join(' | ') : 'Semua';
       
       showToast(`Peserta aktif di target (${ruleText}) hanya ${available.length}, tidak cukup untuk ${rule.count} pemenang.`, 'error');
@@ -1864,21 +1864,24 @@ function renderPrizeSettings() {
     let jenisOptions = '<option value="Semua">Semua Jenis</option>';
     if (APP.uniqueJenis) {
       APP.uniqueJenis.forEach(j => {
-        jenisOptions += `<option value="${j}" ${j === rJenis ? 'selected' : ''}>${j === '' ? '(Kosong)' : j}</option>`;
+        const isSelected = normalizeStr(j) === normalizeStr(rJenis);
+        jenisOptions += `<option value="${j}" ${isSelected ? 'selected' : ''}>${j === '' ? '(Kosong)' : j}</option>`;
       });
     }
 
     let grupOptions = '<option value="Semua">Semua Grup</option>';
     if (APP.uniqueGrup) {
       APP.uniqueGrup.forEach(g => {
-        grupOptions += `<option value="${g}" ${g === rGrup ? 'selected' : ''}>${g === '' ? '(Kosong)' : g}</option>`;
+        const isSelected = normalizeStr(g) === normalizeStr(rGrup);
+        grupOptions += `<option value="${g}" ${isSelected ? 'selected' : ''}>${g === '' ? '(Kosong)' : g}</option>`;
       });
     }
 
     let kelompokOptions = '<option value="Semua">Semua Kelompok</option>';
     if (APP.uniqueKelompok) {
       APP.uniqueKelompok.forEach(k => {
-        kelompokOptions += `<option value="${k}" ${k === rKelompok ? 'selected' : ''}>${k === '' ? '(Kosong)' : k}</option>`;
+        const isSelected = normalizeStr(k) === normalizeStr(rKelompok);
+        kelompokOptions += `<option value="${k}" ${isSelected ? 'selected' : ''}>${k === '' ? '(Kosong)' : k}</option>`;
       });
     }
 
