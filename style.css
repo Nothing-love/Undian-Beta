@@ -731,9 +731,9 @@ body.dark-theme .slot-reel.single-cell-reel {
   padding: 2px 6px !important;
 }
 
-/* High contrast crisp text colors for maximum readability */
+/* High contrast crisp text colors for maximum readability & custom themes */
 .slot-reel.single-cell-reel .slot-cell.is-number {
-  color: #0F172A !important;
+  color: var(--reel-number-color, #0F172A) !important;
   text-shadow: none !important;
   font-weight: 900 !important;
 }
@@ -744,20 +744,24 @@ body.dark-theme .slot-reel.single-cell-reel {
   font-weight: 900 !important;
 }
 
-body.dark-theme .slot-reel.single-cell-reel .slot-cell.is-number,
+body.dark-theme .slot-reel.single-cell-reel .slot-cell.is-number {
+  color: var(--reel-number-color, #F8FAFC) !important;
+  text-shadow: 0 2px 6px rgba(0,0,0,0.8) !important;
+}
+
 body.dark-theme .slot-reel.single-cell-reel .slot-cell.is-name {
   color: #F8FAFC !important;
   text-shadow: 0 2px 6px rgba(0,0,0,0.8) !important;
 }
 
 .slot-reel.single-cell-reel .slot-cell[data-winner="true"] {
-  color: #D97706 !important; /* Rich crisp amber gold */
+  color: var(--winner-number-color, #D97706) !important; /* Rich crisp amber gold / custom */
   text-shadow: none !important;
   font-weight: 900 !important;
 }
 
 body.dark-theme .slot-reel.single-cell-reel .slot-cell[data-winner="true"] {
-  color: #FBBF24 !important;
+  color: var(--winner-number-color, #FBBF24) !important;
   text-shadow: 0 2px 8px rgba(0,0,0,0.9) !important;
 }
 
