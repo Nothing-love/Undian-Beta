@@ -1494,8 +1494,10 @@ select.form-control, select.input-modern {
 
 /* ===================== WINNER MODAL PREMIUM GALA UPGRADE ===================== */
 #winnerModal.modal-overlay {
-  background: rgba(15, 23, 42, 0.88) !important;
-  backdrop-filter: blur(16px) !important;
+  background: rgba(0, 0, 0, 0.42) !important; /* Soft transparent overlay - Stage/Participants behind remain CLEARLY VISIBLE! */
+  backdrop-filter: blur(4px) !important;
+  -webkit-backdrop-filter: blur(4px) !important;
+  z-index: 9999;
 }
 
 /* Winner Modal Custom Background Layer */
@@ -1539,18 +1541,18 @@ select.form-control, select.input-modern {
 .modal-winner {
   position: relative;
   z-index: 10;
-  max-width: 860px;
-  width: 92%;
-  background: rgba(15, 23, 42, 0.82) !important;
-  backdrop-filter: blur(24px) !important;
-  -webkit-backdrop-filter: blur(24px) !important;
-  border: 2.5px solid rgba(245, 158, 11, 0.6) !important;
-  box-shadow: 0 25px 70px rgba(0, 0, 0, 0.75), 0 0 50px rgba(245, 158, 11, 0.35) !important;
-  border-radius: var(--radius-2xl, 24px) !important;
+  max-width: 840px;
+  width: 90%;
+  background: rgba(15, 23, 42, 0.94) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  border: 3px solid #F59E0B !important; /* Distinct Golden Frame */
+  box-shadow: 0 0 40px rgba(245, 158, 11, 0.4), 0 20px 60px rgba(0, 0, 0, 0.7) !important;
+  border-radius: 20px !important;
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  max-height: 88vh;
+  max-height: 84vh;
 }
 
 .winner-header-area {
@@ -1558,14 +1560,14 @@ select.form-control, select.input-modern {
   z-index: 5;
   flex-shrink: 0;
   text-align: center;
-  padding: 24px 24px 8px 24px;
+  padding: 20px 24px 6px 24px;
 }
 
 .winner-badge-container {
   position: relative;
-  width: 80px;
-  height: 80px;
-  margin: 0 auto 6px auto;
+  width: 76px;
+  height: 76px;
+  margin: 0 auto 4px auto;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1585,7 +1587,7 @@ select.form-control, select.input-modern {
 }
 
 .winner-badge {
-  font-size: 3.8rem;
+  font-size: 3.6rem;
   line-height: 1;
   position: relative;
   z-index: 2;
@@ -1601,7 +1603,7 @@ select.form-control, select.input-modern {
 
 .winner-title {
   font-family: var(--font-event, 'Outfit', sans-serif);
-  font-size: 2.5rem;
+  font-size: 2.4rem;
   font-weight: 900;
   letter-spacing: 3px;
   background: linear-gradient(135deg, #FFF59D, #F59E0B, #EF4444);
@@ -1613,10 +1615,10 @@ select.form-control, select.input-modern {
 }
 
 .winner-subtitle {
-  font-size: 1.05rem;
+  font-size: 1.0rem;
   font-weight: 700;
   color: #F8FAFC;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .winner-cards {
@@ -1626,9 +1628,9 @@ select.form-control, select.input-modern {
   min-height: 0;
   overflow-y: auto;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 12px;
-  padding: 10px 24px;
+  grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+  gap: 10px;
+  padding: 10px 22px;
   text-align: left;
   margin-bottom: 0;
 }
@@ -1641,50 +1643,45 @@ select.form-control, select.input-modern {
   z-index: 5;
   flex-shrink: 0;
   text-align: center;
-  padding: 14px 24px 20px 24px;
-  background: rgba(15, 23, 42, 0.5);
+  padding: 12px 24px 18px 24px;
+  background: rgba(15, 23, 42, 0.6);
   border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .winner-card {
   display: flex;
-  align-items: center;
-  background: rgba(15, 23, 42, 0.75) !important;
+  flex-direction: column;
+  justify-content: center;
+  background: rgba(30, 41, 59, 0.85) !important;
   border: 1.5px solid rgba(245, 158, 11, 0.35) !important;
-  border-radius: var(--radius-lg, 16px) !important;
+  border-radius: 12px !important;
   padding: 10px 14px !important;
-  animation: cardPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
-  transition: all 0.25s ease;
+  animation: cardPop 0.4s ease backwards;
+  transition: all 0.2s ease;
   position: relative;
   overflow: hidden;
-  min-height: 50px;
-  flex-shrink: 0;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+  min-height: 68px; /* LEGA: Zero squishing or vertical stacking! */
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
 }
 
 .winner-card:hover {
-  transform: translateY(-3px) scale(1.01);
-  box-shadow: 0 10px 25px rgba(245, 158, 11, 0.3);
+  transform: translateY(-2px) scale(1.01);
+  box-shadow: 0 8px 20px rgba(245, 158, 11, 0.3);
   border-color: #F59E0B !important;
-  background: rgba(30, 41, 59, 0.9) !important;
-}
-
-.winner-card-info {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
+  background: rgba(30, 41, 59, 0.95) !important;
 }
 
 .winner-card-header {
   display: flex;
   align-items: center;
-  gap: var(--space-xs);
-  margin-bottom: 2px;
+  justify-content: space-between;
+  width: 100%;
+  margin-bottom: 6px;
+  padding-right: 20px;
 }
 
 @keyframes cardPop {
-  from { transform: scale(0.9) translateY(10px); opacity: 0; }
+  from { transform: scale(0.92) translateY(8px); opacity: 0; }
   to { transform: scale(1) translateY(0); opacity: 1; }
 }
 
@@ -1693,16 +1690,21 @@ select.form-control, select.input-modern {
   font-weight: 900 !important;
   color: #0F172A !important;
   background: linear-gradient(135deg, #FDE047, #F59E0B) !important;
-  padding: 3px 10px !important;
-  border-radius: 20px !important;
-  text-transform: uppercase;
+  padding: 2px 8px !important;
+  border-radius: 12px !important;
   letter-spacing: 0.05em;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+  line-height: 1.2 !important;
 }
 
-.winner-card-id {
-  font-size: 0.75rem;
-  color: #94A3B8;
+.winner-card-cluster {
+  font-size: 0.72rem !important;
+  color: #94A3B8 !important;
+  background: rgba(15, 23, 42, 0.6) !important;
+  padding: 2px 8px !important;
+  border-radius: 6px !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+  line-height: 1.2 !important;
 }
 
 .winner-card-name {
@@ -1714,6 +1716,8 @@ select.form-control, select.input-modern {
   overflow: hidden;
   text-overflow: ellipsis;
   letter-spacing: 0.5px;
+  line-height: 1.3 !important;
+  margin: 0 !important;
 }
 
 .btn-disqualify {
