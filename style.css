@@ -1508,7 +1508,7 @@ select.form-control, select.input-modern {
   background-repeat: no-repeat;
   pointer-events: none;
   transition: all 0.5s ease;
-  opacity: 0.85;
+  opacity: 0.9;
 }
 
 /* Preset 1: Royal Gold Gala (Default) */
@@ -1521,7 +1521,7 @@ select.form-control, select.input-modern {
 
 /* Preset 2: Midnight Obsidian Gold Glass */
 #winnerModal.winner-preset-dark_luxury .winner-modal-bg {
-  background-image: radial-gradient(circle at 50% 20%, rgba(251, 191, 36, 0.22) 0%, rgba(30, 41, 59, 0.96) 80%);
+  background-image: radial-gradient(circle at 50% 20%, rgba(251, 191, 36, 0.25) 0%, rgba(15, 23, 42, 0.96) 80%);
 }
 
 /* Preset 3: Cyberpunk Neon Stage */
@@ -1541,32 +1541,31 @@ select.form-control, select.input-modern {
   z-index: 10;
   max-width: 860px;
   width: 92%;
-  background: rgba(30, 41, 59, 0.85) !important;
-  background: color-mix(in srgb, var(--color-surface) 85%, transparent) !important;
+  background: rgba(15, 23, 42, 0.82) !important;
   backdrop-filter: blur(24px) !important;
   -webkit-backdrop-filter: blur(24px) !important;
-  border: 2.5px solid rgba(245, 158, 11, 0.55) !important;
-  box-shadow: 0 25px 70px rgba(0, 0, 0, 0.65), 0 0 45px rgba(245, 158, 11, 0.3) !important;
+  border: 2.5px solid rgba(245, 158, 11, 0.6) !important;
+  box-shadow: 0 25px 70px rgba(0, 0, 0, 0.75), 0 0 50px rgba(245, 158, 11, 0.35) !important;
   border-radius: var(--radius-2xl, 24px) !important;
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  max-height: 90vh;
+  max-height: 88vh;
 }
 
-.winner-content {
-  padding: 28px 24px 22px 24px;
+.winner-header-area {
+  position: relative;
+  z-index: 5;
+  flex-shrink: 0;
   text-align: center;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
+  padding: 24px 24px 8px 24px;
 }
 
 .winner-badge-container {
   position: relative;
-  width: 84px;
-  height: 84px;
-  margin: 0 auto 8px auto;
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 6px auto;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1586,7 +1585,7 @@ select.form-control, select.input-modern {
 }
 
 .winner-badge {
-  font-size: 4rem;
+  font-size: 3.8rem;
   line-height: 1;
   position: relative;
   z-index: 2;
@@ -1602,7 +1601,7 @@ select.form-control, select.input-modern {
 
 .winner-title {
   font-family: var(--font-event, 'Outfit', sans-serif);
-  font-size: 2.6rem;
+  font-size: 2.5rem;
   font-weight: 900;
   letter-spacing: 3px;
   background: linear-gradient(135deg, #FFF59D, #F59E0B, #EF4444);
@@ -1617,22 +1616,35 @@ select.form-control, select.input-modern {
   font-size: 1.05rem;
   font-weight: 700;
   color: #F8FAFC;
-  margin-bottom: 18px;
+  margin-bottom: 8px;
 }
 
 .winner-cards {
+  position: relative;
+  z-index: 5;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 12px;
-  margin-bottom: 18px;
-  max-height: 52vh;
-  overflow-y: auto;
-  padding: 4px 6px;
+  padding: 10px 24px;
   text-align: left;
+  margin-bottom: 0;
 }
 .winner-cards::-webkit-scrollbar { width: 6px; }
-.winner-cards::-webkit-scrollbar-track { background: rgba(0,0,0,0.15); border-radius: 4px; }
-.winner-cards::-webkit-scrollbar-thumb { background: rgba(245, 158, 11, 0.4); border-radius: 4px; }
+.winner-cards::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); border-radius: 4px; }
+.winner-cards::-webkit-scrollbar-thumb { background: rgba(245, 158, 11, 0.5); border-radius: 4px; }
+
+.winner-actions {
+  position: relative;
+  z-index: 5;
+  flex-shrink: 0;
+  text-align: center;
+  padding: 14px 24px 20px 24px;
+  background: rgba(15, 23, 42, 0.5);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
 
 .winner-card {
   display: flex;

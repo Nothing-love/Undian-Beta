@@ -1830,6 +1830,8 @@ function showWinnerModal(winners) {
         '<button class="btn-disqualify" title="Gugurkan peserta ini" onclick="disqualifyWinner(' + idx + ')">&times;</button>';
       cardsContainer.appendChild(card);
     });
+
+    cardsContainer.scrollTop = 0;
   }
 
   // Apply background preset / custom image to Winner Modal
