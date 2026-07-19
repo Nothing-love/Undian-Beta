@@ -2018,3 +2018,76 @@ body.dark-theme.has-bg .slot-reel {
 .slider:before { position: absolute; content: ''; height: 16px; width: 16px; left: 3px; bottom: 3px; background-color: var(--color-text); transition: .4s; border-radius: 50%; }
 input:checked + .slider { background-color: var(--color-primary); border-color: var(--color-primary); }
 input:checked + .slider:before { transform: translateX(20px); background-color: #fff; }
+
+/* ===================== THEME PREVIEWS & SWATCHES ===================== */
+.theme-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.theme-swatch {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 10px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  border: 2px solid var(--color-border-light);
+  cursor: pointer;
+  transition: all var(--transition-base);
+  position: relative;
+  overflow: hidden;
+}
+
+.theme-swatch:hover {
+  transform: translateY(-2px);
+  border-color: var(--color-primary-light);
+  box-shadow: var(--shadow-md);
+}
+
+.theme-swatch.active {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.3);
+  background: rgba(var(--color-primary-rgb), 0.05);
+}
+
+.swatch-colors {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.swatch-colors span {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.swatch-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--color-text);
+  line-height: 1.1;
+  text-align: center;
+}
+
+.swatch-badge {
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  background: var(--color-bg-secondary);
+  padding: 2px 6px;
+  border-radius: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.mini-dashboard-preview {
+  border: 1px solid var(--color-border);
+  position: relative;
+  overflow: hidden;
+}

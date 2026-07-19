@@ -63,17 +63,17 @@ const THEME_PRESETS = {
     border: '#E2E8F0', borderLight: '#F1F5F9'
   },
   gala_gold: {
-    primary: '#C9A84C', primaryLight: '#D4B96A', primaryDark: '#A68B3A', primaryRgb: '201, 168, 76',
-    secondary: '#1A1A2E', secondaryLight: '#2D2D4A', secondaryRgb: '26, 26, 46',
-    accent: '#F4E4BA', accentLight: '#F8EDD0', accentRgb: '244, 228, 186',
+    primary: '#D97706', primaryLight: '#F59E0B', primaryDark: '#B45309', primaryRgb: '217, 119, 6',
+    secondary: '#111827', secondaryLight: '#1F2937', secondaryRgb: '17, 24, 39',
+    accent: '#FCD34D', accentLight: '#FDE68A', accentRgb: '252, 211, 77',
     bg: '#0F0F1A', bgSecondary: '#1A1A2E', surface: '#16162B',
-    text: '#F4E4BA', textSecondary: '#C9A84C', textMuted: '#7A6F50',
-    border: '#2D2D4A', borderLight: '#232340'
+    text: '#FCD34D', textSecondary: '#D97706', textMuted: '#9CA3AF',
+    border: '#374151', borderLight: '#1F2937'
   },
   festive_red: {
     primary: '#DC2626', primaryLight: '#EF4444', primaryDark: '#B91C1C', primaryRgb: '220, 38, 38',
     secondary: '#991B1B', secondaryLight: '#B91C1C', secondaryRgb: '153, 27, 27',
-    accent: '#FCD34D', accentLight: '#FDE68A', accentRgb: '252, 211, 77',
+    accent: '#FBBF24', accentLight: '#FDE047', accentRgb: '251, 191, 36',
     bg: '#FEF2F2', bgSecondary: '#FEE2E2', surface: '#FFFFFF',
     text: '#1F2937', textSecondary: '#6B7280', textMuted: '#9CA3AF',
     border: '#FECACA', borderLight: '#FEE2E2'
@@ -81,7 +81,7 @@ const THEME_PRESETS = {
   nature_green: {
     primary: '#059669', primaryLight: '#10B981', primaryDark: '#047857', primaryRgb: '5, 150, 105',
     secondary: '#047857', secondaryLight: '#059669', secondaryRgb: '4, 120, 87',
-    accent: '#A7F3D0', accentLight: '#D1FAE5', accentRgb: '167, 243, 208',
+    accent: '#34D399', accentLight: '#6EE7B7', accentRgb: '52, 211, 153',
     bg: '#F0FDF4', bgSecondary: '#DCFCE7', surface: '#FFFFFF',
     text: '#14532D', textSecondary: '#166534', textMuted: '#6B7280',
     border: '#BBF7D0', borderLight: '#DCFCE7'
@@ -89,12 +89,28 @@ const THEME_PRESETS = {
   royal_purple: {
     primary: '#7C3AED', primaryLight: '#8B5CF6', primaryDark: '#6D28D9', primaryRgb: '124, 58, 237',
     secondary: '#4C1D95', secondaryLight: '#5B21B6', secondaryRgb: '76, 29, 149',
-    accent: '#C4B5FD', accentLight: '#DDD6FE', accentRgb: '196, 181, 253',
+    accent: '#F472B6', accentLight: '#F472B6', accentRgb: '244, 114, 182',
     bg: '#F5F3FF', bgSecondary: '#EDE9FE', surface: '#FFFFFF',
     text: '#1E1B4B', textSecondary: '#4338CA', textMuted: '#7C72B8',
     border: '#C4B5FD', borderLight: '#EDE9FE'
+  },
+  sunset_orange: {
+    primary: '#EA580C', primaryLight: '#F97316', primaryDark: '#C2410C', primaryRgb: '234, 88, 12',
+    secondary: '#C2410C', secondaryLight: '#EA580C', secondaryRgb: '194, 65, 12',
+    accent: '#FBBF24', accentLight: '#FDE047', accentRgb: '251, 191, 36',
+    bg: '#FFF7ED', bgSecondary: '#FFEDD5', surface: '#FFFFFF',
+    text: '#431407', textSecondary: '#7C2D12', textMuted: '#9A3412',
+    border: '#FED7AA', borderLight: '#FFEDD5'
+  },
+  midnight_dark: {
+    primary: '#38BDF8', primaryLight: '#7DD3FC', primaryDark: '#0284C7', primaryRgb: '56, 189, 248',
+    secondary: '#818CF8', secondaryLight: '#A5B4FC', secondaryRgb: '129, 140, 248',
+    accent: '#F472B6', accentLight: '#F472B6', accentRgb: '244, 114, 182',
+    bg: '#0F172A', bgSecondary: '#1E293B', surface: '#1E293B',
+    text: '#F8FAFC', textSecondary: '#94A3B8', textMuted: '#64748B',
+    border: '#334155', borderLight: '#1E293B'
   }
-};
+};;
 
 // ===================== INITIALIZATION =====================
 document.addEventListener('DOMContentLoaded', async () => {
@@ -333,6 +349,71 @@ function applyTheme(themeKey) {
   root.style.setProperty('--color-border-light', colors.borderLight);
 }
 
+window.updateThemePreview = function(themeKey) {
+  const previewBox = document.getElementById('themePreviewBox');
+  if (!previewBox) return;
+
+  let colors;
+  if (themeKey === 'custom') {
+    const p = document.getElementById('customPrimary') ? document.getElementById('customPrimary').value : '#2563EB';
+    const s = document.getElementById('customSecondary') ? document.getElementById('customSecondary').value : '#7C3AED';
+    const a = document.getElementById('customAccent') ? document.getElementById('customAccent').value : '#F59E0B';
+    colors = {
+      primary: p,
+      secondary: s,
+      accent: a,
+      bg: '#0F172A',
+      surface: '#1E293B',
+      text: '#FFFFFF'
+    };
+  } else {
+    colors = THEME_PRESETS[themeKey] || THEME_PRESETS.professional_blue;
+  }
+
+  previewBox.style.background = `linear-gradient(135deg, ${colors.bg || colors.secondary}, ${colors.surface || colors.primary})`;
+  previewBox.style.color = colors.text || '#FFFFFF';
+
+  const miniTitle = document.getElementById('miniTitle');
+  const miniSubtitle = document.getElementById('miniSubtitle');
+  const miniBadge = document.getElementById('miniBadge');
+  const miniReel = document.getElementById('miniReel');
+  const miniPrizeTag = document.getElementById('miniPrizeTag');
+  const miniBtn = document.getElementById('miniBtn');
+
+  const titleVal = document.getElementById('inputEventTitle') ? document.getElementById('inputEventTitle').value.trim() : '';
+  const subtitleVal = document.getElementById('inputEventSubtitle') ? document.getElementById('inputEventSubtitle').value.trim() : '';
+
+  if (miniTitle) miniTitle.textContent = titleVal || APP.settings.eventTitle || 'DORPRIZE EVENT';
+  if (miniSubtitle) miniSubtitle.textContent = subtitleVal || APP.settings.eventSubtitle || 'Aplikasi Undian Digital';
+
+  if (miniBadge) {
+    miniBadge.style.background = colors.accent || '#F59E0B';
+    miniBadge.style.color = '#000';
+  }
+
+  if (miniReel) {
+    miniReel.style.background = `rgba(0,0,0,0.35)`;
+    miniReel.style.border = `2px solid ${colors.primary}`;
+    miniReel.style.color = colors.accent || '#FFF';
+    miniReel.style.boxShadow = `0 0 20px ${colors.primary}`;
+  }
+
+  if (miniPrizeTag) {
+    miniPrizeTag.style.color = colors.accent || '#FFF';
+  }
+
+  if (miniBtn) {
+    miniBtn.style.background = `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`;
+    miniBtn.style.color = '#FFFFFF';
+    miniBtn.style.boxShadow = `0 4px 12px ${colors.primary}`;
+  }
+};
+
+window.updateCustomThemePreview = function() {
+  updateThemePreview('custom');
+  applyTheme('custom');
+};
+
 function hexToRgb(hex) {
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);
@@ -511,11 +592,14 @@ function bindEvents() {
       document.querySelectorAll('.theme-swatch').forEach(s => s.classList.remove('active'));
       swatch.classList.add('active');
       const theme = swatch.dataset.theme;
+      APP.settings.theme = theme;
       if (theme === 'custom') {
         document.getElementById('customColorSection').classList.remove('hidden');
       } else {
         document.getElementById('customColorSection').classList.add('hidden');
       }
+      updateThemePreview(theme);
+      applyTheme(theme);
     });
   });
 
@@ -2186,7 +2270,7 @@ function openSettingsModal() {
   document.getElementById('inputSubtitleSize').value = subSize;
   document.getElementById('subtitleSizeValue').textContent = subSize + 'rem';
 
-  // Set active theme swatch
+  // Set active theme swatch & update preview
   document.querySelectorAll('.theme-swatch').forEach(s => {
     s.classList.toggle('active', s.dataset.theme === APP.settings.theme);
   });
@@ -2199,6 +2283,8 @@ function openSettingsModal() {
   } else {
     document.getElementById('customColorSection').classList.add('hidden');
   }
+
+  updateThemePreview(APP.settings.theme || 'professional_blue');
 
   // Show logo preview if exists
   if (APP.settings.logoBase64) {
