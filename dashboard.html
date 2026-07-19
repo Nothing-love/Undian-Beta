@@ -191,17 +191,20 @@
   <!-- ===================== SETTINGS MODAL ===================== -->
   <!-- ===================== WINNER MODAL ===================== -->
   <div id="winnerModal" class="modal-overlay">
+    <div class="winner-modal-bg" id="winnerModalBg"></div>
     <div class="modal modal-winner">
       <div class="winner-content">
-        <div class="winner-badge">🏆</div>
+        <div class="winner-badge-container">
+          <div class="winner-badge-glow"></div>
+          <div class="winner-badge">🏆</div>
+        </div>
         <h2 class="winner-title">SELAMAT!</h2>
         <p class="winner-subtitle">Pemenang Ronde <span id="winnerRonde">1</span></p>
         <div id="winnerCards" class="winner-cards">
           <!-- Winner cards injected here -->
         </div>
-        <div class="winner-actions">
-
-          <button class="btn btn-secondary" id="winnerCloseBtn">Lanjutkan</button>
+        <div class="winner-actions" style="margin-top: 10px;">
+          <button class="btn btn-primary btn-large winner-btn-glow" id="winnerCloseBtn" style="padding: 12px 36px; font-weight: 800; font-size: 1.05rem; border-radius: var(--radius-lg);">Lanjutkan</button>
         </div>
       </div>
     </div>
