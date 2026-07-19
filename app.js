@@ -429,12 +429,21 @@ window.applyEventSettings = function() {
   const bgStyle = APP.settings.bgStyle || 'glass';
   const bgOpacity = APP.settings.bgOpacity !== undefined ? APP.settings.bgOpacity : 0.65;
 
+  const prizeFont = APP.settings.prizeFontFamily || "'Outfit', sans-serif";
+  const prizeTitleColor = APP.settings.prizeTitleColor || '#B91C1C';
+  const reelNumColor = APP.settings.reelNumberColor || '';
+  const winnerNumColor = APP.settings.winnerNumberColor || '';
+
   root.style.setProperty('--font-event', font);
   root.style.setProperty('--text-transform-event', transform);
   root.style.setProperty('--title-color-event', titleColor);
   root.style.setProperty('--title-size-event', titleSize);
   root.style.setProperty('--subtitle-color-event', subColor);
   root.style.setProperty('--subtitle-size-event', subSize);
+  root.style.setProperty('--prize-font-family', prizeFont);
+  root.style.setProperty('--prize-title-color', prizeTitleColor);
+  if (reelNumColor) root.style.setProperty('--reel-number-color', reelNumColor);
+  if (winnerNumColor) root.style.setProperty('--winner-number-color', winnerNumColor);
 
   const titleEls = document.querySelectorAll('.event-title, .header-title, #eventTitleDisplay, #miniTitle');
   titleEls.forEach(el => {
@@ -1906,7 +1915,7 @@ function updatePrizeSidebar() {
         return `
           <div class="prize-item-grid" style="display: flex; flex-direction: column; align-items: center; text-align: center; gap: 2px; padding: 4px;">
             ${imageHtml}
-            <h4 class="prize-name" style="font-size: 0.95rem; font-weight: 900; color: #B91C1C; margin: 4px 0 0 0; line-height: 1.2; word-break: break-word; text-transform: uppercase;">${prize.name}</h4>
+            <h4 class="prize-name" style="font-size: 0.95rem; font-weight: 900; font-family: var(--prize-font-family, 'Outfit', sans-serif); color: var(--prize-title-color, #B91C1C); margin: 4px 0 0 0; line-height: 1.2; word-break: break-word; text-transform: uppercase;">${prize.name}</h4>
             ${countBadge}
           </div>
         `;
@@ -1921,7 +1930,7 @@ function updatePrizeSidebar() {
     displayEl.innerHTML = `
       <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; width: 100%; text-align: center;">
         ${imageHtml}
-        <h3 class="prize-name" style="font-size: 1.4rem; font-weight: 900; color: #B91C1C; margin: 4px 0 0 0; line-height: 1.2; text-transform: uppercase; word-break: break-word;">${prize.name}</h3>
+        <h3 class="prize-name" style="font-size: 1.4rem; font-weight: 900; font-family: var(--prize-font-family, 'Outfit', sans-serif); color: var(--prize-title-color, #B91C1C); margin: 4px 0 0 0; line-height: 1.2; text-transform: uppercase; word-break: break-word;">${prize.name}</h3>
         ${countBadge}
       </div>
     `;
@@ -2492,6 +2501,10 @@ function saveEventSettings() {
   if (document.getElementById('inputLogoShape')) APP.settings.logoShape = document.getElementById('inputLogoShape').value;
   if (document.getElementById('inputBgStyle')) APP.settings.bgStyle = document.getElementById('inputBgStyle').value;
   if (document.getElementById('inputBgOpacity')) APP.settings.bgOpacity = parseFloat(document.getElementById('inputBgOpacity').value);
+  if (document.getElementById('inputPrizeFontFamily')) APP.settings.prizeFontFamily = document.getElementById('inputPrizeFontFamily').value;
+  if (document.getElementById('inputPrizeTitleColor')) APP.settings.prizeTitleColor = document.getElementById('inputPrizeTitleColor').value;
+  if (document.getElementById('inputReelNumberColor')) APP.settings.reelNumberColor = document.getElementById('inputReelNumberColor').value;
+  if (document.getElementById('inputWinnerNumberColor')) APP.settings.winnerNumberColor = document.getElementById('inputWinnerNumberColor').value;
 
   // Get selected theme
   const activeSwatch = document.querySelector('.theme-swatch.active');
@@ -2615,6 +2628,10 @@ function openSettingsModal() {
 
   if (document.getElementById('inputLogoShape')) document.getElementById('inputLogoShape').value = APP.settings.logoShape || 'rounded';
   if (document.getElementById('inputBgStyle')) document.getElementById('inputBgStyle').value = APP.settings.bgStyle || 'glass';
+  if (document.getElementById('inputPrizeFontFamily')) document.getElementById('inputPrizeFontFamily').value = APP.settings.prizeFontFamily || 'Outfit, sans-serif';
+  if (document.getElementById('inputPrizeTitleColor')) document.getElementById('inputPrizeTitleColor').value = APP.settings.prizeTitleColor || '#DC2626';
+  if (document.getElementById('inputReelNumberColor')) document.getElementById('inputReelNumberColor').value = APP.settings.reelNumberColor || '#F8FAFC';
+  if (document.getElementById('inputWinnerNumberColor')) document.getElementById('inputWinnerNumberColor').value = APP.settings.winnerNumberColor || '#FBBF24';
 
   // Set active theme swatch & update preview
   document.querySelectorAll('.theme-swatch').forEach(s => {
