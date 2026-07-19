@@ -955,7 +955,13 @@ function updatePesertaDatalist() {
   getActivePeserta().forEach(p => {
     const option = document.createElement('option');
     option.value = p.nama;
-    option.textContent = `ID: ${p.id} | Cluster: ${p.cluster}`;
+    const metaParts = [];
+    if (p.id) metaParts.push('ID: ' + p.id);
+    if (p.jenisPeserta && p.jenisPeserta.trim()) metaParts.push(p.jenisPeserta.trim());
+    if (p.grup && p.grup.trim()) metaParts.push(p.grup.trim());
+    if (p.kelompok && p.kelompok.trim()) metaParts.push(p.kelompok.trim());
+    if (metaParts.length === 1 && p.cluster && p.cluster.trim()) metaParts.push(p.cluster.trim());
+    option.textContent = p.nama + (metaParts.length > 0 ? ' (' + metaParts.join(' | ') + ')' : '');
     datalist.appendChild(option);
   });
 }
@@ -1384,16 +1390,17 @@ function showWinnerModal(winners) {
 
     // Build category breadcrumb from non-empty properties
     const categoryParts = [];
-    if (winner.jenisPeserta) categoryParts.push(winner.jenisPeserta);
-    if (winner.grup) categoryParts.push(winner.grup);
-    if (winner.kelompok) categoryParts.push(winner.kelompok);
-    const categoryText = categoryParts.join(' | ') || 'Umum';
+    if (winner.jenisPeserta && winner.jenisPeserta.trim()) categoryParts.push(winner.jenisPeserta.trim());
+    if (winner.grup && winner.grup.trim()) categoryParts.push(winner.grup.trim());
+    if (winner.kelompok && winner.kelompok.trim()) categoryParts.push(winner.kelompok.trim());
+    const categoryText = categoryParts.join(' | ');
+    const categoryBadge = categoryText ? `<span class="winner-card-cluster" style="font-size:0.75rem;color:var(--color-text-muted);margin-left:auto;background:var(--color-bg-secondary);padding:2px 6px;border-radius:4px;">${categoryText}</span>` : '';
 
     card.innerHTML =
       '<div class="winner-card-info">' +
         '<div class="winner-card-header" style="display:flex;justify-content:flex-start;align-items:center;gap:8px;padding-right:15px;">' +
           '<span class="winner-card-number">#' + (idx + 1) + '</span>' +
-          '<span class="winner-card-cluster" style="font-size:0.75rem;color:var(--color-text-muted);margin-left:auto;background:var(--color-bg-secondary);padding:2px 6px;border-radius:4px;">' + categoryText + '</span>' +
+          categoryBadge +
         '</div>' +
         '<div class="winner-card-name" title="' + winner.nama + '">' + winner.nama + '</div>' +
       '</div>' +
@@ -1744,7 +1751,7 @@ function openAdminPanel() {
     const hasClusters = APP.availableClusters && APP.availableClusters.length > 0;
     const options = hasClusters 
       ? APP.availableClusters 
-      : [...new Set(APP.dataPeserta.map(p => p.cluster || 'Umum'))];
+      : [...new Set(APP.dataPeserta.map(p => p.cluster).filter(c => c && c.trim()))];
     
     adminCluster.innerHTML = '<option value="Semua">Semua Kategori</option>' + 
       options.map(c => '<option value="' + c + '">' + c + '</option>').join('');
