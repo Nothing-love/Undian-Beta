@@ -1689,6 +1689,59 @@ select.form-control, select.input-modern {
   background: rgba(30, 41, 59, 0.95) !important;
 }
 
+/* Single Winner Special Hero Layout */
+.winner-cards.single-winner-layout {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  padding: 24px 20px !important;
+}
+
+.winner-card.single-winner-card {
+  width: 100% !important;
+  max-width: 540px !important;
+  padding: 24px 30px !important;
+  text-align: center !important;
+  align-items: center !important;
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.98)) !important;
+  border: 2.5px solid #F59E0B !important;
+  box-shadow: 0 12px 35px rgba(245, 158, 11, 0.4), 0 6px 20px rgba(0, 0, 0, 0.6) !important;
+  border-radius: 20px !important;
+  min-height: auto !important;
+  margin: 0 auto !important;
+}
+
+.winner-card.single-winner-card .winner-card-header {
+  justify-content: center !important;
+  gap: 12px !important;
+  margin-bottom: 12px !important;
+  padding-right: 0 !important;
+}
+
+.winner-card.single-winner-card .winner-card-number {
+  font-size: 0.95rem !important;
+  padding: 4px 14px !important;
+  border-radius: 20px !important;
+}
+
+.winner-card.single-winner-card .winner-card-cluster {
+  font-size: 0.9rem !important;
+  padding: 4px 12px !important;
+}
+
+.winner-card.single-winner-card .winner-card-name {
+  font-size: 3.2rem !important; /* LARGE HERO TEXT */
+  font-weight: 900 !important;
+  letter-spacing: 2px !important;
+  color: #FFFFFF !important;
+  background: linear-gradient(135deg, #FFFFFF 20%, #FDE047 60%, #F59E0B 100%) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  text-shadow: 0 6px 25px rgba(245, 158, 11, 0.5) !important;
+  margin: 10px 0 !important;
+  line-height: 1.2 !important;
+}
+
 .winner-card-header {
   display: flex;
   align-items: center;
