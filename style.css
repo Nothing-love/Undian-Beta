@@ -1509,33 +1509,42 @@ select.form-control, select.input-modern {
   background-position: center;
   background-repeat: no-repeat;
   pointer-events: none;
-  transition: all 0.5s ease;
-  opacity: 0.9;
+  transition: all 0.4s ease;
+  opacity: 1 !important;
+}
+
+/* Semi-transparent dark overlay tint so custom uploaded image is visible while text remains 100% crisp */
+.winner-modal-overlay-tint {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.65) 0%, rgba(15, 23, 42, 0.82) 100%);
+  pointer-events: none;
 }
 
 /* Preset 1: Royal Gold Gala (Default) */
-#winnerModal.winner-preset-gold_gala .winner-modal-bg,
-#winnerModal:not([class*="winner-preset-"]) .winner-modal-bg {
-  background-image: radial-gradient(circle at 50% 25%, rgba(245, 158, 11, 0.35) 0%, rgba(15, 23, 42, 0.95) 75%),
-                    radial-gradient(circle at 20% 80%, rgba(239, 68, 68, 0.25) 0%, transparent 50%),
-                    radial-gradient(circle at 80% 80%, rgba(251, 191, 36, 0.25) 0%, transparent 50%);
+#winnerModal.winner-preset-gold_gala .winner-modal-bg:not([style*="background-image"]),
+#winnerModal:not([class*="winner-preset-"]) .winner-modal-bg:not([style*="background-image"]) {
+  background-image: radial-gradient(circle at 50% 25%, rgba(245, 158, 11, 0.45) 0%, rgba(15, 23, 42, 0.95) 75%),
+                    radial-gradient(circle at 20% 80%, rgba(239, 68, 68, 0.3) 0%, transparent 50%),
+                    radial-gradient(circle at 80% 80%, rgba(251, 191, 36, 0.3) 0%, transparent 50%);
 }
 
 /* Preset 2: Midnight Obsidian Gold Glass */
-#winnerModal.winner-preset-dark_luxury .winner-modal-bg {
-  background-image: radial-gradient(circle at 50% 20%, rgba(251, 191, 36, 0.25) 0%, rgba(15, 23, 42, 0.96) 80%);
+#winnerModal.winner-preset-dark_luxury .winner-modal-bg:not([style*="background-image"]) {
+  background-image: radial-gradient(circle at 50% 20%, rgba(251, 191, 36, 0.3) 0%, rgba(15, 23, 42, 0.96) 80%);
 }
 
 /* Preset 3: Cyberpunk Neon Stage */
-#winnerModal.winner-preset-cyber_neon .winner-modal-bg {
-  background-image: radial-gradient(circle at 50% 25%, rgba(56, 189, 248, 0.35) 0%, rgba(15, 23, 42, 0.95) 75%),
-                    radial-gradient(circle at 80% 20%, rgba(244, 114, 182, 0.3) 0%, transparent 50%);
+#winnerModal.winner-preset-cyber_neon .winner-modal-bg:not([style*="background-image"]) {
+  background-image: radial-gradient(circle at 50% 25%, rgba(56, 189, 248, 0.45) 0%, rgba(15, 23, 42, 0.95) 75%),
+                    radial-gradient(circle at 80% 20%, rgba(244, 114, 182, 0.4) 0%, transparent 50%);
 }
 
 /* Preset 4: Festival Red & Gold Gala */
-#winnerModal.winner-preset-festive_celebration .winner-modal-bg {
-  background-image: radial-gradient(circle at 50% 20%, rgba(220, 38, 38, 0.4) 0%, rgba(15, 23, 42, 0.95) 75%),
-                    radial-gradient(circle at 50% 80%, rgba(251, 191, 36, 0.3) 0%, transparent 50%);
+#winnerModal.winner-preset-festive_celebration .winner-modal-bg:not([style*="background-image"]) {
+  background-image: radial-gradient(circle at 50% 20%, rgba(220, 38, 38, 0.5) 0%, rgba(15, 23, 42, 0.95) 75%),
+                    radial-gradient(circle at 50% 80%, rgba(251, 191, 36, 0.4) 0%, transparent 50%);
 }
 
 .modal-winner {
@@ -1543,11 +1552,11 @@ select.form-control, select.input-modern {
   z-index: 10;
   max-width: 840px;
   width: 90%;
-  background: rgba(15, 23, 42, 0.94) !important;
-  backdrop-filter: blur(20px) !important;
-  -webkit-backdrop-filter: blur(20px) !important;
-  border: 3px solid #F59E0B !important; /* Distinct Golden Frame */
-  box-shadow: 0 0 40px rgba(245, 158, 11, 0.4), 0 20px 60px rgba(0, 0, 0, 0.7) !important;
+  background: transparent !important; /* CRITICAL: Remove opaque background so custom uploaded image is 100% VISIBLE! */
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border: 3px solid #F59E0B !important; /* Golden Frame */
+  box-shadow: 0 0 45px rgba(245, 158, 11, 0.5), 0 20px 60px rgba(0, 0, 0, 0.8) !important;
   border-radius: 20px !important;
   overflow: hidden;
   display: flex;
