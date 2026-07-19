@@ -1869,11 +1869,19 @@ window.filterPesertaList = function() {
     const isWinner = prevWinners.has(p.nama);
     const isSelected = selectedNames.includes(p.nama);
     
+    const metaParts = [];
+    if (p.id) metaParts.push('ID: ' + p.id);
+    if (p.jenisPeserta && p.jenisPeserta.trim()) metaParts.push(p.jenisPeserta.trim());
+    if (p.grup && p.grup.trim()) metaParts.push(p.grup.trim());
+    if (p.kelompok && p.kelompok.trim()) metaParts.push(p.kelompok.trim());
+    if (metaParts.length === 1 && p.cluster && p.cluster.trim()) metaParts.push(p.cluster.trim());
+    const metaStr = metaParts.join(' | ');
+
     html += `
       <div style="padding: 12px 8px; border-bottom: 1px solid var(--color-border-light); display: flex; justify-content: space-between; align-items: center; ${isWinner ? 'opacity:0.5;' : ''}">
         <div style="font-size:0.85rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; margin-right:12px;">
           <strong>${p.nama}</strong><br/>
-          <span style="color:var(--color-text-muted); font-size:0.75rem;">ID: ${p.id} | ${p.jenisPeserta || p.cluster || 'Umum'} | ${p.grup || 'Umum'} | ${p.kelompok || 'Umum'}</span>
+          <span style="color:var(--color-text-muted); font-size:0.75rem;">${metaStr}</span>
         </div>
         ${isWinner 
           ? '<span style="color:var(--color-text-muted); font-size:0.75rem; font-weight:600;">Sudah Menang</span>' 
