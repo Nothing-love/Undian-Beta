@@ -8,7 +8,7 @@
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700&family=Montserrat:wght@400;600;700;800&family=Orbitron:wght@500;700;900&family=Outfit:wght@400;600;700;800;900&family=Playfair+Display:ital,wght@0,600;0,800;1,600&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet" />
   
   <!-- SheetJS -->
   <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
@@ -84,29 +84,34 @@
       -webkit-text-fill-color: transparent;
     }
     
-    /* Layout Container */
+    /* Layout Container - FULL FLUID WIDE RESPONSIVE */
     .settings-container {
-      max-width: 1200px;
-      width: 100%;
+      max-width: 1440px;
+      width: 95%;
       margin: var(--space-xl) auto;
-      padding: 0 var(--space-lg);
+      padding: 0 var(--space-md);
       box-sizing: border-box;
       flex: 1;
       display: flex;
       flex-direction: column;
       gap: var(--space-xl);
-      padding-bottom: 100px; /* Space for sticky save bar */
+      padding-bottom: 100px;
     }
     
     .settings-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: var(--space-xl);
+      align-items: start;
     }
     
-    @media (max-width: 900px) {
+    @media (max-width: 1024px) {
       .settings-grid {
         grid-template-columns: 1fr;
+      }
+      .settings-container {
+        width: 100%;
+        padding: 0 var(--space-md);
       }
     }
     
@@ -119,11 +124,17 @@
       overflow: hidden;
       display: flex;
       flex-direction: column;
-      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      transition: all var(--transition-base);
+    }
+    
+    .settings-card:hover {
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.04);
+      border-color: rgba(var(--color-primary-rgb), 0.2);
     }
     
     .settings-card-header {
       padding: var(--space-lg) var(--space-xl);
+      background: var(--color-bg-secondary);
       border-bottom: 1px solid var(--color-border-light);
       display: flex;
       align-items: center;
@@ -132,170 +143,78 @@
     
     .settings-card-header h2 {
       font-family: 'Outfit', sans-serif;
-      font-size: 1.2rem;
+      font-size: 1.15rem;
       font-weight: 700;
       margin: 0;
+      color: var(--color-text);
       display: flex;
       align-items: center;
       gap: 10px;
-      color: var(--color-text);
+    }
+    
+    .settings-card-header h2 svg {
+      color: var(--color-primary);
     }
     
     .settings-card-body {
       padding: var(--space-xl);
-      flex: 1;
       display: flex;
       flex-direction: column;
       gap: var(--space-lg);
     }
     
-    /* Upload Section Improvements */
-    .upload-area {
-      border: 2px dashed var(--color-border);
-      border-radius: var(--radius-lg);
-      padding: var(--space-xl) var(--space-md);
-      text-align: center;
-      background: var(--color-bg);
-      cursor: pointer;
-      transition: all var(--transition-normal);
-    }
-    
-    .upload-area:hover, .upload-area.drag-over {
-      border-color: var(--color-primary);
-      background: rgba(var(--color-primary-rgb), 0.04);
-    }
-    
-    /* Status Tag */
-    .status-tag {
-      display: inline-block;
-      padding: 6px 12px;
-      border-radius: var(--radius-sm);
-      font-size: 0.85rem;
-      font-weight: 600;
-      text-align: center;
-      margin-top: 5px;
-    }
-    
-    .status-tag.success {
-      background: rgba(5, 150, 105, 0.1);
-      color: #059669;
-    }
-    
-    .status-tag.warning {
-      background: rgba(245, 158, 11, 0.1);
-      color: #d97706;
-    }
-    
-    /* Dynamic targets spacing */
-    .draw-rule-row {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      background: var(--color-bg);
-      padding: var(--space-sm) var(--space-md);
-      border-radius: var(--radius-md);
-      border: 1px solid var(--color-border-light);
-      margin-bottom: 10px;
-    }
-    
-    /* Theme Swatch Grid */
-    .theme-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-      gap: 10px;
-    }
-    
-    .theme-swatch {
-      cursor: pointer;
-      border: 2px solid transparent;
-      padding: 10px;
-      border-radius: var(--radius-md);
-      background: var(--color-bg-secondary);
-      text-align: center;
-      transition: all var(--transition-fast);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 8px;
-    }
-    
-    .theme-swatch:hover {
-      transform: translateY(-2px);
-      background: var(--color-border-light);
-    }
-    
-    .theme-swatch.active {
-      border-color: var(--color-primary);
-      background: var(--color-surface);
-      box-shadow: 0 4px 12px rgba(var(--color-primary-rgb), 0.15);
-    }
-    
-    .swatch-colors {
-      display: flex;
-      gap: 4px;
-    }
-    
-    .swatch-colors span {
-      width: 16px;
-      height: 16px;
-      border-radius: 50%;
-    }
-    
-    .swatch-label {
-      font-size: 0.8rem;
-      font-weight: 600;
-    }
-    
     /* Floating Save Bar */
     .floating-save-bar {
       position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      background: rgba(255, 255, 255, 0.8);
-      backdrop-filter: blur(10px);
-      border-top: 1px solid var(--color-border-light);
-      padding: var(--space-md) var(--space-xl);
+      bottom: var(--space-xl);
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(var(--color-surface-rgb, 255, 255, 255), 0.85);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--color-border-light);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.12);
+      padding: 12px 24px;
+      border-radius: var(--radius-full);
       display: flex;
-      justify-content: flex-end;
-      gap: var(--space-md);
-      z-index: 99;
-      box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.05);
+      align-items: center;
+      gap: 15px;
+      z-index: 1000;
+      transition: all var(--transition-base);
     }
     
-    /* Dark mode adjustments for floating bar */
-    body.dark .floating-save-bar {
-      background: rgba(22, 22, 43, 0.8);
-    }
-    
-    .logo-upload-area, .bg-upload-area {
-      border: 2px dashed var(--color-border);
+    .logo-upload-area {
+      border: 2px dashed var(--color-border-light);
       border-radius: var(--radius-md);
       padding: 15px;
       text-align: center;
-      background: var(--color-bg);
       cursor: pointer;
-      position: relative;
-      overflow: hidden;
+      background: var(--color-bg-secondary);
+      transition: all var(--transition-fast);
       min-height: 80px;
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
     }
     
-    .logo-upload-area img, .bg-upload-area img {
-      max-height: 80px;
-      object-fit: contain;
-      z-index: 1;
+    .logo-upload-area:hover {
+      border-color: var(--color-primary);
+      background: rgba(var(--color-primary-rgb), 0.02);
     }
     
-    /* Premium Scrollbar */
+    .logo-upload-area img {
+      max-height: 60px;
+      max-width: 100%;
+      object-fit: contain;
+    }
+    
     ::-webkit-scrollbar {
-      width: 10px;
-      height: 10px;
+      width: 6px;
+      height: 6px;
     }
     ::-webkit-scrollbar-track {
-      background: var(--color-bg);
+      background: transparent;
     }
     ::-webkit-scrollbar-thumb {
       background: rgba(0, 0, 0, 0.15) !important;
@@ -317,7 +236,7 @@
           <line x1="19" y1="12" x2="5" y2="12"></line>
           <polyline points="12 19 5 12 12 5"></polyline>
         </svg>
-        Kembali
+        Kembali ke Dashboard
       </a>
       <h1 class="settings-page-title">Pengaturan Acara</h1>
     </div>
@@ -327,7 +246,7 @@
     </div>
   </header>
 
-  <!-- CONTAINER -->
+  <!-- FLUID WIDE CONTAINER -->
   <div class="settings-container">
     
     <div class="settings-grid">
@@ -365,13 +284,11 @@
               </button>
             </div>
             <p style="font-size: 0.8rem; color: var(--color-text-muted); margin: 0; text-align: center;">
-  <!-- MAIN CONTENT CONTAINER -->
-  <main class="settings-container">
-    <div class="settings-grid-main">
-      
-      <!-- COLUMN 1: EVENT BRANDING & THEME -->
-      <div style="display: flex; flex-direction: column; gap: var(--space-xl);">
-        
+              Unduh template di atas untuk melihat struktur kolom yang didukung sistem (ID, Nama, Jenis_Peserta, Grup, Kelompok, Status).
+            </p>
+          </div>
+        </section>
+
         <!-- CARD: Event Identity, Typography & Dynamic Branding -->
         <section class="settings-card">
           <div class="settings-card-header">
@@ -500,10 +417,9 @@
 
       </div>
       
-      <!-- COLUMN 2: THEME, TARGETS, & PRIZES -->
+      <!-- COLUMN 2: THEME & ROUND PRIZE SETTINGS -->
       <div style="display: flex; flex-direction: column; gap: var(--space-xl);">
         
-        <!-- CARD: Visual Theme Presets -->
         <!-- CARD: Theme & Color Settings with Live Preview -->
         <section class="settings-card">
           <div class="settings-card-header">
