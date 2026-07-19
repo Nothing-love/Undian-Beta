@@ -447,69 +447,124 @@
       <div style="display: flex; flex-direction: column; gap: var(--space-xl);">
         
         <!-- CARD: Visual Theme Presets -->
+        <!-- CARD: Theme & Color Settings with Live Preview -->
         <section class="settings-card">
           <div class="settings-card-header">
             <h2>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 14.7255 3.09032 17.1962 4.85857 19C4.85857 19 5.5 18 6 17C6.5 16 7.5 16 8 16.5C8.5 17 8.5 18 8 19C7.5 20 8.5 21.5 9.5 21.8284C10.2891 21.9413 11.1352 22 12 22Z"/><circle cx="7.5" cy="10.5" r="1.5"/><circle cx="11.5" cy="7.5" r="1.5"/><circle cx="16.5" cy="9.5" r="1.5"/><circle cx="15.5" cy="14.5" r="1.5"/></svg>
-              Tema & Warna Tampilan
+              Tema & Warna Tampilan (Live Preview)
             </h2>
           </div>
           <div class="settings-card-body">
             
+            <p style="font-size:0.85rem; color:var(--color-text-muted); margin: 0 0 12px 0;">Pilih suasana tema yang sesuai dengan konsep acara Anda. Klik tema di bawah untuk melihat simulasi tampilan langsung (*Live Preview*):</p>
+
             <div class="theme-grid">
-              <button class="theme-swatch active" data-theme="professional_blue" title="Profesional Biru">
+              <button class="theme-swatch active" data-theme="professional_blue" title="Profesional Biru (Event Perusahaan / Tech)">
                 <div class="swatch-colors">
                   <span style="background:#2563EB"></span><span style="background:#7C3AED"></span><span style="background:#F59E0B"></span>
                 </div>
                 <span class="swatch-label">Profesional Biru</span>
+                <span class="swatch-badge">Corporate / Tech</span>
               </button>
-              <button class="theme-swatch" data-theme="gala_gold" title="Gala Emas">
+              <button class="theme-swatch" data-theme="gala_gold" title="Gala Emas (Award Night & Anniversary)">
                 <div class="swatch-colors">
-                  <span style="background:#1A1A2E"></span><span style="background:#C9A84C"></span><span style="background:#F4E4BA"></span>
+                  <span style="background:#111827"></span><span style="background:#D97706"></span><span style="background:#FCD34D"></span>
                 </div>
                 <span class="swatch-label">Gala Emas</span>
+                <span class="swatch-badge">Gala / Award</span>
               </button>
-              <button class="theme-swatch" data-theme="festive_red" title="Festive Merah">
+              <button class="theme-swatch" data-theme="festive_red" title="Festive Merah (Perayaan & Festival)">
                 <div class="swatch-colors">
-                  <span style="background:#DC2626"></span><span style="background:#991B1B"></span><span style="background:#FCD34D"></span>
+                  <span style="background:#DC2626"></span><span style="background:#991B1B"></span><span style="background:#FBBF24"></span>
                 </div>
                 <span class="swatch-label">Festive Merah</span>
+                <span class="swatch-badge">Perayaan / Festival</span>
               </button>
-              <button class="theme-swatch" data-theme="nature_green" title="Nature Hijau">
+              <button class="theme-swatch" data-theme="nature_green" title="Nature Hijau (Eco & Outdoor Event)">
                 <div class="swatch-colors">
-                  <span style="background:#059669"></span><span style="background:#047857"></span><span style="background:#A7F3D0"></span>
+                  <span style="background:#059669"></span><span style="background:#047857"></span><span style="background:#34D399"></span>
                 </div>
                 <span class="swatch-label">Nature Hijau</span>
+                <span class="swatch-badge">Eco / Health</span>
               </button>
-              <button class="theme-swatch" data-theme="royal_purple" title="Royal Ungu">
+              <button class="theme-swatch" data-theme="royal_purple" title="Royal Ungu (Cyberpunk / Konser / Youth)">
                 <div class="swatch-colors">
-                  <span style="background:#7C3AED"></span><span style="background:#4C1D95"></span><span style="background:#C4B5FD"></span>
+                  <span style="background:#7C3AED"></span><span style="background:#4C1D95"></span><span style="background:#F472B6"></span>
                 </div>
                 <span class="swatch-label">Royal Ungu</span>
+                <span class="swatch-badge">Cyberpunk / Youth</span>
+              </button>
+              <button class="theme-swatch" data-theme="sunset_orange" title="Sunset Party (Gathering / Fun Event)">
+                <div class="swatch-colors">
+                  <span style="background:#EA580C"></span><span style="background:#C2410C"></span><span style="background:#FBBF24"></span>
+                </div>
+                <span class="swatch-label">Sunset Orange</span>
+                <span class="swatch-badge">Fun / Party</span>
+              </button>
+              <button class="theme-swatch" data-theme="midnight_dark" title="Midnight Dark (Futuristic Minimalist)">
+                <div class="swatch-colors">
+                  <span style="background:#0F172A"></span><span style="background:#38BDF8"></span><span style="background:#818CF8"></span>
+                </div>
+                <span class="swatch-label">Midnight Dark</span>
+                <span class="swatch-badge">Sleek / Dark</span>
               </button>
               <button class="theme-swatch" data-theme="custom" title="Custom Warna">
                 <div class="swatch-colors">
                   <span style="background: conic-gradient(red, yellow, lime, aqua, blue, magenta, red)"></span>
                 </div>
                 <span class="swatch-label">Custom Warna</span>
+                <span class="swatch-badge">Kustom Sendiri</span>
               </button>
             </div>
             
             <!-- Custom Theme Section -->
-            <div id="customColorSection" class="custom-colors hidden" style="background: var(--color-bg-secondary); padding: 15px; border-radius: var(--radius-md); border: 1px solid var(--color-border-light);">
+            <div id="customColorSection" class="custom-colors hidden" style="background: var(--color-bg-secondary); padding: 15px; border-radius: var(--radius-md); border: 1px solid var(--color-border-light); margin-top: 10px;">
               <h4 style="margin: 0 0 12px 0; font-family:'Outfit';">Pilih Warna Custom:</h4>
               <div style="display:flex; flex-direction:column; gap: 10px;">
                 <div style="display:flex; align-items:center; justify-content:space-between;">
-                  <label style="font-size:0.85rem; font-weight:600;">Warna Primer (Sistem)</label>
+                  <label style="font-size:0.85rem; font-weight:600;">Warna Utama (Primary)</label>
                   <input type="color" id="customPrimary" value="#2563EB" style="border: 1px solid var(--color-border); border-radius: var(--radius-sm); cursor: pointer; width: 50px; height: 32px; padding: 2px;" />
                 </div>
                 <div style="display:flex; align-items:center; justify-content:space-between;">
-                  <label style="font-size:0.85rem; font-weight:600;">Warna Sekunder (Tombol)</label>
+                  <label style="font-size:0.85rem; font-weight:600;">Warna Sekunder (Secondary)</label>
                   <input type="color" id="customSecondary" value="#7C3AED" style="border: 1px solid var(--color-border); border-radius: var(--radius-sm); cursor: pointer; width: 50px; height: 32px; padding: 2px;" />
                 </div>
                 <div style="display:flex; align-items:center; justify-content:space-between;">
-                  <label style="font-size:0.85rem; font-weight:600;">Warna Aksen (Badge/Highlight)</label>
+                  <label style="font-size:0.85rem; font-weight:600;">Warna Aksen (Highlight)</label>
                   <input type="color" id="customAccent" value="#F59E0B" style="border: 1px solid var(--color-border); border-radius: var(--radius-sm); cursor: pointer; width: 50px; height: 32px; padding: 2px;" />
+                </div>
+              </div>
+            </div>
+
+            <!-- LIVE PREVIEW CONTAINER -->
+            <div style="margin-top: 15px;">
+              <h4 style="margin: 0 0 8px 0; font-family:'Outfit'; font-size:0.95rem; display:flex; align-items:center; gap:6px;">
+                👁️ Simulasi Tampilan Panggung Dashboard (Live Preview)
+              </h4>
+              <div id="themePreviewBox" class="mini-dashboard-preview" style="border-radius: var(--radius-lg); padding: 16px; transition: all 0.3s ease; box-shadow: var(--shadow-md);">
+                <div style="display:flex; align-items:center; justify-content:space-between; border-bottom:1px dashed rgba(255,255,255,0.15); padding-bottom:8px; margin-bottom:12px;">
+                  <div style="display:flex; align-items:center; gap:8px;">
+                    <span style="font-size:1.2rem;">🎁</span>
+                    <div>
+                      <div id="miniTitle" style="font-family:'Outfit'; font-size:0.95rem; font-weight:800; line-height:1;">DORPRIZE EVENT</div>
+                      <div id="miniSubtitle" style="font-size:0.7rem; opacity:0.8; margin-top:2px;">Aplikasi Undian Digital</div>
+                    </div>
+                  </div>
+                  <span id="miniBadge" style="font-size:0.65rem; font-weight:700; padding:3px 8px; border-radius:12px; text-transform:uppercase;">RONDE 1</span>
+                </div>
+
+                <div style="display:flex; align-items:center; justify-content:center; gap:10px; margin:12px 0;">
+                  <div id="miniReel" style="padding:12px 20px; border-radius:var(--radius-md); font-family:'Outfit'; font-size:1.1rem; font-weight:900; letter-spacing:2px; box-shadow:0 4px 15px rgba(0,0,0,0.2); transition: all 0.3s ease;">
+                    777 - PST-001
+                  </div>
+                </div>
+
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-top:12px; gap:8px;">
+                  <div id="miniPrizeTag" style="font-size:0.75rem; font-weight:700;">🎁 Hadiah: Voucher Belanja</div>
+                  <div id="miniBtn" style="padding:6px 14px; border-radius:var(--radius-md); font-family:'Outfit'; font-size:0.75rem; font-weight:800; letter-spacing:1px; cursor:pointer; transition: all 0.3s ease;">
+                    SPIN UNDIAN
+                  </div>
                 </div>
               </div>
             </div>
