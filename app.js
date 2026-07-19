@@ -897,7 +897,7 @@ function generateTemplate() {
   
   const a = document.createElement('a');
   a.href = url;
-  a.download = 'Database_Undian_Template.xlsx';
+  a.download = `Database_Undian_Template_${Math.floor(Date.now() / 1000)}.xlsx`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
