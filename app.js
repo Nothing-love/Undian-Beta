@@ -505,6 +505,20 @@ window.applyEventSettings = function() {
     root.style.setProperty('--bg-image', 'none');
     document.body.classList.remove('has-bg');
   }
+
+  const winnerBgEl = document.getElementById('winnerModalBg');
+  const winnerModalEl = document.getElementById('winnerModal');
+  if (winnerBgEl && winnerModalEl) {
+    const preset = APP.settings.winnerBgPreset || 'gold_gala';
+    winnerModalEl.className = winnerModalEl.className.replace(/\bwinner-preset-\S+/g, '').trim();
+    winnerModalEl.classList.add(`winner-preset-${preset}`);
+
+    if (preset === 'custom' && APP.settings.winnerBgBase64) {
+      winnerBgEl.style.backgroundImage = `url(${APP.settings.winnerBgBase64})`;
+    } else {
+      winnerBgEl.style.backgroundImage = '';
+    }
+  }
 };
 
 window.updateBrandingPreview = function() {
@@ -780,6 +794,16 @@ function bindEvents() {
   }
   if (winnerBgInput) winnerBgInput.addEventListener('change', handleWinnerBgUpload);
   addEvent('removeWinnerBgBtn', 'click', removeWinnerBg);
+
+  const inputWinnerBgPreset = document.getElementById('inputWinnerBgPreset');
+  if (inputWinnerBgPreset) {
+    inputWinnerBgPreset.addEventListener('change', (e) => {
+      APP.settings.winnerBgPreset = e.target.value;
+      applyEventSettings();
+      saveSettings();
+      showToast('Tema Popup Pemenang diubah!', 'info');
+    });
+  }
 
   const opacitySlider = document.getElementById('inputBgOpacity');
   if (opacitySlider) {
@@ -1838,14 +1862,15 @@ function showWinnerModal(winners) {
   const modalEl = document.getElementById('winnerModal');
   const bgEl = document.getElementById('winnerModalBg');
 
-  if (modalEl) {
+  if (modalEl && bgEl) {
     modalEl.className = 'modal-overlay active';
     const preset = APP.settings.winnerBgPreset || 'gold_gala';
-    modalEl.classList.add(`winner-preset-${preset}`);
+    modalEl.className = modalEl.className.replace(/\bwinner-preset-\S+/g, '').trim();
+    modalEl.classList.add('modal-overlay', 'active', `winner-preset-${preset}`);
 
-    if (APP.settings.winnerBgBase64 && bgEl) {
+    if (preset === 'custom' && APP.settings.winnerBgBase64) {
       bgEl.style.backgroundImage = `url(${APP.settings.winnerBgBase64})`;
-    } else if (bgEl) {
+    } else {
       bgEl.style.backgroundImage = '';
     }
   }
@@ -2604,12 +2629,20 @@ function handleWinnerBgUpload(e) {
     }
     if (document.getElementById('winnerBgUploadText')) document.getElementById('winnerBgUploadText').style.display = 'none';
     if (document.getElementById('removeWinnerBgBtn')) document.getElementById('removeWinnerBgBtn').classList.remove('hidden');
+
+    applyEventSettings();
+    saveSettings();
+    showToast('Background Pemenang (Custom Gambar) berhasil disimpan & diterapkan!', 'success');
   };
   reader.readAsDataURL(file);
 }
 
 function removeWinnerBg() {
   APP.settings.winnerBgBase64 = null;
+  APP.settings.winnerBgPreset = 'gold_gala';
+  if (document.getElementById('inputWinnerBgPreset')) {
+    document.getElementById('inputWinnerBgPreset').value = 'gold_gala';
+  }
   const preview = document.getElementById('winnerBgPreview');
   if (preview) {
     preview.src = '';
@@ -2618,6 +2651,10 @@ function removeWinnerBg() {
   if (document.getElementById('winnerBgUploadText')) document.getElementById('winnerBgUploadText').style.display = 'block';
   if (document.getElementById('removeWinnerBgBtn')) document.getElementById('removeWinnerBgBtn').classList.add('hidden');
   if (document.getElementById('winnerBgFileInput')) document.getElementById('winnerBgFileInput').value = '';
+
+  applyEventSettings();
+  saveSettings();
+  showToast('Background Custom dihapus, kembali ke preset Royal Gold Gala.', 'info');
 }
 
 function handleLogoUpload(e) {
