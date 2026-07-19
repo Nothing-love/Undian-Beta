@@ -28,7 +28,11 @@ function requireAuth(req, res, next) {
   if (req.session.loggedIn) {
     next();
   } else {
-    res.redirect('/login');
+    if (req.path.startsWith('/api/')) {
+      res.status(401).json({ error: 'Unauthorized' });
+    } else {
+      res.redirect('/login');
+    }
   }
 }
 
@@ -50,6 +54,18 @@ app.use((req, res, next) => {
 });
 
 // Serve static assets unconditionally (CSS, JS, images)
+// Restrict static files to only allow app.js and style.css
+app.use((req, res, next) => {
+  const allowedStatic = ['/app.js', '/style.css'];
+  if (allowedStatic.includes(req.path.toLowerCase())) {
+    return next();
+  }
+  if (path.extname(req.path)) {
+    return res.status(403).send('Access Denied');
+  }
+  next();
+});
+
 app.use(express.static(ROOT, {
   index: false,
   setHeaders: (res, filePath) => {
