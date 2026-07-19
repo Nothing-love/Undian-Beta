@@ -206,7 +206,7 @@
       </div>
     </div>
 
-    <button class="btn btn-primary" id="adminLoginBtn" onclick="handleAdminLogin()"
+    <button class="btn btn-primary" id="adminLoginBtn"
       style="width: 100%; justify-content: center; padding: 12px; font-weight: 700;">
       Masuk
     </button>
@@ -231,7 +231,7 @@
               <div class="form-group">
                 <label for="adminCluster" style="font-weight:600; display:block; margin-bottom:6px;">Filter Kategori
                   Target</label>
-                <select id="adminCluster" class="form-control" style="width: 100%;">
+                <select id="adminCluster" class="form-control cluster-select" style="width: 100%;">
                   <option value="Semua">Semua Kategori</option>
                 </select>
               </div>
@@ -251,10 +251,18 @@
                     dipilih)</span>
                 </label>
 
+                <!-- Manual Direct Input / Typing Target (Flexible Entry) -->
+                <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                  <input type="text" id="manualTargetInput" class="form-control" placeholder="Ketik No. / Nama / ID (cth: 66 atau 12, 13)..." style="flex: 1; font-size: 0.85rem;" onkeydown="if(event.key === 'Enter') { event.preventDefault(); addManualTarget(); }" />
+                  <button type="button" class="btn btn-secondary btn-small" onclick="addManualTarget()" style="font-weight: 700; white-space: nowrap; padding: 8px 14px;">
+                    + Tambah
+                  </button>
+                </div>
+
                 <!-- Trigger select list modal -->
                 <button type="button" class="btn btn-outline" onclick="openPesertaListModal(null)"
-                  style="width: 100%; justify-content: center; padding: 12px; margin-bottom: 10px; border-style: dashed; font-weight: 600;">
-                  🔍 Cari & Pilih Nama Peserta
+                  style="width: 100%; justify-content: center; padding: 10px; margin-bottom: 10px; border-style: dashed; font-weight: 600; font-size: 0.85rem;">
+                  🔍 atau Cari & Pilih dari List Peserta
                 </button>
 
                 <div id="targetChipContainer" class="target-chip-box">
@@ -268,7 +276,7 @@
                 </p>
               </div>
 
-              <button class="btn btn-primary" id="saveAdminTargetBtn"
+              <button type="button" class="btn btn-primary" id="saveAdminTargetBtn"
                 style="width: 100%; justify-content: center; padding: 12px; font-weight: 700; margin-top: 5px;">
                 Simpan Target Ronde
               </button>
@@ -283,10 +291,10 @@
             </div>
             <div class="admin-card-body">
               <div class="form-group">
-                <input type="password" id="newAdminPassword" class="form-control" placeholder="Masukkan password baru"
-                  style="width:100%; box-sizing:border-box;" />
+                <input type="password" id="newAdminPassword" class="form-control" placeholder="Masukkan password baru (min 4 karakter)"
+                  style="width:100%; box-sizing:border-box;" onkeydown="if(event.key === 'Enter') changeAdminPassword()" />
               </div>
-              <button class="btn btn-outline" id="changePasswordBtn" style="width:100%; justify-content:center;">
+              <button type="button" class="btn btn-outline" id="changePasswordBtn" style="width:100%; justify-content:center; font-weight: 700;">
                 Ubah Password
               </button>
             </div>
