@@ -1949,6 +1949,10 @@ select.form-control, select.input-modern {
   background: rgba(16, 185, 129, 0.1);
   color: #059669;
 }
+.admin-status.skipped {
+  background: rgba(239, 68, 68, 0.1);
+  color: #EF4444;
+}
 
 /* ===================== PDF TEMPLATE ===================== */
 .pdf-template {

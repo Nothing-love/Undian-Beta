@@ -12,6 +12,7 @@ document.getElementById = function(id) {
       value: '',
       innerHTML: '',
       textContent: '',
+      className: '',
       src: '',
       focus: function(){},
       click: function(){},
@@ -852,14 +853,16 @@ function bindEvents() {
   // Reset Undian Button
   const resetBtn = document.getElementById('resetUndianBtn');
   if (resetBtn) {
-    resetBtn.addEventListener('click', () => {
+    resetBtn.addEventListener('click', async () => {
       if (APP.dataPeserta.length === 0) {
         showToast('Belum ada data peserta yang dimuat.', 'warning');
         return;
       }
-      if (!confirm('⚠️ PERINGATAN!\n\nApakah Anda yakin ingin mereset hasil undian?\nTindakan ini akan mengembalikan Ronde ke ronde 1, menghapus daftar pemenang yang keluar, dan membuat semua peserta aktif kembali.')) {
-        return;
-      }
+      const ok = await showCustomConfirm(
+        '⚠️ PERINGATAN!',
+        'Apakah Anda yakin ingin mereset hasil undian? Tindakan ini akan mengembalikan Ronde ke ronde 1, menghapus daftar pemenang yang keluar, dan membuat semua peserta aktif kembali.'
+      );
+      if (!ok) return;
 
       // Reset state
       APP.hasilUndian = [];
@@ -926,14 +929,6 @@ function bindEvents() {
   addEvent('exportConfigBtn', 'click', exportAdminConfig);
   addEvent('importConfigBtn', 'click', importAdminConfig);
   addEvent('copyRemoteUrlBtn', 'click', copyRemoteUrl);
-
-  // Secret keyboard shortcut: Ctrl+Shift+F12
-  document.addEventListener('keydown', e => {
-    if (e.ctrlKey && e.shiftKey && e.key === 'F12') {
-      e.preventDefault();
-      openAdminLogin();
-    }
-  });
 }
 
 // ===================== EXCEL MANAGER =====================
@@ -1210,14 +1205,14 @@ function getActivePeserta() {
 function getAllPreviousWinners() {
   // Collect all winners from history (rigged or not) to prevent duplicates
   const winners = new Set();
-  APP.dataPeserta.forEach(p => {
-    if (p.status === 'Sudah Diundi') winners.add(p.nama);
+  (APP.dataPeserta || []).forEach(p => {
+    if (p.status === 'Sudah Diundi' || p.status === 'Gugur') winners.add(p.id);
   });
   // Also check admin targets for future rounds that have been executed
   if (APP.adminTargets) {
     APP.adminTargets.forEach(t => {
       if (t.status === 'Sudah Dieksekusi') {
-        t.targets.forEach(name => winners.add(name));
+        t.targets.forEach(id => winners.add(id));
       }
     });
   }
@@ -1226,7 +1221,7 @@ function getAllPreviousWinners() {
 
 function updatePesertaStatus(winners) {
   winners.forEach(winner => {
-    const peserta = APP.dataPeserta.find(p => p.nama === winner.nama && p.status === 'Belum Diundi');
+    const peserta = APP.dataPeserta.find(p => p.id === winner.id && p.status === 'Belum Diundi');
     if (peserta) {
       peserta.status = 'Sudah Diundi';
     }
@@ -1586,16 +1581,21 @@ window.finishSpinMulti = function() {
   updatePesertaStatus(winners);
 
   if (APP.isReplacementSpin) {
+    const existingIds = new Set((APP.lastWinners || []).map(w => w.id || w.nama));
+    winners.forEach(w => {
+      const identifier = w.id || w.nama;
+      if (!existingIds.has(identifier)) {
+        APP.lastWinners.push(w);
+        existingIds.add(identifier);
+      }
+    });
+
     const rondeIndex = APP.currentRonde - 1;
     const record = APP.hasilUndian.find(r => r.Ronde_Ke === rondeIndex);
     if (record) {
-      if (record.Daftar_Pemenang_Keluar === 'DIBATALKAN') {
-        record.Daftar_Pemenang_Keluar = winners.map(w => `${w.id} - ${w.nama} (${w.jenisPeserta || w.cluster || 'Umum'} | ${w.grup || 'Umum'} | ${w.kelompok || 'Umum'})`).join(', ');
-      } else {
-        record.Daftar_Pemenang_Keluar += ', ' + winners.map(w => `${w.id} - ${w.nama} (${w.jenisPeserta || w.cluster || 'Umum'} | ${w.grup || 'Umum'} | ${w.kelompok || 'Umum'})`).join(', ');
-      }
+      record.Daftar_Pemenang_Keluar = APP.lastWinners.map(w => `${w.id} - ${w.nama} (${w.jenisPeserta || w.cluster || 'Umum'} | ${w.grup || 'Umum'} | ${w.kelompok || 'Umum'})`).join(', ');
+      record.Jumlah_Pemenang = APP.lastWinners.length;
     }
-    APP.lastWinners = APP.lastWinners.concat(winners);
   } else {
     appendHasilUndian(APP.currentRonde, winners);
     APP.lastWinners = winners;
@@ -1628,16 +1628,19 @@ window.triggerManualStop = function() {
 function determineWinnersMulti(rules) {
   const previousWinners = getAllPreviousWinners();
   let allWinners = [];
-  let currentActive = getActivePeserta().filter(p => !previousWinners.has(p.nama));
+  let currentActive = getActivePeserta().filter(p => !previousWinners.has(p.id));
 
-  // Ambil semua target aktif untuk ronde ini
-  let activeTargets = (APP.adminTargets || [])
-    .filter(t => t.ronde === APP.currentRonde && t.status !== 'Sudah Dieksekusi');
+  // Ambil semua target aktif untuk ronde ini (abaikan jika spin pengganti)
+  let activeTargets = [];
+  if (!APP.isReplacementSpin) {
+    activeTargets = (APP.adminTargets || [])
+      .filter(t => t.ronde === APP.currentRonde && t.status !== 'Sudah Dieksekusi');
+  }
 
-  // Track target names dynamically per rules loop
+  // Track target IDs dynamically per rules loop
   let targetStates = activeTargets.map(t => ({
     original: t,
-    remainingNames: [...t.targets]
+    remainingIds: [...t.targets]
   }));
 
   rules.forEach(rule => {
@@ -1645,15 +1648,15 @@ function determineWinnersMulti(rules) {
 
     // Cari targetState yang cocok dengan rule ini
     targetStates.forEach(state => {
-      const validNames = state.remainingNames.filter(targetName => {
-        return currentActive.some(p => p.nama === targetName && 
+      const validIds = state.remainingIds.filter(targetId => {
+        return currentActive.some(p => p.id === targetId && 
                                        matchParticipantCluster(p, state.original.cluster) &&
                                        matchRuleParticipant(p, rule));
       });
 
-      validNames.forEach(targetName => {
+      validIds.forEach(targetId => {
         if (ruleWinners.length >= rule.count) return;
-        const pesertaIdx = currentActive.findIndex(p => p.nama === targetName);
+        const pesertaIdx = currentActive.findIndex(p => p.id === targetId);
         if (pesertaIdx > -1) {
           const peserta = currentActive[pesertaIdx];
           ruleWinners.push({
@@ -1662,12 +1665,17 @@ function determineWinnersMulti(rules) {
             jenisPeserta: peserta.jenisPeserta,
             grup: peserta.grup,
             kelompok: peserta.kelompok,
-            cluster: peserta.cluster
+            cluster: peserta.cluster,
+            originalRule: {
+              jenis: rule.jenis || 'Semua',
+              grup: rule.grup || 'Semua',
+              kelompok: rule.kelompok || 'Semua'
+            }
           });
           currentActive.splice(pesertaIdx, 1);
           
-          const nameIdx = state.remainingNames.indexOf(targetName);
-          if (nameIdx > -1) state.remainingNames.splice(nameIdx, 1);
+          const idIdx = state.remainingIds.indexOf(targetId);
+          if (idIdx > -1) state.remainingIds.splice(idIdx, 1);
         }
       });
     });
@@ -1686,7 +1694,12 @@ function determineWinnersMulti(rules) {
           jenisPeserta: shuffled[i].jenisPeserta,
           grup: shuffled[i].grup,
           kelompok: shuffled[i].kelompok,
-          cluster: shuffled[i].cluster
+          cluster: shuffled[i].cluster,
+          originalRule: {
+            jenis: rule.jenis || 'Semua',
+            grup: rule.grup || 'Semua',
+            kelompok: rule.kelompok || 'Semua'
+          }
         });
         const pIdx = currentActive.findIndex(p => p.id === shuffled[i].id);
         if (pIdx > -1) currentActive.splice(pIdx, 1);
@@ -1707,7 +1720,12 @@ function determineWinnersMulti(rules) {
           jenisPeserta: remainingShuffled[i].jenisPeserta,
           grup: remainingShuffled[i].grup,
           kelompok: remainingShuffled[i].kelompok,
-          cluster: remainingShuffled[i].cluster
+          cluster: remainingShuffled[i].cluster,
+          originalRule: {
+            jenis: rule.jenis || 'Semua',
+            grup: rule.grup || 'Semua',
+            kelompok: rule.kelompok || 'Semua'
+          }
         });
         const pIdx = currentActive.findIndex(p => p.id === remainingShuffled[i].id);
         if (pIdx > -1) currentActive.splice(pIdx, 1);
@@ -1717,11 +1735,14 @@ function determineWinnersMulti(rules) {
     allWinners = allWinners.concat(ruleWinners);
   });
 
-  // Mark original targets as executed if all target names have been drawn
+  // Mark original targets as executed or skipped
   let updatedAny = false;
   targetStates.forEach(state => {
-    if (state.remainingNames.length === 0) {
+    if (state.remainingIds.length === 0) {
       state.original.status = 'Sudah Dieksekusi';
+      updatedAny = true;
+    } else {
+      state.original.status = 'Terlewati';
       updatedAny = true;
     }
   });
@@ -1903,8 +1924,9 @@ function fireConfetti() {
 }
 
 // ===================== DISQUALIFY & REPLACEMENT SPIN =====================
-window.disqualifyWinner = function(idx) {
-  if (!confirm('Yakin gugurkan pemenang ini? Sistem akan otomatis mengundi pengganti.')) return;
+window.disqualifyWinner = async function(idx) {
+  const ok = await showCustomConfirm('Gugurkan Pemenang', 'Yakin gugurkan pemenang ini? Sistem akan otomatis mengundi pengganti.');
+  if (!ok) return;
 
   const disqualified = APP.lastWinners[idx];
   if (!disqualified) return;
@@ -1932,16 +1954,29 @@ window.disqualifyWinner = function(idx) {
   showToast('Mencari pengganti untuk ' + disqualified.nama + '...', 'info');
 
   setTimeout(function() {
-    var replacementCluster = disqualified.cluster || 'Semua';
-    var available = APP.dataPeserta.filter(function(p) {
-      return p.status === 'Belum Diundi' && (replacementCluster === 'Semua' || p.cluster === replacementCluster);
-    });
+    let rules;
+    if (disqualified.originalRule) {
+      rules = [{
+        jenis: disqualified.originalRule.jenis || 'Semua',
+        grup: disqualified.originalRule.grup || 'Semua',
+        kelompok: disqualified.originalRule.kelompok || 'Semua',
+        count: 1
+      }];
+    } else {
+      const replacementCluster = disqualified.cluster || 'Semua';
+      rules = [{ cluster: replacementCluster, count: 1 }];
+    }
+
+    const activePesertaTotal = getActivePeserta();
+    const previousWinners = getAllPreviousWinners();
+    const currentActive = activePesertaTotal.filter(p => !previousWinners.has(p.id));
+    const available = currentActive.filter(p => matchRuleParticipant(p, rules[0]));
+
     if (available.length === 0) {
-      showToast('Tidak ada peserta tersisa di cluster ' + replacementCluster + ' untuk pengganti.', 'error');
+      showToast('Tidak ada peserta pengganti yang cocok dengan kriteria hadiah ini.', 'error');
       if (APP.lastWinners.length > 0) showWinnerModal(APP.lastWinners);
       return;
     }
-    var rules = [{ cluster: replacementCluster, count: 1 }];
     executeSpinMulti(rules, 1, true);
   }, 600);
 };
@@ -2228,13 +2263,9 @@ function handleAdminLogin() {
   if (!passwordInput) return;
   const input = passwordInput.value.trim();
 
-  const validPasswords = [
-    APP.adminPassword,
-    'admin2026',
-    'admin'
-  ].filter(Boolean);
+  const activePassword = APP.adminPassword || 'admin2026';
 
-  if (validPasswords.includes(input)) {
+  if (input === activePassword) {
     closeModal('adminLoginModal');
     const loginBox = document.getElementById('adminLoginModal');
     if (loginBox) loginBox.style.display = 'none';
@@ -2244,7 +2275,7 @@ function handleAdminLogin() {
   } else {
     const errBox = document.getElementById('adminLoginError');
     if (errBox) {
-      errBox.innerHTML = `❌ Password Admin Salah! <br><span style="font-size:0.75rem; color:var(--color-text-muted); font-weight:normal;">Password default: <strong>admin2026</strong></span>`;
+      errBox.innerHTML = `❌ Password Admin Salah! <br><span style="font-size:0.75rem; color:var(--color-text-muted); font-weight:normal;">Silakan masukkan password admin yang valid.</span>`;
       errBox.style.display = 'block';
     }
     passwordInput.value = '';
@@ -2319,17 +2350,17 @@ function copyRemoteUrl() {
 }
 
 // Chip-based target system
-window.addTargetChip = function(nama) {
-  nama = nama.trim();
-  if (!nama) return;
+window.addTargetChip = function(id) {
+  id = id.trim();
+  if (!id) return;
 
   const container = document.getElementById('targetChipContainer');
   if (!container) return;
 
   // Cegah duplikat
-  const existing = Array.from(container.querySelectorAll('.target-chip')).map(c => c.dataset.nama);
-  if (existing.includes(nama)) {
-    showToast('"' + nama + '" sudah ditambahkan.', 'info');
+  const existing = Array.from(container.querySelectorAll('.target-chip')).map(c => c.dataset.id);
+  if (existing.includes(id)) {
+    showToast('Peserta tersebut sudah ditambahkan.', 'info');
     return;
   }
 
@@ -2337,9 +2368,12 @@ window.addTargetChip = function(nama) {
   const ph = document.getElementById('chipPlaceholder');
   if (ph) ph.style.display = 'none';
 
+  const peserta = APP.dataPeserta.find(p => p.id === id);
+  const nama = peserta ? peserta.nama : id;
+
   const chip = document.createElement('span');
   chip.className = 'target-chip';
-  chip.dataset.nama = nama;
+  chip.dataset.id = id;
   chip.style.cssText = 'display:inline-flex; align-items:center; gap:5px; background:var(--color-primary); color:#fff; padding:5px 10px; border-radius:20px; font-size:0.85rem; font-weight:500;';
   chip.innerHTML = '<span>' + nama + '</span><button onclick="removeTargetChip(this)" title="Hapus" style="background:rgba(0,0,0,0.25);border:none;color:#fff;cursor:pointer;padding:0 2px;font-size:1rem;line-height:1;border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;">&times;</button>';
   container.appendChild(chip);
@@ -2383,8 +2417,18 @@ window.filterPesertaList = function() {
   
   // Get currently selected targets
   const chipContainer = document.getElementById('targetChipContainer');
-  const selectedNames = chipContainer ? Array.from(chipContainer.querySelectorAll('.target-chip')).map(c => c.dataset.nama) : [];
+  const selectedIds = chipContainer ? Array.from(chipContainer.querySelectorAll('.target-chip')).map(c => c.dataset.id) : [];
   
+  // Get all pending targets from adminTargets
+  const pendingTargets = {};
+  (APP.adminTargets || []).forEach(t => {
+    if (t.status !== 'Sudah Dieksekusi') {
+      (t.targets || []).forEach(id => {
+        pendingTargets[id] = t.ronde;
+      });
+    }
+  });
+
   const filtered = APP.dataPeserta.filter(p => {
     if (!matchParticipantCluster(p, filterCluster)) return false;
     if (q && !p.nama.toLowerCase().includes(q) && !p.id.toLowerCase().includes(q)) return false;
@@ -2401,8 +2445,9 @@ window.filterPesertaList = function() {
   let html = '';
   for (let i = 0; i < limit; i++) {
     const p = filtered[i];
-    const isWinner = prevWinners.has(p.nama);
-    const isSelected = selectedNames.includes(p.nama);
+    const isWinner = prevWinners.has(p.id);
+    const isSelected = selectedIds.includes(p.id);
+    const targetedRonde = pendingTargets[p.id];
     
     const metaParts = [];
     if (p.id) metaParts.push('ID: ' + p.id);
@@ -2412,18 +2457,28 @@ window.filterPesertaList = function() {
     if (metaParts.length === 1 && p.cluster && p.cluster.trim()) metaParts.push(p.cluster.trim());
     const metaStr = metaParts.join(' | ');
 
+    let actionHtml = '';
+    const isDisabled = p.status === 'Gugur' || p.status === 'Sudah Diundi' || targetedRonde !== undefined;
+    
+    if (p.status === 'Gugur') {
+      actionHtml = '<span style="color:#DC2626; font-size:0.75rem; font-weight:600;">Gugur (Diskualifikasi)</span>';
+    } else if (p.status === 'Sudah Diundi') {
+      actionHtml = '<span style="color:#2563EB; font-size:0.75rem; font-weight:600;">Sudah Menang</span>';
+    } else if (targetedRonde !== undefined) {
+      actionHtml = `<span style="color:#D97706; font-size:0.75rem; font-weight:600;">Target Ronde ${targetedRonde}</span>`;
+    } else if (isSelected) {
+      actionHtml = '<button class="btn btn-small" style="padding:6px 12px; font-size:0.75rem; background:var(--color-bg-tertiary); color:var(--color-text-muted); border:1px solid var(--color-border);" disabled>Terpilih</button>';
+    } else {
+      actionHtml = `<button class="btn btn-small btn-primary" data-id="${p.id}" style="padding:6px 12px; font-size:0.75rem;" onclick="selectPesertaFromList(this.dataset.id)">Pilih</button>`;
+    }
+
     html += `
-      <div style="padding: 12px 8px; border-bottom: 1px solid var(--color-border-light); display: flex; justify-content: space-between; align-items: center; ${isWinner ? 'opacity:0.5;' : ''}">
+      <div style="padding: 12px 8px; border-bottom: 1px solid var(--color-border-light); display: flex; justify-content: space-between; align-items: center; ${isDisabled ? 'opacity:0.65;' : ''}">
         <div style="font-size:0.85rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; margin-right:12px;">
           <strong>${p.nama}</strong><br/>
           <span style="color:var(--color-text-muted); font-size:0.75rem;">${metaStr}</span>
         </div>
-        ${isWinner 
-          ? '<span style="color:var(--color-text-muted); font-size:0.75rem; font-weight:600;">Sudah Menang</span>' 
-          : isSelected
-            ? '<button class="btn btn-small" style="padding:6px 12px; font-size:0.75rem; background:var(--color-bg-tertiary); color:var(--color-text-muted); border:1px solid var(--color-border);" disabled>Terpilih</button>'
-            : `<button class="btn btn-small btn-primary" style="padding:6px 12px; font-size:0.75rem;" onclick="selectPesertaFromList('${p.nama.replace(/'/g, "\\'")}')">Pilih</button>`
-        }
+        ${actionHtml}
       </div>
     `;
   }
@@ -2435,9 +2490,11 @@ window.filterPesertaList = function() {
   container.innerHTML = html;
 };
 
-window.selectPesertaFromList = function(nama) {
-  addTargetChip(nama);
-  showToast('"' + nama + '" dipilih.', 'success');
+window.selectPesertaFromList = function(id) {
+  const p = APP.dataPeserta.find(x => x.id === id);
+  const displayName = p ? p.nama : id;
+  addTargetChip(id);
+  showToast('"' + displayName + '" dipilih.', 'success');
   // Re-render the list so the button changes to 'Terpilih'
   filterPesertaList();
 };
@@ -2454,7 +2511,7 @@ function saveAdminTarget() {
   // Baca target dari chip container
   const chipContainer = document.getElementById('targetChipContainer');
   const targets = chipContainer
-    ? Array.from(chipContainer.querySelectorAll('.target-chip')).map(c => c.dataset.nama).filter(Boolean)
+    ? Array.from(chipContainer.querySelectorAll('.target-chip')).map(c => c.dataset.id).filter(Boolean)
     : [];
 
   if (targets.length === 0) {
@@ -2466,17 +2523,25 @@ function saveAdminTarget() {
   const prevWinners = getAllPreviousWinners();
   const invalidTargets = targets.filter(t => prevWinners.has(t));
   if (invalidTargets.length > 0) {
-    showToast('Target "' + invalidTargets.join(', ') + '" sudah pernah menang dan tidak bisa dipilih lagi!', 'error');
+    const invalidNames = invalidTargets.map(id => {
+      const p = APP.dataPeserta.find(p => p.id === id);
+      return p ? p.nama : id;
+    });
+    showToast('Target "' + invalidNames.join(', ') + '" sudah pernah menang dan tidak bisa dipilih lagi!', 'error');
     return;
   }
 
   // Validate: targets must exist in data for the selected cluster (or any if Semua)
   const validPeserta = APP.dataPeserta.filter(p => matchParticipantCluster(p, cluster));
-  const validNames = validPeserta.map(p => p.nama);
+  const validIds = validPeserta.map(p => p.id);
 
-  const notFound = targets.filter(t => !validNames.includes(t));
+  const notFound = targets.filter(t => !validIds.includes(t));
   if (notFound.length > 0) {
-    showToast('Nama "' + notFound.join(', ') + '" tidak ditemukan di kategori ' + cluster + '.', 'error');
+    const notFoundNames = notFound.map(id => {
+      const p = APP.dataPeserta.find(p => p.id === id);
+      return p ? p.nama : id;
+    });
+    showToast('Nama "' + notFoundNames.join(', ') + '" tidak ditemukan di kategori ' + cluster + '.', 'error');
     return;
   }
 
@@ -2513,9 +2578,12 @@ function refreshAdminTable() {
   const sorted = [...APP.adminTargets].sort((a, b) => a.ronde - b.ronde);
 
   tbody.innerHTML = sorted.map((t, index) => {
-    const statusClass = t.status === 'Sudah Dieksekusi' ? 'executed' : 'pending';
-    const statusLabel = t.status === 'Sudah Dieksekusi' ? 'Sudah Dieksekusi' : 'Menunggu';
-    const targetsText = t.targets.join(', ');
+    const statusClass = t.status === 'Sudah Dieksekusi' ? 'executed' : (t.status === 'Terlewati' ? 'skipped' : 'pending');
+    const statusLabel = t.status === 'Sudah Dieksekusi' ? 'Sudah Dieksekusi' : (t.status === 'Terlewati' ? 'Terlewati' : 'Menunggu');
+    const targetsText = t.targets.map(id => {
+      const p = APP.dataPeserta.find(p => p.id === id);
+      return p ? p.nama : id;
+    }).join(', ');
     return '<tr>' +
       '<td><strong>' + (t.cluster || 'Semua') + '</strong></td>' +
       '<td><strong>Ronde ' + t.ronde + '</strong></td>' +
@@ -2526,14 +2594,22 @@ function refreshAdminTable() {
   }).join('');
 }
 
-function deleteAdminTarget(index) {
+async function deleteAdminTarget(index) {
   const sorted = [...APP.adminTargets].sort((a, b) => a.ronde - b.ronde);
   const targetToDelete = sorted[index];
   
   if (!targetToDelete) return;
   
-  const names = targetToDelete.targets.join(', ');
-  if (!confirm('Hapus target:\n"' + names + '" di Ronde ' + targetToDelete.ronde + ' (' + (targetToDelete.cluster || 'Semua') + ')?\n\nTindakan ini tidak bisa dibatalkan.')) return;
+  const names = targetToDelete.targets.map(id => {
+    const p = APP.dataPeserta.find(p => p.id === id);
+    return p ? p.nama : id;
+  }).join(', ');
+  
+  const ok = await showCustomConfirm(
+    'Hapus Target',
+    'Hapus target: "' + names + '" di Ronde ' + targetToDelete.ronde + ' (' + (targetToDelete.cluster || 'Semua') + ')? Tindakan ini tidak bisa dibatalkan.'
+  );
+  if (!ok) return;
   
   APP.adminTargets = APP.adminTargets.filter(t => t !== targetToDelete);
   saveAdminSettings();
@@ -2889,6 +2965,134 @@ function showToast(message, type = 'info') {
     setTimeout(() => toast.remove(), 300);
   }, 3500);
 }
+
+// ===================== CUSTOM CONFIRM MODAL =====================
+window.showCustomConfirm = function(title, message, confirmText = 'Ya, Lanjutkan', cancelText = 'Batal') {
+  return new Promise((resolve) => {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(15, 23, 42, 0.65);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 99999;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    `;
+
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+      background: var(--color-surface, #1E293B);
+      border: 1px solid var(--color-border-light, #334155);
+      border-radius: var(--radius-xl, 16px);
+      box-shadow: var(--shadow-xl, 0 20px 25px -5px rgba(0, 0, 0, 0.3));
+      width: 90%;
+      max-width: 420px;
+      padding: 24px;
+      box-sizing: border-box;
+      transform: scale(0.92);
+      transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+      text-align: center;
+      color: var(--color-text, #F8FAFC);
+    `;
+
+    const titleEl = document.createElement('h3');
+    titleEl.textContent = title;
+    titleEl.style.cssText = `
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin: 0 0 10px 0;
+      color: var(--color-primary, #38BDF8);
+    `;
+
+    const msgEl = document.createElement('p');
+    msgEl.textContent = message;
+    msgEl.style.cssText = `
+      font-family: 'Inter', sans-serif;
+      font-size: 0.88rem;
+      line-height: 1.5;
+      margin: 0 0 24px 0;
+      color: var(--color-text-muted, #94A3B8);
+    `;
+
+    const btnContainer = document.createElement('div');
+    btnContainer.style.cssText = `
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+    `;
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.textContent = cancelText;
+    cancelBtn.style.cssText = `
+      flex: 1;
+      padding: 10px 16px;
+      background: var(--color-bg-secondary, #1E293B);
+      border: 1px solid var(--color-border-light, #334155);
+      color: var(--color-text, #F8FAFC);
+      border-radius: var(--radius-md, 8px);
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    `;
+    cancelBtn.onmouseenter = () => cancelBtn.style.background = 'var(--color-border-light, #334155)';
+    cancelBtn.onmouseleave = () => cancelBtn.style.background = 'var(--color-bg-secondary, #1E293B)';
+
+    const confirmBtn = document.createElement('button');
+    confirmBtn.textContent = confirmText;
+    confirmBtn.style.cssText = `
+      flex: 1;
+      padding: 10px 16px;
+      background: var(--color-primary, #38BDF8);
+      border: none;
+      color: #fff;
+      border-radius: var(--radius-md, 8px);
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    `;
+    confirmBtn.onmouseenter = () => confirmBtn.style.filter = 'brightness(1.1)';
+    confirmBtn.onmouseleave = () => confirmBtn.style.filter = 'none';
+
+    btnContainer.appendChild(cancelBtn);
+    btnContainer.appendChild(confirmBtn);
+    modal.appendChild(titleEl);
+    modal.appendChild(msgEl);
+    modal.appendChild(btnContainer);
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+
+    setTimeout(() => {
+      overlay.style.opacity = '1';
+      modal.style.transform = 'scale(1)';
+    }, 10);
+
+    const closeConfirm = (result) => {
+      overlay.style.opacity = '0';
+      modal.style.transform = 'scale(0.92)';
+      setTimeout(() => {
+        overlay.remove();
+        resolve(result);
+      }, 200);
+    };
+
+    cancelBtn.onclick = () => closeConfirm(false);
+    confirmBtn.onclick = () => closeConfirm(true);
+    overlay.onclick = (e) => {
+      if (e.target === overlay) closeConfirm(false);
+    };
+  });
+};
 
 // ===================== UI UPDATES =====================
 function updateUI() {
