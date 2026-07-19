@@ -1514,14 +1514,12 @@ function buildSlotReels(count, winners, isManual = false) {
   CELL_HEIGHT = 56;
   if (count === 1) {
     slotMachine.classList.add('massive-reel');
-  } else if (count >= 2 && count <= 5) {
+  } else if (count >= 2 && count <= 4) {
     slotMachine.classList.add('large-reels');
-  } else if (count >= 20) {
-    slotMachine.classList.add('micro-reels');
-    CELL_HEIGHT = 24;
-  } else if (count >= 6) {
+  } else if (count >= 5 && count <= 9) {
     slotMachine.classList.add('compact-reels');
-    CELL_HEIGHT = 36;
+  } else {
+    slotMachine.classList.add('micro-reels');
   }
 
   const activeNames = getActivePeserta().map(p => p.nama);
@@ -2517,11 +2515,11 @@ function updateUI() {
 
   if (APP.dataPeserta.length > 0) {
     const clusterInfo = APP.currentCluster !== 'Semua' ? ` (Cluster: ${APP.currentCluster})` : '';
-    statusText.textContent = `Siap â€” ${active.length} peserta aktif${clusterInfo} | Ronde ke-${APP.currentRonde}`;
+    statusText.textContent = `Siap — ${active.length} Peserta Aktif${clusterInfo} | Ronde ke-${APP.currentRonde}`;
     spinBtn.disabled = active.length === 0;
     downloadExcelBtn.disabled = false;
   } else {
-    statusText.textContent = 'Siap â€” Upload file Excel untuk memulai';
+    statusText.textContent = 'Siap — Upload file Excel di Pengaturan untuk memulai';
     spinBtn.disabled = true;
     downloadExcelBtn.disabled = true;
   }
