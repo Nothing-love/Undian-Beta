@@ -490,6 +490,11 @@
                   <button class="btn btn-small btn-outline hidden" id="removeWinnerBgBtn" style="margin-top: 6px; width: 100%; color: red; border-color: rgba(255,0,0,0.2); font-size:0.75rem; padding:3px;">Hapus BG Pemenang</button>
                 </div>
               </div>
+
+              <button type="button" class="btn btn-secondary btn-small" id="previewWinnerModalBtn" onclick="previewWinnerModal()" style="width: 100%; font-size: 0.82rem; font-weight: 700; background: rgba(30, 41, 59, 0.8); border: 1.5px solid var(--color-primary); color: var(--color-primary-light); display: flex; align-items: center; justify-content: center; gap: 8px; padding: 8px; border-radius: var(--radius-md); cursor: pointer; transition: all 0.2s ease;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                👁️ Tes / Preview Popup Pemenang
+              </button>
             </div>
             
           </div>
@@ -660,6 +665,31 @@
 
   <div id="toastContainer" class="toast-container"></div>
   
+  <!-- WINNER MODAL FOR LIVE SETTING PREVIEW -->
+  <div id="winnerModal" class="modal-overlay">
+    <div class="modal modal-winner">
+      <div class="winner-modal-bg" id="winnerModalBg"></div>
+      <div class="winner-modal-overlay-tint"></div>
+      
+      <div class="winner-header-area">
+        <div class="winner-badge-container">
+          <div class="winner-badge-glow"></div>
+          <div class="winner-badge">🏆</div>
+        </div>
+        <h2 class="winner-title">SELAMAT!</h2>
+        <p class="winner-subtitle">Pemenang Ronde <span id="winnerRonde">1</span></p>
+      </div>
+
+      <div id="winnerCards" class="winner-cards">
+        <!-- Winner cards injected here -->
+      </div>
+
+      <div class="winner-actions">
+        <button type="button" class="btn btn-primary btn-large winner-btn-glow" id="winnerCloseBtn" onclick="closeModal('winnerModal')" style="padding: 12px 40px; font-weight: 800; font-size: 1.05rem; border-radius: var(--radius-lg);">Lanjutkan</button>
+      </div>
+    </div>
+  </div>
+
   <script src="app.js?v=2026.07.19.2"></script>
 </body>
 </html>

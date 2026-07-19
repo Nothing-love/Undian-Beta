@@ -2896,6 +2896,17 @@ function updateUI() {
   }
 }
 
+function previewWinnerModal() {
+  const testWinners = [
+    { nama: 'Peserta #01 (Militer)', jenisPeserta: 'Militer', grup: 'Grup A', kelompok: 'Kelompok 1' },
+    { nama: 'Peserta #02 (Warga)', jenisPeserta: 'Warga', grup: 'Grup B', kelompok: 'Kelompok 2' },
+    { nama: 'Peserta #03 (Militer)', jenisPeserta: 'Militer', grup: 'Grup A', kelompok: 'Kelompok 1' },
+    { nama: 'Peserta #04 (Warga)', jenisPeserta: 'Warga', grup: 'Grup C', kelompok: 'Kelompok 3' }
+  ];
+  showWinnerModal(testWinners);
+}
+window.previewWinnerModal = previewWinnerModal;
+
 // Make deleteAdminTarget globally accessible
 window.deleteAdminTarget = deleteAdminTarget;
 
