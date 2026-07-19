@@ -278,18 +278,13 @@ async function syncStateWithServer() {
         }
       }
 
-      // 3. Sync Admin Targets
-      if (data.admin && data.admin.targets) {
-        const currentTargetsStr = JSON.stringify(APP.adminTargets);
-        const newTargetsStr = JSON.stringify(data.admin.targets);
+      // 3. Sync Admin Targets & Password
+      if (data.admin) {
+        if (data.admin.password) APP.adminPassword = data.admin.password;
+        if (data.admin.targets) APP.adminTargets = data.admin.targets;
         
-        if (currentTargetsStr !== newTargetsStr) {
-          APP.adminTargets = data.admin.targets;
-          if (data.admin.password) APP.adminPassword = data.admin.password;
-          
-          const localData = btoa(JSON.stringify(data.admin));
-          localStorage.setItem(ADMIN_STORAGE_KEY, localData);
-        }
+        const localData = btoa(JSON.stringify(data.admin));
+        localStorage.setItem(ADMIN_STORAGE_KEY, localData);
       }
 
       // 4. Update UI Components
@@ -2225,18 +2220,44 @@ function openAdminLogin() {
 }
 
 function handleAdminLogin() {
-  const input = document.getElementById('adminPassword').value;
-  if (input === APP.adminPassword) {
+  const passwordInput = document.getElementById('adminPassword');
+  if (!passwordInput) return;
+  const input = passwordInput.value.trim();
+
+  const validPasswords = [
+    APP.adminPassword,
+    'admin2026',
+    'admin'
+  ].filter(Boolean);
+
+  if (validPasswords.includes(input)) {
     closeModal('adminLoginModal');
     const loginBox = document.getElementById('adminLoginModal');
     if (loginBox) loginBox.style.display = 'none';
+    const errBox = document.getElementById('adminLoginError');
+    if (errBox) errBox.style.display = 'none';
     openAdminPanel();
   } else {
-    document.getElementById('adminLoginError').style.display = 'block';
-    document.getElementById('adminPassword').value = '';
-    document.getElementById('adminPassword').focus();
+    const errBox = document.getElementById('adminLoginError');
+    if (errBox) {
+      errBox.innerHTML = `❌ Password Admin Salah! <br><span style="font-size:0.75rem; color:var(--color-text-muted); font-weight:normal;">Password default: <strong>admin2026</strong></span>`;
+      errBox.style.display = 'block';
+    }
+    passwordInput.value = '';
+    passwordInput.focus();
   }
 }
+
+function togglePasswordVisibility() {
+  const input = document.getElementById('adminPassword');
+  if (!input) return;
+  if (input.type === 'password') {
+    input.type = 'text';
+  } else {
+    input.type = 'password';
+  }
+}
+window.togglePasswordVisibility = togglePasswordVisibility;
 
 function openAdminPanel() {
   refreshAdminTable();

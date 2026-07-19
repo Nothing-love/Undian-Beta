@@ -118,7 +118,7 @@ app.get('/adm1n', requireAuth, (req, res) => res.sendFile(path.join(ROOT, 'adm1n
 app.get('/api/admin', requireAuth, (req, res) => {
   const stateFile = path.join(ROOT, 'admin_state.json');
   fs.readFile(stateFile, 'utf8', (err, data) => {
-    if (err) return res.json({ targets: [], password: 'admin' });
+    if (err) return res.json({ targets: [], password: 'admin2026' });
     try { res.json(JSON.parse(data)); } catch(e) { res.json({ targets: [] }); }
   });
 });
