@@ -1080,8 +1080,8 @@ function loadExcelFile(file) {
       updateUI();
       showToast(`Data berhasil dimuat! ${getActivePeserta().length} peserta aktif terdaftar.`, 'success');
     } catch (err) {
-      console.error(err);
-      showToast('Gagal membaca file Excel. Silakan periksa kembali file Excel Anda.', 'error');
+      console.error('loadExcelFile error:', err);
+      showToast(`Gagal membaca file Excel (${err.message || 'Format tidak didukung'}). Silakan periksa kembali file Anda.`, 'error');
     }
   };
   reader.readAsArrayBuffer(file);
@@ -2847,13 +2847,13 @@ function updateUI() {
 
   if (APP.dataPeserta.length > 0) {
     const clusterInfo = APP.currentCluster !== 'Semua' ? ` (Cluster: ${APP.currentCluster})` : '';
-    statusText.textContent = `Siap — ${active.length} Peserta Aktif${clusterInfo} | Ronde ke-${APP.currentRonde}`;
-    spinBtn.disabled = active.length === 0;
-    downloadExcelBtn.disabled = false;
+    if (statusText) statusText.textContent = `Siap — ${active.length} Peserta Aktif${clusterInfo} | Ronde ke-${APP.currentRonde}`;
+    if (spinBtn) spinBtn.disabled = active.length === 0;
+    if (downloadExcelBtn) downloadExcelBtn.disabled = false;
   } else {
-    statusText.textContent = 'Siap — Upload file Excel di Pengaturan untuk memulai';
-    spinBtn.disabled = true;
-    downloadExcelBtn.disabled = true;
+    if (statusText) statusText.textContent = 'Siap — Upload file Excel di Pengaturan untuk memulai';
+    if (spinBtn) spinBtn.disabled = true;
+    if (downloadExcelBtn) downloadExcelBtn.disabled = true;
   }
 }
 
