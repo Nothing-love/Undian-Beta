@@ -1056,9 +1056,20 @@ window.handleSpin = function() {
     return;
   }
 
-  // Read rules from settings if no DOM elements found (which is the case on dashboard)
+  // Read rules from settings or prizes
   let rules = [];
   const domRows = document.querySelectorAll('.draw-rule-row');
+  
+  // Cek apakah ada konfigurasi khusus hadiah & jumlah pemenang untuk ronde saat ini
+  const prizes = APP.settings.prizes || [];
+  const currentPrizes = prizes.filter(p => parseInt(p.ronde) === APP.currentRonde);
+  let configuredCountForRound = 0;
+  if (currentPrizes.length > 0) {
+    currentPrizes.forEach(p => {
+      configuredCountForRound += (p.count !== undefined ? parseInt(p.count) || 1 : 1);
+    });
+  }
+
   if (domRows.length > 0) {
     domRows.forEach(row => {
       const jenis = row.querySelector('.jenis-select').value;
@@ -1068,6 +1079,8 @@ window.handleSpin = function() {
       rules.push({ jenis, grup, kelompok, count });
     });
     APP.settings.drawRules = rules; // keep in sync
+  } else if (configuredCountForRound > 0) {
+    rules = [{ jenis: 'Semua', grup: 'Semua', kelompok: 'Semua', count: configuredCountForRound }];
   } else {
     rules = APP.settings.drawRules || [{ jenis: 'Semua', grup: 'Semua', kelompok: 'Semua', count: 1 }];
   }
@@ -1489,6 +1502,7 @@ function updatePrizeSidebar() {
       `).join('') + `</div>`;
   } else if (currentPrizes.length === 1) {
     const prize = currentPrizes[0];
+    const countBadge = prize.count && prize.count > 1 ? `<div style="font-size: 0.9rem; font-weight: 700; color: var(--color-primary); margin-top: 4px;">🏆 ${prize.count} Pemenang</div>` : '';
     displayEl.innerHTML = `
       <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-md); width: 100%;">
         <div class="prize-image-container" style="width: 180px; height: 180px; border-radius: var(--radius-lg); overflow: hidden; background: rgba(var(--color-primary-rgb), 0.05); display: flex; align-items: center; justify-content: center; border: 2px dashed rgba(var(--color-primary-rgb), 0.2); box-shadow: var(--shadow-md); margin: 0 auto;">
@@ -1496,6 +1510,7 @@ function updatePrizeSidebar() {
             `<div class="prize-placeholder" style="font-size: 1.1rem; color: var(--color-text-muted); font-weight: 600;">🎁 Hadiah Misteri</div>`}
         </div>
         <h3 class="prize-name" style="font-size: 1.5rem; font-weight: 800; color: var(--color-text); margin: 0; background: var(--gradient-main); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; line-height: 1.3;">${prize.name || 'Hadiah Spesial'}</h3>
+        ${countBadge}
       </div>
     `;
   } else {
@@ -1542,10 +1557,12 @@ function renderPrizeSettings() {
     item.innerHTML = `
       ${imgPreview}
       <div class="prize-setting-info" style="display:flex; flex-direction:column; gap:6px; flex:1;">
-        <div style="display:flex; align-items:center; gap:8px;">
-          <span style="font-size:0.8rem; font-weight:600; color:var(--color-text-secondary);">Rnd:</span>
-          <input type="number" class="input-modern" style="width: 50px; height: 30px; padding: 0 4px; font-size: 0.8rem; text-align:center; font-weight:bold;" value="${p.ronde}" onchange="updatePrizeRonde('${p.id}', this.value)" min="1" />
-          <input type="text" class="input-modern" style="flex:1; height: 30px; padding: 0 8px; font-size: 0.8rem; font-weight:500;" placeholder="Nama Hadiah" value="${p.name || ''}" onchange="updatePrizeName('${p.id}', this.value)" />
+        <div style="display:flex; align-items:center; gap:6px;">
+          <span style="font-size:0.75rem; font-weight:600; color:var(--color-text-secondary);">Rnd:</span>
+          <input type="number" class="input-modern" style="width: 42px; height: 30px; padding: 0 2px; font-size: 0.8rem; text-align:center; font-weight:bold;" value="${p.ronde}" onchange="updatePrizeRonde('${p.id}', this.value)" min="1" title="Nomor Ronde" />
+          <span style="font-size:0.75rem; font-weight:600; color:var(--color-text-secondary);">Jml:</span>
+          <input type="number" class="input-modern" style="width: 42px; height: 30px; padding: 0 2px; font-size: 0.8rem; text-align:center; font-weight:bold;" value="${p.count !== undefined ? p.count : 1}" onchange="updatePrizeCount('${p.id}', this.value)" min="1" max="100" title="Jumlah Pemenang Ronde Ini" />
+          <input type="text" class="input-modern" style="flex:1; height: 30px; padding: 0 6px; font-size: 0.8rem; font-weight:500;" placeholder="Nama Hadiah" value="${p.name || ''}" onchange="updatePrizeName('${p.id}', this.value)" />
         </div>
         <div style="display:flex; gap:6px; align-items:center;">
           <button class="btn btn-outline btn-small" style="padding:4px 8px; font-size:0.75rem; height:26px; border-width:1px;" onclick="document.getElementById('prizeImgUpload_${p.id}').click()">Upload Gambar</button>
@@ -1563,12 +1580,18 @@ function addPrizeRule() {
   APP.settings.prizes = APP.settings.prizes || [];
   let nextRonde = 1;
   if (APP.settings.prizes.length > 0) {
-    nextRonde = Math.max(...APP.settings.prizes.map(p => parseInt(p.ronde) || 1));
+    nextRonde = Math.max(...APP.settings.prizes.map(p => parseInt(p.ronde) || 1)) + 1;
   }
-  APP.settings.prizes.push({ id: Date.now().toString(), ronde: nextRonde, name: '', imageBase64: null });
+  APP.settings.prizes.push({ id: Date.now().toString(), ronde: nextRonde, name: '', count: 1, imageBase64: null });
   renderPrizeSettings();
   saveSettings();
 }
+
+window.updatePrizeCount = function(id, count) {
+  const prize = APP.settings.prizes.find(p => p.id === id);
+  if (prize) prize.count = Math.max(1, parseInt(count) || 1);
+  saveSettings();
+};
 
 window.updatePrizeRonde = function(id, ronde) {
   const prize = APP.settings.prizes.find(p => p.id === id);
