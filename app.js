@@ -1832,18 +1832,6 @@ function updateTargetChipCount() {
 // ===================== PESERTA LIST MODAL =====================
 
 window.openPesertaListModal = function(btnEl) {
-  
-  // Populate filter select
-  const filterSel = document.getElementById('filterClusterSelect');
-  if (filterSel) {
-    const currentFilter = filterSel.value;
-    filterSel.innerHTML = '<option value="Semua">Semua</option>' + 
-      (APP.availableClusters || []).map(c => `<option value="${c}">${c}</option>`).join('');
-    // Try to pre-select based on adminCluster selection
-    const adminCluster = document.getElementById('adminCluster');
-    filterSel.value = adminCluster && adminCluster.value !== 'Semua' ? adminCluster.value : (currentFilter || 'Semua');
-  }
-
   document.getElementById('searchPesertaInput').value = '';
   filterPesertaList();
   openModal('pesertaListModal');
@@ -1851,7 +1839,8 @@ window.openPesertaListModal = function(btnEl) {
 
 window.filterPesertaList = function() {
   const q = document.getElementById('searchPesertaInput').value.toLowerCase();
-  const filterCluster = document.getElementById('filterClusterSelect').value;
+  const adminCluster = document.getElementById('adminCluster');
+  const filterCluster = adminCluster ? adminCluster.value : 'Semua';
   const container = document.getElementById('pesertaListContainer');
   
   // Get all previous winners so we can mark them
