@@ -712,25 +712,37 @@ function applyEventSettings() {
 }
 
 // ===================== EVENT BINDINGS =====================
+function addEvent(id, event, fn) {
+  const el = typeof id === 'string' ? document.getElementById(id) : id;
+  if (el && typeof el.addEventListener === 'function') {
+    el.addEventListener(event, fn);
+  }
+}
+
 function bindEvents() {
   // Upload screen
   const dropZone = document.getElementById('dropZone');
   const fileInput = document.getElementById('fileInput');
-  const downloadTemplateBtn = document.getElementById('downloadTemplateBtn');
 
-  dropZone.addEventListener('click', () => fileInput.click());
-  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
-  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
-  dropZone.addEventListener('drop', e => {
-    e.preventDefault();
-    dropZone.classList.remove('drag-over');
-    const file = e.dataTransfer.files[0];
-    if (file) loadExcelFile(file);
-  });
-  fileInput.addEventListener('change', e => {
-    if (e.target.files[0]) loadExcelFile(e.target.files[0]);
-  });
-  downloadTemplateBtn.addEventListener('click', generateTemplate);
+  if (dropZone && fileInput) {
+    dropZone.addEventListener('click', () => fileInput.click());
+    dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+    dropZone.addEventListener('drop', e => {
+      e.preventDefault();
+      dropZone.classList.remove('drag-over');
+      const file = e.dataTransfer.files[0];
+      if (file) loadExcelFile(file);
+    });
+  }
+
+  if (fileInput) {
+    fileInput.addEventListener('change', e => {
+      if (e.target.files[0]) loadExcelFile(e.target.files[0]);
+    });
+  }
+
+  addEvent('downloadTemplateBtn', 'click', generateTemplate);
 
   const clusterSelect = document.getElementById('clusterSelect');
   if (clusterSelect) {
@@ -742,30 +754,38 @@ function bindEvents() {
   }
 
   // Settings
-  document.getElementById('settingsBtn').addEventListener('click', () => openModal('settingsModal'));
-  document.getElementById('saveSettingsBtn').addEventListener('click', saveEventSettings);
+  addEvent('settingsBtn', 'click', () => openModal('settingsModal'));
+  addEvent('saveSettingsBtn', 'click', saveEventSettings);
   
-  document.getElementById('logoUploadArea').addEventListener('click', () => document.getElementById('logoFileInput').click());
-  document.getElementById('logoFileInput').addEventListener('change', handleLogoUpload);
-  document.getElementById('removeLogoBtn').addEventListener('click', removeLogo);
-
-  document.getElementById('bgUploadArea').addEventListener('click', () => document.getElementById('bgFileInput').click());
-  document.getElementById('bgFileInput').addEventListener('change', handleBgUpload);
-  document.getElementById('removeBgBtn').addEventListener('click', removeBg);
-
-  const winnerBgUploadArea = document.getElementById('winnerBgUploadArea');
-  if (winnerBgUploadArea && !winnerBgUploadArea.isDummy) {
-    winnerBgUploadArea.addEventListener('click', () => document.getElementById('winnerBgFileInput').click());
-    const winnerBgFile = document.getElementById('winnerBgFileInput');
-    if (winnerBgFile && !winnerBgFile.isDummy) winnerBgFile.addEventListener('change', handleWinnerBgUpload);
-    const removeWinnerBgBtn = document.getElementById('removeWinnerBgBtn');
-    if (removeWinnerBgBtn && !removeWinnerBgBtn.isDummy) removeWinnerBgBtn.addEventListener('click', removeWinnerBg);
+  const logoArea = document.getElementById('logoUploadArea');
+  const logoInput = document.getElementById('logoFileInput');
+  if (logoArea && logoInput) {
+    logoArea.addEventListener('click', () => logoInput.click());
   }
+  if (logoInput) logoInput.addEventListener('change', handleLogoUpload);
+  addEvent('removeLogoBtn', 'click', removeLogo);
+
+  const bgArea = document.getElementById('bgUploadArea');
+  const bgInput = document.getElementById('bgFileInput');
+  if (bgArea && bgInput) {
+    bgArea.addEventListener('click', () => bgInput.click());
+  }
+  if (bgInput) bgInput.addEventListener('change', handleBgUpload);
+  addEvent('removeBgBtn', 'click', removeBg);
+
+  const winnerBgArea = document.getElementById('winnerBgUploadArea');
+  const winnerBgInput = document.getElementById('winnerBgFileInput');
+  if (winnerBgArea && winnerBgInput) {
+    winnerBgArea.addEventListener('click', () => winnerBgInput.click());
+  }
+  if (winnerBgInput) winnerBgInput.addEventListener('change', handleWinnerBgUpload);
+  addEvent('removeWinnerBgBtn', 'click', removeWinnerBg);
 
   const opacitySlider = document.getElementById('inputBgOpacity');
   if (opacitySlider) {
     opacitySlider.addEventListener('input', (e) => {
-      document.getElementById('bgOpacityValue').textContent = Math.round(e.target.value * 100) + '%';
+      const label = document.getElementById('bgOpacityValue');
+      if (label) label.textContent = Math.round(e.target.value * 100) + '%';
       APP.settings.bgOpacity = parseFloat(e.target.value);
       document.documentElement.style.setProperty('--bg-opacity', e.target.value);
     });
@@ -774,14 +794,16 @@ function bindEvents() {
   const subtitleColorPicker = document.getElementById('inputSubtitleColor');
   if (subtitleColorPicker) {
     subtitleColorPicker.addEventListener('input', (e) => {
-      document.getElementById('subtitleColorValue').textContent = e.target.value.toUpperCase();
+      const valLabel = document.getElementById('subtitleColorValue');
+      if (valLabel) valLabel.textContent = e.target.value.toUpperCase();
     });
   }
 
   const subtitleSizeSlider = document.getElementById('inputSubtitleSize');
   if (subtitleSizeSlider) {
     subtitleSizeSlider.addEventListener('input', (e) => {
-      document.getElementById('subtitleSizeValue').textContent = e.target.value + 'rem';
+      const valLabel = document.getElementById('subtitleSizeValue');
+      if (valLabel) valLabel.textContent = e.target.value + 'rem';
     });
   }
 
@@ -792,19 +814,19 @@ function bindEvents() {
       swatch.classList.add('active');
       const theme = swatch.dataset.theme;
       APP.settings.theme = theme;
-      if (theme === 'custom') {
-        document.getElementById('customColorSection').classList.remove('hidden');
-      } else {
-        document.getElementById('customColorSection').classList.add('hidden');
+      const customSec = document.getElementById('customColorSection');
+      if (customSec) {
+        if (theme === 'custom') customSec.classList.remove('hidden');
+        else customSec.classList.add('hidden');
       }
       updateThemePreview(theme);
       applyTheme(theme);
     });
   });
 
-  // Excel download
-  document.getElementById('downloadExcelBtn').addEventListener('click', downloadUpdatedExcel);
-  document.getElementById('winnerCloseBtn').addEventListener('click', () => closeModal('winnerModal'));
+  // Excel download & winner modal
+  addEvent('downloadExcelBtn', 'click', downloadUpdatedExcel);
+  addEvent('winnerCloseBtn', 'click', () => closeModal('winnerModal'));
 
   // Reset Undian Button
   const resetBtn = document.getElementById('resetUndianBtn');
@@ -856,7 +878,7 @@ function bindEvents() {
       updatePrizeSidebar();
       updatePesertaDatalist();
 
-      showToast('Undian berhasil di-reset ke awal!', 'success');
+      showToast('Hasil undian berhasil di-reset!', 'success');
     });
   }
 
@@ -870,18 +892,19 @@ function bindEvents() {
     });
   });
 
-  // Admin
-  document.getElementById('adminLoginBtn').addEventListener('click', handleAdminLogin);
-  document.getElementById('adminPassword').addEventListener('keydown', e => {
-    if (e.key === 'Enter') handleAdminLogin();
-  });
-  document.getElementById('saveAdminTargetBtn').addEventListener('click', saveAdminTarget);
-  document.getElementById('changePasswordBtn').addEventListener('click', changeAdminPassword);
-  document.getElementById('exportConfigBtn').addEventListener('click', exportAdminConfig);
-  document.getElementById('importConfigBtn').addEventListener('click', importAdminConfig);
-
-  // Remote URL copy button
-  document.getElementById('copyRemoteUrlBtn').addEventListener('click', copyRemoteUrl);
+  // Admin buttons
+  addEvent('adminLoginBtn', 'click', handleAdminLogin);
+  const adminPass = document.getElementById('adminPassword');
+  if (adminPass) {
+    adminPass.addEventListener('keydown', e => {
+      if (e.key === 'Enter') handleAdminLogin();
+    });
+  }
+  addEvent('saveAdminTargetBtn', 'click', saveAdminTarget);
+  addEvent('changePasswordBtn', 'click', changeAdminPassword);
+  addEvent('exportConfigBtn', 'click', exportAdminConfig);
+  addEvent('importConfigBtn', 'click', importAdminConfig);
+  addEvent('copyRemoteUrlBtn', 'click', copyRemoteUrl);
 
   // Secret keyboard shortcut: Ctrl+Shift+F12
   document.addEventListener('keydown', e => {
