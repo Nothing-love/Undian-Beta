@@ -1,11 +1,11 @@
 {
-  "name": "dorprize",
+  "name": "DOORPRIZE",
   "version": "1.0.0",
-  "description": "",
-  "main": "app.js",
+  "description": "Aplikasi undian digital dengan sinkronisasi server dan upload gambar.",
+  "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node server.js"
+    "start": "node server.js",
+    "check": "node --check server.js && node --check public/app.js"
   },
   "repository": {
     "type": "git",
@@ -24,6 +24,9 @@
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "express-session": "^1.19.0",
-    "ngrok": "^5.0.0-beta.2"
+    "multer": "^2.2.0",
+    "ngrok": "^5.0.0-beta.2",
+    "pm2": "^7.0.3",
+    "session-file-store": "^1.5.0"
   }
 }

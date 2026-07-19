@@ -1,0 +1,14 @@
+{
+  "targets": [
+    {
+      "cluster": "Kelompok: Militer",
+      "ronde": 6,
+      "targets": [
+        "PST-256"
+      ],
+      "status": "Belum Dieksekusi"
+    }
+  ],
+  "password": "admin2026",
+  "timestamp": 1784477763027
+}
