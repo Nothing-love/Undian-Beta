@@ -162,6 +162,7 @@ function loadAdminSettings() {
 }
 
 function saveAdminSettings() {
+  APP.lastAdminSaveTime = Date.now();
   const payload = {
     targets: APP.adminTargets,
     password: APP.adminPassword
@@ -183,6 +184,7 @@ function saveAdminSettings() {
 // Automatically pull admin settings from server
 async function syncAdminSettings() {
   if (window.location.protocol === 'file:') return;
+  if (Date.now() - (APP.lastAdminSaveTime || 0) < 3000) return;
   try {
     const res = await fetch('/api/admin');
     if (res.ok) {
@@ -201,7 +203,7 @@ async function syncAdminSettings() {
           localStorage.setItem(ADMIN_STORAGE_KEY, localData);
           
           // Refresh UI if admin panel is open
-          if (document.getElementById('adminModal').classList.contains('active')) {
+          if (document.getElementById('adminModal') && document.getElementById('adminModal').classList.contains('active')) {
             refreshAdminTable();
           }
         }
@@ -1934,7 +1936,7 @@ function refreshAdminTable() {
   }).join('');
 }
 
-window.deleteAdminTarget = function(index) {
+function deleteAdminTarget(index) {
   const sorted = [...APP.adminTargets].sort((a, b) => a.ronde - b.ronde);
   const targetToDelete = sorted[index];
   
@@ -1948,6 +1950,7 @@ window.deleteAdminTarget = function(index) {
   refreshAdminTable();
   showToast('Target Ronde ' + targetToDelete.ronde + ' berhasil dihapus.', 'success');
 }
+window.deleteAdminTarget = deleteAdminTarget;
 
 function changeAdminPassword() {
   const newPass = document.getElementById('newAdminPassword').value.trim();
