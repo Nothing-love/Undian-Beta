@@ -156,7 +156,11 @@ function loadSettings() {
 }
 
 function saveSettings() {
-  localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(APP.settings));
+  try {
+    localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(APP.settings));
+  } catch (e) {
+    console.warn('LocalStorage settings quota exceeded, proceeding with server sync:', e);
+  }
   const ts = Date.now();
   APP.lastSyncTs = ts;
 
@@ -222,7 +226,11 @@ function saveAdminSettings() {
   };
   
   const data = btoa(JSON.stringify(payload));
-  localStorage.setItem(ADMIN_STORAGE_KEY, data);
+  try {
+    localStorage.setItem(ADMIN_STORAGE_KEY, data);
+  } catch (e) {
+    console.warn('LocalStorage admin quota exceeded:', e);
+  }
 
   // Sync to remote server if possible
   if (window.location.protocol !== 'file:') {
@@ -258,7 +266,11 @@ async function syncStateWithServer() {
     // 1. Sync Settings
     if (data.settings && data.settings.eventTitle !== undefined) {
       Object.assign(APP.settings, data.settings);
-      localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(APP.settings));
+      try {
+        localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(APP.settings));
+      } catch (e) {
+        console.warn('Sync settings: LocalStorage quota exceeded:', e);
+      }
       applyTheme(APP.settings.theme);
       applyEventSettings();
     }
@@ -276,7 +288,11 @@ async function syncStateWithServer() {
       if (data.peserta.currentRonde !== undefined) APP.currentRonde = data.peserta.currentRonde;
       if (data.peserta.settings && (!data.settings || !data.settings.eventTitle)) {
         Object.assign(APP.settings, data.peserta.settings);
-        localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(APP.settings));
+        try {
+          localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(APP.settings));
+        } catch (e) {
+          console.warn('Sync settings fallback: LocalStorage quota exceeded:', e);
+        }
         applyTheme(APP.settings.theme);
         applyEventSettings();
       }
@@ -288,7 +304,11 @@ async function syncStateWithServer() {
       if (data.admin.targets) APP.adminTargets = data.admin.targets;
       
       const localData = btoa(JSON.stringify(data.admin));
-      localStorage.setItem(ADMIN_STORAGE_KEY, localData);
+      try {
+        localStorage.setItem(ADMIN_STORAGE_KEY, localData);
+      } catch (e) {
+        console.warn('Sync admin: LocalStorage quota exceeded:', e);
+      }
     }
 
     // 4. Update UI Components
