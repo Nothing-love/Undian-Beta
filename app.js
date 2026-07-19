@@ -1163,6 +1163,8 @@ window.finishSpinMulti = function() {
   if (typeof updateUI === 'function') updateUI();
   if (typeof updatePesertaDatalist === 'function') updatePesertaDatalist();
 
+  syncPesertaDataToServer();
+
   setTimeout(() => showWinnerModal(APP.lastWinners), 400);
 }
 
@@ -1439,7 +1441,7 @@ window.disqualifyWinner = function(idx) {
     record.Daftar_Pemenang_Keluar = sisa || 'DIBATALKAN';
   }
 
-  if (typeof saveState === 'function') saveState();
+  saveSettings();
   if (typeof updateUI === 'function') updateUI();
   if (typeof updatePesertaDatalist === 'function') updatePesertaDatalist();
 
