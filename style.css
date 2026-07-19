@@ -1522,29 +1522,38 @@ select.form-control, select.input-modern {
   pointer-events: none;
 }
 
-/* Preset 1: Royal Gold Gala (Default) */
-#winnerModal.winner-preset-gold_gala .winner-modal-bg:not([style*="background-image"]),
-#winnerModal:not([class*="winner-preset-"]) .winner-modal-bg:not([style*="background-image"]) {
-  background-image: radial-gradient(circle at 50% 25%, rgba(245, 158, 11, 0.45) 0%, rgba(15, 23, 42, 0.95) 75%),
-                    radial-gradient(circle at 20% 80%, rgba(239, 68, 68, 0.3) 0%, transparent 50%),
-                    radial-gradient(circle at 80% 80%, rgba(251, 191, 36, 0.3) 0%, transparent 50%);
+/* Preset 1: Royal Gold Gala (Spotlight Emas) */
+#winnerModal.winner-preset-gold_gala .winner-modal-bg,
+#winnerModal:not([class*="winner-preset-"]) .winner-modal-bg {
+  background-image: radial-gradient(circle at 50% 20%, rgba(251, 191, 36, 0.55) 0%, rgba(15, 23, 42, 0.95) 75%),
+                    radial-gradient(circle at 20% 80%, rgba(245, 158, 11, 0.4) 0%, transparent 50%),
+                    radial-gradient(circle at 80% 80%, rgba(239, 68, 68, 0.35) 0%, transparent 50%) !important;
 }
 
 /* Preset 2: Midnight Obsidian Gold Glass */
-#winnerModal.winner-preset-dark_luxury .winner-modal-bg:not([style*="background-image"]) {
-  background-image: radial-gradient(circle at 50% 20%, rgba(251, 191, 36, 0.3) 0%, rgba(15, 23, 42, 0.96) 80%);
+#winnerModal.winner-preset-dark_luxury .winner-modal-bg {
+  background-image: radial-gradient(circle at 50% 20%, rgba(245, 158, 11, 0.35) 0%, rgba(15, 23, 42, 0.98) 80%),
+                    linear-gradient(180deg, rgba(30, 41, 59, 0.8) 0%, rgba(15, 23, 42, 0.98) 100%) !important;
 }
 
 /* Preset 3: Cyberpunk Neon Stage */
-#winnerModal.winner-preset-cyber_neon .winner-modal-bg:not([style*="background-image"]) {
-  background-image: radial-gradient(circle at 50% 25%, rgba(56, 189, 248, 0.45) 0%, rgba(15, 23, 42, 0.95) 75%),
-                    radial-gradient(circle at 80% 20%, rgba(244, 114, 182, 0.4) 0%, transparent 50%);
+#winnerModal.winner-preset-cyber_neon .winner-modal-bg {
+  background-image: radial-gradient(circle at 50% 25%, rgba(56, 189, 248, 0.55) 0%, rgba(15, 23, 42, 0.95) 75%),
+                    radial-gradient(circle at 80% 20%, rgba(244, 114, 182, 0.5) 0%, transparent 50%),
+                    radial-gradient(circle at 20% 80%, rgba(168, 85, 247, 0.45) 0%, transparent 50%) !important;
 }
 
 /* Preset 4: Festival Red & Gold Gala */
-#winnerModal.winner-preset-festive_celebration .winner-modal-bg:not([style*="background-image"]) {
-  background-image: radial-gradient(circle at 50% 20%, rgba(220, 38, 38, 0.5) 0%, rgba(15, 23, 42, 0.95) 75%),
-                    radial-gradient(circle at 50% 80%, rgba(251, 191, 36, 0.4) 0%, transparent 50%);
+#winnerModal.winner-preset-festive_celebration .winner-modal-bg {
+  background-image: radial-gradient(circle at 50% 20%, rgba(220, 38, 38, 0.6) 0%, rgba(15, 23, 42, 0.95) 75%),
+                    radial-gradient(circle at 50% 80%, rgba(251, 191, 36, 0.5) 0%, transparent 50%),
+                    radial-gradient(circle at 10% 30%, rgba(239, 68, 68, 0.4) 0%, transparent 40%) !important;
+}
+
+/* Preset 5: Custom Uploaded Image */
+#winnerModal.winner-preset-custom .winner-modal-bg {
+  background-size: cover !important;
+  background-position: center !important;
 }
 
 .modal-winner {
