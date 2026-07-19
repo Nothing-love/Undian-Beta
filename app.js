@@ -241,59 +241,61 @@ async function syncStateWithServer() {
   if (APP.isSpinning) return; // Do not interrupt rolling animation
 
   try {
-    const res = await fetch('/api/state');
+    const res = await fetch(`/api/state?ts=${APP.lastSyncTs || 0}`);
     if (!res.ok) return;
     const data = await res.json();
     if (!data) return;
 
+    if (data.changed === false) {
+      if (data.timestamp) APP.lastSyncTs = data.timestamp;
+      return;
+    }
+
     const serverTs = data.timestamp || 0;
+    APP.lastSyncTs = serverTs;
 
-    if (serverTs > (APP.lastSyncTs + 500)) {
-      APP.lastSyncTs = serverTs;
+    // 1. Sync Settings
+    if (data.settings && data.settings.eventTitle !== undefined) {
+      Object.assign(APP.settings, data.settings);
+      localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(APP.settings));
+      applyTheme(APP.settings.theme);
+      applyEventSettings();
+    }
 
-      // 1. Sync Settings
-      if (data.settings && data.settings.eventTitle !== undefined) {
-        Object.assign(APP.settings, data.settings);
+    // 2. Sync Peserta & Winners
+    if (data.peserta) {
+      if (data.peserta.dataPeserta && (data.peserta.dataPeserta.length > 0 || (APP.dataPeserta || []).length === 0)) {
+        APP.dataPeserta = data.peserta.dataPeserta;
+        computeUniqueCategories();
+      }
+      if (data.peserta.availableClusters && data.peserta.availableClusters.length > 0) {
+        APP.availableClusters = data.peserta.availableClusters;
+      }
+      if (data.peserta.hasilUndian) APP.hasilUndian = data.peserta.hasilUndian;
+      if (data.peserta.currentRonde !== undefined) APP.currentRonde = data.peserta.currentRonde;
+      if (data.peserta.settings && (!data.settings || !data.settings.eventTitle)) {
+        Object.assign(APP.settings, data.peserta.settings);
         localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(APP.settings));
         applyTheme(APP.settings.theme);
         applyEventSettings();
       }
-
-      // 2. Sync Peserta & Winners
-      if (data.peserta) {
-        if (data.peserta.dataPeserta && (data.peserta.dataPeserta.length > 0 || (APP.dataPeserta || []).length === 0)) {
-          APP.dataPeserta = data.peserta.dataPeserta;
-          computeUniqueCategories();
-        }
-        if (data.peserta.availableClusters && data.peserta.availableClusters.length > 0) {
-          APP.availableClusters = data.peserta.availableClusters;
-        }
-        if (data.peserta.hasilUndian) APP.hasilUndian = data.peserta.hasilUndian;
-        if (data.peserta.currentRonde !== undefined) APP.currentRonde = data.peserta.currentRonde;
-        if (data.peserta.settings && (!data.settings || !data.settings.eventTitle)) {
-          Object.assign(APP.settings, data.peserta.settings);
-          localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(APP.settings));
-          applyTheme(APP.settings.theme);
-          applyEventSettings();
-        }
-      }
-
-      // 3. Sync Admin Targets & Password
-      if (data.admin) {
-        if (data.admin.password) APP.adminPassword = data.admin.password;
-        if (data.admin.targets) APP.adminTargets = data.admin.targets;
-        
-        const localData = btoa(JSON.stringify(data.admin));
-        localStorage.setItem(ADMIN_STORAGE_KEY, localData);
-      }
-
-      // 4. Update UI Components
-      updateUI();
-      if (typeof updatePrizeSidebar === 'function') updatePrizeSidebar();
-      if (typeof updatePesertaDatalist === 'function') updatePesertaDatalist();
-      if (typeof refreshAdminTable === 'function') refreshAdminTable();
-      if (typeof renderPrizeSettings === 'function') renderPrizeSettings();
     }
+
+    // 3. Sync Admin Targets & Password
+    if (data.admin) {
+      if (data.admin.password) APP.adminPassword = data.admin.password;
+      if (data.admin.targets) APP.adminTargets = data.admin.targets;
+      
+      const localData = btoa(JSON.stringify(data.admin));
+      localStorage.setItem(ADMIN_STORAGE_KEY, localData);
+    }
+
+    // 4. Update UI Components
+    updateUI();
+    if (typeof updatePrizeSidebar === 'function') updatePrizeSidebar();
+    if (typeof updatePesertaDatalist === 'function') updatePesertaDatalist();
+    if (typeof refreshAdminTable === 'function') refreshAdminTable();
+    if (typeof renderPrizeSettings === 'function') renderPrizeSettings();
   } catch (e) {
     // Ignore network drop
   }

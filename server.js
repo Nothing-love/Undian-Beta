@@ -167,8 +167,30 @@ app.post('/api/settings', requireAuth, (req, res) => {
   });
 });
 
+function getLatestFileTimestamp() {
+  let maxTs = 0;
+  const files = ['settings_state.json', 'peserta_state.json', 'admin_state.json'];
+  files.forEach(f => {
+    try {
+      const p = path.join(ROOT, f);
+      if (fs.existsSync(p)) {
+        const stat = fs.statSync(p);
+        if (stat.mtimeMs > maxTs) maxTs = stat.mtimeMs;
+      }
+    } catch(e) {}
+  });
+  return Math.floor(maxTs);
+}
+
 // Full Unified State API (for live sync across devices)
 app.get('/api/state', requireAuth, (req, res) => {
+  const clientTs = parseInt(req.query.ts || 0);
+  const serverTs = getLatestFileTimestamp();
+
+  if (clientTs && serverTs <= clientTs) {
+    return res.json({ changed: false, timestamp: serverTs });
+  }
+
   const settingsFile = path.join(ROOT, 'settings_state.json');
   const pesertaFile = path.join(ROOT, 'peserta_state.json');
   const adminFile = path.join(ROOT, 'admin_state.json');
@@ -181,17 +203,12 @@ app.get('/api/state', requireAuth, (req, res) => {
   try { if (fs.existsSync(pesertaFile)) peserta = JSON.parse(fs.readFileSync(pesertaFile, 'utf8')); } catch(e){}
   try { if (fs.existsSync(adminFile)) admin = JSON.parse(fs.readFileSync(adminFile, 'utf8')); } catch(e){}
 
-  const maxTs = Math.max(
-    settings?.timestamp || 0,
-    peserta?.timestamp || 0,
-    admin?.timestamp || 0
-  );
-
   res.json({
+    changed: true,
     settings,
     peserta,
     admin,
-    timestamp: maxTs
+    timestamp: serverTs
   });
 });
 
