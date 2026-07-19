@@ -753,6 +753,15 @@ function bindEvents() {
   document.getElementById('bgFileInput').addEventListener('change', handleBgUpload);
   document.getElementById('removeBgBtn').addEventListener('click', removeBg);
 
+  const winnerBgUploadArea = document.getElementById('winnerBgUploadArea');
+  if (winnerBgUploadArea && !winnerBgUploadArea.isDummy) {
+    winnerBgUploadArea.addEventListener('click', () => document.getElementById('winnerBgFileInput').click());
+    const winnerBgFile = document.getElementById('winnerBgFileInput');
+    if (winnerBgFile && !winnerBgFile.isDummy) winnerBgFile.addEventListener('change', handleWinnerBgUpload);
+    const removeWinnerBgBtn = document.getElementById('removeWinnerBgBtn');
+    if (removeWinnerBgBtn && !removeWinnerBgBtn.isDummy) removeWinnerBgBtn.addEventListener('click', removeWinnerBg);
+  }
+
   const opacitySlider = document.getElementById('inputBgOpacity');
   if (opacitySlider) {
     opacitySlider.addEventListener('input', (e) => {
@@ -1795,8 +1804,21 @@ function showWinnerModal(winners) {
         '<div class="winner-card-name" title="' + winner.nama + '">' + winner.nama + '</div>' +
       '</div>' +
       '<button class="btn-disqualify" title="Gugurkan peserta ini" onclick="disqualifyWinner(' + idx + ')">&times;</button>';
-    cardsContainer.appendChild(card);
-  });
+  // Apply background preset / custom image to Winner Modal
+  const modalEl = document.getElementById('winnerModal');
+  const bgEl = document.getElementById('winnerModalBg');
+
+  if (modalEl) {
+    modalEl.className = 'modal-overlay active';
+    const preset = APP.settings.winnerBgPreset || 'gold_gala';
+    modalEl.classList.add(`winner-preset-${preset}`);
+
+    if (preset === 'custom' && APP.settings.winnerBgBase64 && bgEl) {
+      bgEl.style.backgroundImage = `url(${APP.settings.winnerBgBase64})`;
+    } else if (bgEl) {
+      bgEl.style.backgroundImage = '';
+    }
+  }
 
   openModal('winnerModal');
   fireConfetti();
@@ -2505,6 +2527,7 @@ function saveEventSettings() {
   if (document.getElementById('inputPrizeTitleColor')) APP.settings.prizeTitleColor = document.getElementById('inputPrizeTitleColor').value;
   if (document.getElementById('inputReelNumberColor')) APP.settings.reelNumberColor = document.getElementById('inputReelNumberColor').value;
   if (document.getElementById('inputWinnerNumberColor')) APP.settings.winnerNumberColor = document.getElementById('inputWinnerNumberColor').value;
+  if (document.getElementById('inputWinnerBgPreset')) APP.settings.winnerBgPreset = document.getElementById('inputWinnerBgPreset').value;
 
   // Get selected theme
   const activeSwatch = document.querySelector('.theme-swatch.active');
@@ -2526,6 +2549,45 @@ function saveEventSettings() {
   saveSettings();
   closeModal('settingsModal');
   showToast('Pengaturan berhasil disimpan!', 'success');
+}
+
+function handleWinnerBgUpload(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  if (!file.type.startsWith('image/')) {
+    showToast('File harus berupa gambar.', 'error');
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    APP.settings.winnerBgBase64 = ev.target.result;
+    APP.settings.winnerBgPreset = 'custom';
+    if (document.getElementById('inputWinnerBgPreset')) {
+      document.getElementById('inputWinnerBgPreset').value = 'custom';
+    }
+    const preview = document.getElementById('winnerBgPreview');
+    if (preview) {
+      preview.src = ev.target.result;
+      preview.style.display = 'block';
+    }
+    if (document.getElementById('winnerBgUploadText')) document.getElementById('winnerBgUploadText').style.display = 'none';
+    if (document.getElementById('removeWinnerBgBtn')) document.getElementById('removeWinnerBgBtn').classList.remove('hidden');
+  };
+  reader.readAsDataURL(file);
+}
+
+function removeWinnerBg() {
+  APP.settings.winnerBgBase64 = null;
+  const preview = document.getElementById('winnerBgPreview');
+  if (preview) {
+    preview.src = '';
+    preview.style.display = 'none';
+  }
+  if (document.getElementById('winnerBgUploadText')) document.getElementById('winnerBgUploadText').style.display = 'block';
+  if (document.getElementById('removeWinnerBgBtn')) document.getElementById('removeWinnerBgBtn').classList.add('hidden');
+  if (document.getElementById('winnerBgFileInput')) document.getElementById('winnerBgFileInput').value = '';
 }
 
 function handleLogoUpload(e) {
@@ -2632,6 +2694,7 @@ function openSettingsModal() {
   if (document.getElementById('inputPrizeTitleColor')) document.getElementById('inputPrizeTitleColor').value = APP.settings.prizeTitleColor || '#DC2626';
   if (document.getElementById('inputReelNumberColor')) document.getElementById('inputReelNumberColor').value = APP.settings.reelNumberColor || '#F8FAFC';
   if (document.getElementById('inputWinnerNumberColor')) document.getElementById('inputWinnerNumberColor').value = APP.settings.winnerNumberColor || '#FBBF24';
+  if (document.getElementById('inputWinnerBgPreset')) document.getElementById('inputWinnerBgPreset').value = APP.settings.winnerBgPreset || 'gold_gala';
 
   // Set active theme swatch & update preview
   document.querySelectorAll('.theme-swatch').forEach(s => {
@@ -2680,6 +2743,20 @@ function openSettingsModal() {
     if (document.getElementById('bgUploadText')) document.getElementById('bgUploadText').style.display = 'block';
     if (document.getElementById('removeBgBtn')) document.getElementById('removeBgBtn').classList.add('hidden');
     if (document.getElementById('bgOpacityGroup')) document.getElementById('bgOpacityGroup').classList.add('hidden');
+  }
+
+  if (APP.settings.winnerBgBase64) {
+    const preview = document.getElementById('winnerBgPreview');
+    if (preview) {
+      preview.src = APP.settings.winnerBgBase64;
+      preview.style.display = 'block';
+    }
+    if (document.getElementById('winnerBgUploadText')) document.getElementById('winnerBgUploadText').style.display = 'none';
+    if (document.getElementById('removeWinnerBgBtn')) document.getElementById('removeWinnerBgBtn').classList.remove('hidden');
+  } else {
+    if (document.getElementById('winnerBgPreview')) document.getElementById('winnerBgPreview').style.display = 'none';
+    if (document.getElementById('winnerBgUploadText')) document.getElementById('winnerBgUploadText').style.display = 'block';
+    if (document.getElementById('removeWinnerBgBtn')) document.getElementById('removeWinnerBgBtn').classList.add('hidden');
   }
 
   openModal('settingsModal');
