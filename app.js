@@ -266,7 +266,7 @@ async function syncStateWithServer() {
     if (data.peserta) {
       if (data.peserta.dataPeserta && (data.peserta.dataPeserta.length > 0 || (APP.dataPeserta || []).length === 0)) {
         APP.dataPeserta = data.peserta.dataPeserta;
-        computeUniqueCategories();
+        computeUniqueCategories(false);
       }
       if (data.peserta.availableClusters && data.peserta.availableClusters.length > 0) {
         APP.availableClusters = data.peserta.availableClusters;
@@ -319,7 +319,7 @@ async function syncPesertaDataFromRemote() {
       if (data) {
         if (data.dataPeserta) {
           APP.dataPeserta = data.dataPeserta;
-          computeUniqueCategories();
+          computeUniqueCategories(false);
         }
         if (data.availableClusters) APP.availableClusters = data.availableClusters;
         if (data.hasilUndian) APP.hasilUndian = data.hasilUndian;
@@ -1134,7 +1134,7 @@ function sanitizePrizeRules() {
   return changed;
 }
 
-function computeUniqueCategories() {
+function computeUniqueCategories(shouldSave = true) {
   const uniqueJenis = new Set();
   const uniqueGrup = new Set();
   const uniqueKelompok = new Set();
@@ -1149,9 +1149,11 @@ function computeUniqueCategories() {
   APP.uniqueGrup = Array.from(uniqueGrup).sort();
   APP.uniqueKelompok = Array.from(uniqueKelompok).sort();
 
-  const changed = sanitizePrizeRules();
-  if (changed && typeof saveSettings === 'function') {
-    saveSettings();
+  if (shouldSave) {
+    const changed = sanitizePrizeRules();
+    if (changed && typeof saveSettings === 'function') {
+      saveSettings();
+    }
   }
 }
 
