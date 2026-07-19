@@ -1800,33 +1800,38 @@ function highlightWinners() {
 // ===================== WINNER MODAL & CONFETTI =====================
 function showWinnerModal(winners) {
   const rondeSpan = document.getElementById('winnerRonde');
-  rondeSpan.textContent = APP.currentRonde - 1;
+  if (rondeSpan) rondeSpan.textContent = APP.currentRonde - 1;
 
   const cardsContainer = document.getElementById('winnerCards');
-  cardsContainer.innerHTML = '';
+  if (cardsContainer) {
+    cardsContainer.innerHTML = '';
 
-  winners.forEach((winner, idx) => {
-    const card = document.createElement('div');
-    card.className = 'winner-card';
-    card.style.animationDelay = (idx * 0.12) + 's';
+    winners.forEach((winner, idx) => {
+      const card = document.createElement('div');
+      card.className = 'winner-card';
+      card.style.animationDelay = (idx * 0.12) + 's';
 
-    // Build category breadcrumb from non-empty properties
-    const categoryParts = [];
-    if (winner.jenisPeserta && winner.jenisPeserta.trim()) categoryParts.push(winner.jenisPeserta.trim());
-    if (winner.grup && winner.grup.trim()) categoryParts.push(winner.grup.trim());
-    if (winner.kelompok && winner.kelompok.trim()) categoryParts.push(winner.kelompok.trim());
-    const categoryText = categoryParts.join(' | ');
-    const categoryBadge = categoryText ? `<span class="winner-card-cluster" style="font-size:0.75rem;color:var(--color-text-muted);margin-left:auto;background:var(--color-bg-secondary);padding:2px 6px;border-radius:4px;">${categoryText}</span>` : '';
+      // Build category breadcrumb from non-empty properties
+      const categoryParts = [];
+      if (winner.jenisPeserta && winner.jenisPeserta.trim()) categoryParts.push(winner.jenisPeserta.trim());
+      if (winner.grup && winner.grup.trim()) categoryParts.push(winner.grup.trim());
+      if (winner.kelompok && winner.kelompok.trim()) categoryParts.push(winner.kelompok.trim());
+      const categoryText = categoryParts.join(' | ');
+      const categoryBadge = categoryText ? `<span class="winner-card-cluster" style="font-size:0.75rem;color:var(--color-text-muted);margin-left:auto;background:var(--color-bg-secondary);padding:2px 6px;border-radius:4px;">${categoryText}</span>` : '';
 
-    card.innerHTML =
-      '<div class="winner-card-info">' +
-        '<div class="winner-card-header" style="display:flex;justify-content:flex-start;align-items:center;gap:8px;padding-right:15px;">' +
-          '<span class="winner-card-number">#' + (idx + 1) + '</span>' +
-          categoryBadge +
+      card.innerHTML =
+        '<div class="winner-card-info">' +
+          '<div class="winner-card-header" style="display:flex;justify-content:flex-start;align-items:center;gap:8px;padding-right:15px;">' +
+            '<span class="winner-card-number">#' + (idx + 1) + '</span>' +
+            categoryBadge +
+          '</div>' +
+          '<div class="winner-card-name" title="' + winner.nama + '">' + winner.nama + '</div>' +
         '</div>' +
-        '<div class="winner-card-name" title="' + winner.nama + '">' + winner.nama + '</div>' +
-      '</div>' +
-      '<button class="btn-disqualify" title="Gugurkan peserta ini" onclick="disqualifyWinner(' + idx + ')">&times;</button>';
+        '<button class="btn-disqualify" title="Gugurkan peserta ini" onclick="disqualifyWinner(' + idx + ')">&times;</button>';
+      cardsContainer.appendChild(card);
+    });
+  }
+
   // Apply background preset / custom image to Winner Modal
   const modalEl = document.getElementById('winnerModal');
   const bgEl = document.getElementById('winnerModalBg');
