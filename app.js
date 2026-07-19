@@ -1843,7 +1843,7 @@ function showWinnerModal(winners) {
     const preset = APP.settings.winnerBgPreset || 'gold_gala';
     modalEl.classList.add(`winner-preset-${preset}`);
 
-    if (preset === 'custom' && APP.settings.winnerBgBase64 && bgEl) {
+    if (APP.settings.winnerBgBase64 && bgEl) {
       bgEl.style.backgroundImage = `url(${APP.settings.winnerBgBase64})`;
     } else if (bgEl) {
       bgEl.style.backgroundImage = '';
