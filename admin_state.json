@@ -8,7 +8,7 @@
         "13",
         "14"
       ],
-      "status": "Sudah Dieksekusi"
+      "status": "Belum Dieksekusi"
     },
     {
       "cluster": "Kelompok: Warga",
@@ -17,7 +17,7 @@
         "33",
         "32"
       ],
-      "status": "Sudah Dieksekusi"
+      "status": "Belum Dieksekusi"
     },
     {
       "cluster": "Kelompok: Warga",
@@ -26,7 +26,7 @@
         "53",
         "54"
       ],
-      "status": "Sudah Dieksekusi"
+      "status": "Belum Dieksekusi"
     },
     {
       "cluster": "Kelompok: Warga",
@@ -38,5 +38,5 @@
     }
   ],
   "password": "admin2026",
-  "timestamp": 1784460471782
+  "timestamp": 1784460946671
 }

@@ -1830,9 +1830,16 @@ function showWinnerModal(winners) {
   if (cardsContainer) {
     cardsContainer.innerHTML = '';
 
+    const isSingleWinner = winners.length === 1;
+    if (isSingleWinner) {
+      cardsContainer.classList.add('single-winner-layout');
+    } else {
+      cardsContainer.classList.remove('single-winner-layout');
+    }
+
     winners.forEach((winner, idx) => {
       const card = document.createElement('div');
-      card.className = 'winner-card';
+      card.className = isSingleWinner ? 'winner-card single-winner-card' : 'winner-card';
       card.style.animationDelay = (idx * 0.12) + 's';
 
       // Build category breadcrumb from non-empty properties
@@ -1841,16 +1848,14 @@ function showWinnerModal(winners) {
       if (winner.grup && winner.grup.trim()) categoryParts.push(winner.grup.trim());
       if (winner.kelompok && winner.kelompok.trim()) categoryParts.push(winner.kelompok.trim());
       const categoryText = categoryParts.join(' | ');
-      const categoryBadge = categoryText ? `<span class="winner-card-cluster" style="font-size:0.75rem;color:var(--color-text-muted);margin-left:auto;background:var(--color-bg-secondary);padding:2px 6px;border-radius:4px;">${categoryText}</span>` : '';
+      const categoryBadge = categoryText ? `<span class="winner-card-cluster">${categoryText}</span>` : '';
 
       card.innerHTML =
-        '<div class="winner-card-info">' +
-          '<div class="winner-card-header" style="display:flex;justify-content:flex-start;align-items:center;gap:8px;padding-right:15px;">' +
-            '<span class="winner-card-number">#' + (idx + 1) + '</span>' +
-            categoryBadge +
-          '</div>' +
-          '<div class="winner-card-name" title="' + winner.nama + '">' + winner.nama + '</div>' +
+        '<div class="winner-card-header">' +
+          '<span class="winner-card-number">#' + (idx + 1) + '</span>' +
+          categoryBadge +
         '</div>' +
+        '<div class="winner-card-name" title="' + winner.nama + '">' + winner.nama + '</div>' +
         '<button class="btn-disqualify" title="Gugurkan peserta ini" onclick="disqualifyWinner(' + idx + ')">&times;</button>';
       cardsContainer.appendChild(card);
     });
@@ -2896,14 +2901,17 @@ function updateUI() {
   }
 }
 
-function previewWinnerModal() {
-  const testWinners = [
-    { nama: 'Peserta #01 (Militer)', jenisPeserta: 'Militer', grup: 'Grup A', kelompok: 'Kelompok 1' },
-    { nama: 'Peserta #02 (Warga)', jenisPeserta: 'Warga', grup: 'Grup B', kelompok: 'Kelompok 2' },
-    { nama: 'Peserta #03 (Militer)', jenisPeserta: 'Militer', grup: 'Grup A', kelompok: 'Kelompok 1' },
-    { nama: 'Peserta #04 (Warga)', jenisPeserta: 'Warga', grup: 'Grup C', kelompok: 'Kelompok 3' }
-  ];
-  showWinnerModal(testWinners);
+function previewWinnerModal(count) {
+  if (count === 1) {
+    showWinnerModal([{ nama: '66 (Bapak Ahmad - Militer)', jenisPeserta: 'Militer', grup: 'Batalyon 1', kelompok: 'Kelompok Utama' }]);
+  } else {
+    showWinnerModal([
+      { nama: '66 (Bapak Ahmad)', jenisPeserta: 'Militer', grup: 'Grup A', kelompok: 'Kelompok 1' },
+      { nama: '14 (Ibu Siti)', jenisPeserta: 'Warga', grup: 'Grup B', kelompok: 'Kelompok 2' },
+      { nama: '236 (Budi Santoso)', jenisPeserta: 'Warga', grup: 'Grup C', kelompok: 'Kelompok 3' },
+      { nama: '110 (Letda Dian)', jenisPeserta: 'Militer', grup: 'Grup A', kelompok: 'Kelompok 1' }
+    ]);
+  }
 }
 window.previewWinnerModal = previewWinnerModal;
 
