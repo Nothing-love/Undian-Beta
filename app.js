@@ -912,37 +912,79 @@ function loadExcelFile(file) {
       const data = new Uint8Array(e.target.result);
       APP.workbook = XLSX.read(data, { type: 'array' });
 
-      // Parse Sheet 1: Data_Peserta
-      const sheet1 = APP.workbook.Sheets['Data_Peserta'];
-      if (!sheet1) {
-        showToast('Sheet "Data_Peserta" tidak ditemukan!', 'error');
+      if (!APP.workbook || !APP.workbook.SheetNames || APP.workbook.SheetNames.length === 0) {
+        showToast('File Excel kosong atau tidak dapat dibaca.', 'error');
         return;
       }
-      const rawData = XLSX.utils.sheet_to_json(sheet1);
-      APP.dataPeserta = rawData.map(row => {
-        const jVal = row['Jenis_Peserta'] !== undefined && row['Jenis_Peserta'] !== null ? String(row['Jenis_Peserta']).trim() :
-                     row['Jenis Peserta'] !== undefined && row['Jenis Peserta'] !== null ? String(row['Jenis Peserta']).trim() :
-                     row['Cluster_Kategori'] !== undefined && row['Cluster_Kategori'] !== null ? String(row['Cluster_Kategori']).trim() :
-                     row['Cluster'] !== undefined && row['Cluster'] !== null ? String(row['Cluster']).trim() :
-                     row['Kategori'] !== undefined && row['Kategori'] !== null ? String(row['Kategori']).trim() : '';
 
-        const gVal = row['Grup'] !== undefined && row['Grup'] !== null ? String(row['Grup']).trim() :
-                     row['Group'] !== undefined && row['Group'] !== null ? String(row['Group']).trim() : '';
+      // 1. Flexible Sheet Selector: try 'Data_Peserta', 'Data Peserta', 'Peserta', or fallback to SheetNames[0]
+      let sheet1 = APP.workbook.Sheets['Data_Peserta'] || 
+                   APP.workbook.Sheets['Data Peserta'] || 
+                   APP.workbook.Sheets['Data'] || 
+                   APP.workbook.Sheets['Peserta'] || 
+                   APP.workbook.Sheets['Sheet1'] || 
+                   APP.workbook.Sheets['Sheet 1'];
 
-        const kVal = row['Kelompok_Dalam_Grup'] !== undefined && row['Kelompok_Dalam_Grup'] !== null ? String(row['Kelompok_Dalam_Grup']).trim() :
-                     row['Kelompok Dalam Grup'] !== undefined && row['Kelompok Dalam Grup'] !== null ? String(row['Kelompok Dalam Grup']).trim() :
-                     row['Kelompok'] !== undefined && row['Kelompok'] !== null ? String(row['Kelompok']).trim() : '';
+      if (!sheet1) {
+        sheet1 = APP.workbook.Sheets[APP.workbook.SheetNames[0]];
+      }
+
+      if (!sheet1) {
+        showToast('Lembar (Sheet) data Excel tidak ditemukan.', 'error');
+        return;
+      }
+
+      // 2. Parse sheet to raw JSON
+      const rawData = XLSX.utils.sheet_to_json(sheet1, { defval: "" });
+      if (!rawData || rawData.length === 0) {
+        showToast('Lembar Excel kosong atau tidak berisi baris data.', 'warning');
+        return;
+      }
+
+      // 3. Ultra-flexible column extractor (case-insensitive, space-insensitive, special-char-insensitive)
+      APP.dataPeserta = rawData.map((row, index) => {
+        const getColVal = (candidates) => {
+          for (const key of Object.keys(row)) {
+            const cleanKey = key.toString().trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+            for (const cand of candidates) {
+              const cleanCand = cand.toString().trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+              if (cleanKey === cleanCand) {
+                const val = row[key];
+                return val !== undefined && val !== null ? String(val).trim() : '';
+              }
+            }
+          }
+          return '';
+        };
+
+        const idVal = getColVal(['ID_Peserta', 'ID Peserta', 'ID', 'Id', 'No', 'Nomor']);
+        let nameVal = getColVal(['Nama_atau_Angka', 'Nama atau Angka', 'Nama_Angka', 'Nama', 'Nama Peserta', 'Angka', 'No_Undian', 'Nomor_Undian']);
+        
+        // Fallback for missing name/ID
+        if (!nameVal) {
+          nameVal = idVal || `Peserta-${String(index + 1).padStart(3, '0')}`;
+        }
+
+        const jVal = getColVal(['Jenis_Peserta', 'Jenis Peserta', 'Jenis', 'Kategori', 'Cluster_Kategori', 'Cluster']);
+        const gVal = getColVal(['Grup', 'Group', 'Cabang', 'Lokasi']);
+        const kVal = getColVal(['Kelompok_Dalam_Grup', 'Kelompok Dalam Grup', 'Kelompok_Grup', 'Kelompok', 'Divisi', 'Departemen']);
+        const sVal = getColVal(['Status_Undian', 'Status Undian', 'Status']) || 'Belum Diundi';
 
         return {
-          id: String(row['ID_Peserta'] || '').trim(),
-          nama: String(row['Nama_atau_Angka'] || '').trim(),
+          id: idVal || `PST-${String(index + 1).padStart(3, '0')}`,
+          nama: nameVal,
           jenisPeserta: jVal,
           grup: gVal,
           kelompok: kVal,
-          cluster: jVal, // fallback compatibility
-          status: String(row['Status_Undian'] || 'Belum Diundi').trim()
+          cluster: jVal,
+          status: sVal === 'Sudah Diundi' ? 'Sudah Diundi' : 'Belum Diundi'
         };
-      });
+      }).filter(p => p.nama || p.id);
+
+      if (APP.dataPeserta.length === 0) {
+        showToast('Tidak ada data peserta valid yang ditemukan di file Excel.', 'error');
+        return;
+      }
 
       computeUniqueCategories();
 
@@ -966,26 +1008,29 @@ function loadExcelFile(file) {
       });
       APP.currentCluster = 'Semua';
 
-      // Parse Sheet 2: Hasil_Undian
-      const sheet2 = APP.workbook.Sheets['Hasil_Undian'];
+      // Parse Sheet 2 (Hasil_Undian if present)
+      let sheet2 = APP.workbook.Sheets['Hasil_Undian'] || APP.workbook.Sheets['Hasil Undian'] || APP.workbook.Sheets['Hasil'];
       if (sheet2) {
         APP.hasilUndian = XLSX.utils.sheet_to_json(sheet2);
         APP.currentRonde = APP.hasilUndian.length + 1;
       }
 
-      // Update datalist for admin autocomplete
       updatePesertaDatalist();
-      syncPesertaDataToServer();
+      saveSettings();
 
-      // Switch to main app
-      document.getElementById('uploadScreen').classList.remove('active');
-      document.getElementById('mainApp').classList.add('active');
+      // Switch to main app if on upload screen
+      const uploadScreen = document.getElementById('uploadScreen');
+      const mainApp = document.getElementById('mainApp');
+      if (uploadScreen && mainApp) {
+        uploadScreen.classList.remove('active');
+        mainApp.classList.add('active');
+      }
 
       updateUI();
-      showToast(`Data berhasil dimuat! ${getActivePeserta().length} peserta aktif.`, 'success');
+      showToast(`Data berhasil dimuat! ${getActivePeserta().length} peserta aktif terdaftar.`, 'success');
     } catch (err) {
       console.error(err);
-      showToast('Gagal membaca file Excel. Pastikan format benar.', 'error');
+      showToast('Gagal membaca file Excel. Silakan periksa kembali file Excel Anda.', 'error');
     }
   };
   reader.readAsArrayBuffer(file);
