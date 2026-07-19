@@ -9,8 +9,8 @@ const app = express();
 const PORT = 8080;
 const ROOT = __dirname;
 
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 app.use(session({
   secret: 'dorprize-secret-key-2026',
@@ -212,75 +212,137 @@ app.post('/api/state', requireAuth, (req, res) => {
   res.json({ success: true, timestamp: ts });
 });
 
+// Express Global Error Handler (Handles client aborts & body-parser errors gracefully)
+app.use((err, req, res, next) => {
+  if (err && (err.type === 'request.aborted' || err.message === 'request aborted' || err.code === 'ECONNRESET')) {
+    // Client cancelled/aborted request before body stream finished (e.g. page refresh/navigation)
+    if (!res.headersSent) {
+      res.status(400).json({ error: 'Request aborted by client' });
+    }
+    return;
+  }
+  if (err && err.status === 413) {
+    if (!res.headersSent) {
+      res.status(413).json({ error: 'Payload size too large' });
+    }
+    return;
+  }
+  console.error('⚠️ Express Request Error:', err.message);
+  if (!res.headersSent) {
+    res.status(err.status || 500).json({ error: err.message || 'Internal Server Error' });
+  }
+});
+
 // Start server
 app.listen(PORT, async () => {
   console.log(`\n  ✅ Server berjalan di http://localhost:${PORT}`);
   
-  // Start ngrok if token is provided
-  const ngrokToken = process.env.NGROK_AUTHTOKEN;
-  if (ngrokToken) {
+  const tunnelProvider = (process.env.TUNNEL_PROVIDER || 'ngrok').toLowerCase().trim();
+
+  if (tunnelProvider === 'cloudflare' || tunnelProvider === 'cloudflared' || tunnelProvider === 'localtunnel') {
     try {
-      // Terminate any hanging/orphan ngrok.exe processes to prevent "account limited to 1 active tunnel" errors
-      try {
-        execSync('taskkill /F /IM ngrok.exe', { stdio: 'ignore' });
-      } catch (e) {
-        // Ignore if no ngrok processes were running
-      }
-
-      console.log('  Membuka tunnel Ngrok (CLI Mode)...');
-      const ngrokPath = path.join(__dirname, 'node_modules', 'ngrok', 'bin', 'ngrok.exe');
+      console.log('  Membuka Tunnel Cadangan (LocalTunnel - Unlimited Mode)...');
       
-      const ngrokProcess = spawn(ngrokPath, ['http', PORT.toString(), '--authtoken', ngrokToken]);
+      const ltCmd = process.platform === 'win32' ? 'cmd.exe' : 'npx';
+      const ltArgs = process.platform === 'win32' ? ['/c', `npx -y localtunnel --port ${PORT}`] : ['-y', 'localtunnel', '--port', PORT.toString()];
       
-      let ngrokErrorOutput = '';
-      if (ngrokProcess.stderr) {
-        ngrokProcess.stderr.on('data', (data) => {
-          ngrokErrorOutput += data.toString();
-        });
-      }
+      const ltProcess = spawn(ltCmd, ltArgs);
 
-      ngrokProcess.on('close', (code) => {
-        if (code && code !== 0) {
-          console.error(`\n  ❌ Proses Ngrok keluar dengan kode ${code}`);
-          if (ngrokErrorOutput) {
-            console.error(`  Detail Error Ngrok:\n${ngrokErrorOutput}`);
-          }
+      let tunnelFound = false;
+
+      const parseOutput = (data) => {
+        const str = data.toString();
+        const match = str.match(/https:\/\/[a-zA-Z0-9-]+\.loca\.lt/) || str.match(/your url is:\s*(https:\/\/[^\s]+)/i);
+        if (match && !tunnelFound) {
+          tunnelFound = true;
+          const url = match[1] || match[0];
+          console.log('  ========================================');
+          console.log(`  🌐 Akses Publik Cadangan (Unlimited): ${url}`);
+          console.log('  ========================================');
+          console.log(`  Login   : ${url}/login`);
+          console.log(`  Undian  : ${url}/dashboard`);
+          console.log(`  Setting : ${url}/setting`);
+          console.log(`  Admin   : ${url}/adm1n`);
+          console.log('  ========================================');
+        }
+      };
+
+      if (ltProcess.stdout) ltProcess.stdout.on('data', parseOutput);
+      if (ltProcess.stderr) ltProcess.stderr.on('data', parseOutput);
+
+      ltProcess.on('close', (code) => {
+        if (!tunnelFound && code !== 0) {
+          console.error(`\n  ❌ Tunnel Cadangan keluar dengan kode ${code}`);
         }
       });
-
-      // Polling setiap 3 detik (maksimal 15 kali) untuk mendapatkan url public
-      let attempts = 0;
-      const checkInterval = setInterval(async () => {
-        attempts++;
-        try {
-          const response = await fetch('http://127.0.0.1:4040/api/tunnels');
-          const data = await response.json();
-          if (data && data.tunnels && data.tunnels.length > 0) {
-            const url = data.tunnels[0].public_url;
-            console.log('  ========================================');
-            console.log(`  🌐 Akses Publik: ${url}`);
-            console.log('  ========================================');
-            console.log(`  Login   : ${url}/login`);
-            console.log(`  Undian  : ${url}/dashboard`);
-            console.log(`  Setting : ${url}/setting`);
-            console.log(`  Admin   : ${url}/adm1n`);
-            console.log('  ========================================');
-            clearInterval(checkInterval);
-          } else if (attempts >= 15) {
-             console.log('  ⚠️ Ngrok berjalan, tetapi koneksi Anda sangat lambat. Silakan cek http://127.0.0.1:4040 di browser.');
-             clearInterval(checkInterval);
-          }
-        } catch (err) {
-          if (attempts >= 15) {
-            console.error('  ❌ Gagal mendapatkan URL Ngrok setelah 45 detik:', err.message);
-            clearInterval(checkInterval);
-          }
-        }
-      }, 3000);
     } catch (err) {
-      console.error('  ❌ Gagal menjalankan Ngrok CLI:', err.message);
+      console.error('  ❌ Gagal menjalankan Tunnel Cadangan:', err.message);
     }
   } else {
-    console.log('  ⚠️ NGROK_AUTHTOKEN tidak ditemukan di .env. Aplikasi hanya bisa diakses secara lokal.');
+    // Start ngrok if token is provided
+    const ngrokToken = process.env.NGROK_AUTHTOKEN;
+    if (ngrokToken) {
+      try {
+        // Terminate any hanging/orphan ngrok.exe processes to prevent "account limited to 1 active tunnel" errors
+        try {
+          execSync('taskkill /F /IM ngrok.exe', { stdio: 'ignore' });
+        } catch (e) {}
+
+        console.log('  Membuka tunnel Ngrok (CLI Mode)...');
+        const ngrokPath = path.join(__dirname, 'node_modules', 'ngrok', 'bin', 'ngrok.exe');
+        
+        const ngrokProcess = spawn(ngrokPath, ['http', PORT.toString(), '--authtoken', ngrokToken]);
+        
+        let ngrokErrorOutput = '';
+        if (ngrokProcess.stderr) {
+          ngrokProcess.stderr.on('data', (data) => {
+            ngrokErrorOutput += data.toString();
+          });
+        }
+
+        ngrokProcess.on('close', (code) => {
+          if (code && code !== 0) {
+            console.error(`\n  ❌ Proses Ngrok keluar dengan kode ${code}`);
+            if (ngrokErrorOutput) {
+              console.error(`  Detail Error Ngrok:\n${ngrokErrorOutput}`);
+            }
+          }
+        });
+
+        // Polling setiap 3 detik (maksimal 15 kali) untuk mendapatkan url public
+        let attempts = 0;
+        const checkInterval = setInterval(async () => {
+          attempts++;
+          try {
+            const response = await fetch('http://127.0.0.1:4040/api/tunnels');
+            const data = await response.json();
+            if (data && data.tunnels && data.tunnels.length > 0) {
+              const url = data.tunnels[0].public_url;
+              console.log('  ========================================');
+              console.log(`  🌐 Akses Publik (Ngrok): ${url}`);
+              console.log('  ========================================');
+              console.log(`  Login   : ${url}/login`);
+              console.log(`  Undian  : ${url}/dashboard`);
+              console.log(`  Setting : ${url}/setting`);
+              console.log(`  Admin   : ${url}/adm1n`);
+              console.log('  ========================================');
+              clearInterval(checkInterval);
+            } else if (attempts >= 15) {
+               console.log('  ⚠️ Ngrok berjalan, tetapi koneksi Anda sangat lambat. Silakan cek http://127.0.0.1:4040 di browser.');
+               clearInterval(checkInterval);
+            }
+          } catch (err) {
+            if (attempts >= 15) {
+              console.error('  ❌ Gagal mendapatkan URL Ngrok setelah 45 detik:', err.message);
+              clearInterval(checkInterval);
+            }
+          }
+        }, 3000);
+      } catch (err) {
+        console.error('  ❌ Gagal menjalankan Ngrok CLI:', err.message);
+      }
+    } else {
+      console.log('  ⚠️ NGROK_AUTHTOKEN tidak ditemukan di .env. Aplikasi hanya bisa diakses secara lokal.');
+    }
   }
 });

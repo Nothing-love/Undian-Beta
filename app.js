@@ -160,20 +160,31 @@ function saveSettings() {
   APP.lastSyncTs = ts;
 
   if (window.location.protocol !== 'file:') {
+    const payloadPeserta = {
+      dataPeserta: APP.dataPeserta || [],
+      availableClusters: APP.availableClusters || [],
+      hasilUndian: APP.hasilUndian || [],
+      currentRonde: APP.currentRonde || 1,
+      settings: APP.settings,
+      timestamp: ts
+    };
+
     const payload = {
       settings: APP.settings,
-      peserta: {
-        dataPeserta: APP.dataPeserta,
-        availableClusters: APP.availableClusters || [],
-        hasilUndian: APP.hasilUndian || [],
-        currentRonde: APP.currentRonde || 1,
-        settings: APP.settings
-      },
+      peserta: payloadPeserta,
       admin: {
         targets: APP.adminTargets || [],
         password: APP.adminPassword || 'admin'
-      }
+      },
+      timestamp: ts
     };
+
+    fetch('/api/peserta', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payloadPeserta)
+    }).catch(e => console.log('Peserta sync POST error'));
+
     fetch('/api/state', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -237,7 +248,7 @@ async function syncStateWithServer() {
 
     const serverTs = data.timestamp || 0;
 
-    if (serverTs > APP.lastSyncTs) {
+    if (serverTs > (APP.lastSyncTs + 500)) {
       APP.lastSyncTs = serverTs;
 
       // 1. Sync Settings
@@ -250,11 +261,13 @@ async function syncStateWithServer() {
 
       // 2. Sync Peserta & Winners
       if (data.peserta) {
-        if (data.peserta.dataPeserta) {
+        if (data.peserta.dataPeserta && (data.peserta.dataPeserta.length > 0 || (APP.dataPeserta || []).length === 0)) {
           APP.dataPeserta = data.peserta.dataPeserta;
           computeUniqueCategories();
         }
-        if (data.peserta.availableClusters) APP.availableClusters = data.peserta.availableClusters;
+        if (data.peserta.availableClusters && data.peserta.availableClusters.length > 0) {
+          APP.availableClusters = data.peserta.availableClusters;
+        }
         if (data.peserta.hasilUndian) APP.hasilUndian = data.peserta.hasilUndian;
         if (data.peserta.currentRonde !== undefined) APP.currentRonde = data.peserta.currentRonde;
         if (data.peserta.settings && (!data.settings || !data.settings.eventTitle)) {
@@ -284,10 +297,15 @@ async function syncStateWithServer() {
       if (typeof updatePrizeSidebar === 'function') updatePrizeSidebar();
       if (typeof updatePesertaDatalist === 'function') updatePesertaDatalist();
       if (typeof refreshAdminTable === 'function') refreshAdminTable();
+      if (typeof renderPrizeSettings === 'function') renderPrizeSettings();
     }
   } catch (e) {
     // Ignore network drop
   }
+}
+
+function syncPesertaDataToServer() {
+  saveSettings();
 }
 
 function startLiveSync() {
@@ -714,12 +732,6 @@ function bindEvents() {
     });
   }
 
-  // Upload new button (in header)
-  document.getElementById('uploadNewBtn').addEventListener('click', () => {
-    document.getElementById('mainApp').classList.remove('active');
-    document.getElementById('uploadScreen').classList.add('active');
-    fileInput.value = '';
-  });
   // Settings
   document.getElementById('settingsBtn').addEventListener('click', () => openModal('settingsModal'));
   document.getElementById('saveSettingsBtn').addEventListener('click', saveEventSettings);
@@ -958,17 +970,18 @@ function loadExcelFile(file) {
         };
 
         const idVal = getColVal(['ID_Peserta', 'ID Peserta', 'ID', 'Id', 'No', 'Nomor']);
-        let nameVal = getColVal(['Nama_atau_Angka', 'Nama atau Angka', 'Nama_Angka', 'Nama', 'Nama Peserta', 'Angka', 'No_Undian', 'Nomor_Undian']);
-        
-        // Fallback for missing name/ID
-        if (!nameVal) {
-          nameVal = idVal || `Peserta-${String(index + 1).padStart(3, '0')}`;
-        }
-
+        const rawNameVal = getColVal(['Nama_atau_Angka', 'Nama atau Angka', 'Nama_Angka', 'Nama', 'Nama Peserta', 'Angka', 'No_Undian', 'Nomor_Undian']);
         const jVal = getColVal(['Jenis_Peserta', 'Jenis Peserta', 'Jenis', 'Kategori', 'Cluster_Kategori', 'Cluster']);
         const gVal = getColVal(['Grup', 'Group', 'Cabang', 'Lokasi']);
         const kVal = getColVal(['Kelompok_Dalam_Grup', 'Kelompok Dalam Grup', 'Kelompok_Grup', 'Kelompok', 'Divisi', 'Departemen']);
         const sVal = getColVal(['Status_Undian', 'Status Undian', 'Status']) || 'Belum Diundi';
+
+        // Skip completely empty rows
+        if (!idVal && !rawNameVal && !jVal && !gVal && !kVal) {
+          return null;
+        }
+
+        let nameVal = rawNameVal || idVal || `Peserta-${String(index + 1).padStart(3, '0')}`;
 
         return {
           id: idVal || `PST-${String(index + 1).padStart(3, '0')}`,
@@ -979,7 +992,7 @@ function loadExcelFile(file) {
           cluster: jVal,
           status: sVal === 'Sudah Diundi' ? 'Sudah Diundi' : 'Belum Diundi'
         };
-      }).filter(p => p.nama || p.id);
+      }).filter(Boolean);
 
       if (APP.dataPeserta.length === 0) {
         showToast('Tidak ada data peserta valid yang ditemukan di file Excel.', 'error');
@@ -1013,18 +1026,15 @@ function loadExcelFile(file) {
       if (sheet2) {
         APP.hasilUndian = XLSX.utils.sheet_to_json(sheet2);
         APP.currentRonde = APP.hasilUndian.length + 1;
+      } else {
+        APP.hasilUndian = [];
+        APP.currentRonde = 1;
       }
 
+      APP.lastSyncTs = Date.now();
       updatePesertaDatalist();
+      if (typeof renderPrizeSettings === 'function') renderPrizeSettings();
       saveSettings();
-
-      // Switch to main app if on upload screen
-      const uploadScreen = document.getElementById('uploadScreen');
-      const mainApp = document.getElementById('mainApp');
-      if (uploadScreen && mainApp) {
-        uploadScreen.classList.remove('active');
-        mainApp.classList.add('active');
-      }
 
       updateUI();
       showToast(`Data berhasil dimuat! ${getActivePeserta().length} peserta aktif terdaftar.`, 'success');
@@ -1036,20 +1046,51 @@ function loadExcelFile(file) {
   reader.readAsArrayBuffer(file);
 }
 
+function sanitizePrizeRules() {
+  if (!APP.settings || !APP.settings.prizes || !Array.isArray(APP.settings.prizes)) return false;
+
+  const validJenis = new Set((APP.uniqueJenis || []).map(v => normalizeStr(v)));
+  const validGrup = new Set((APP.uniqueGrup || []).map(v => normalizeStr(v)));
+  const validKelompok = new Set((APP.uniqueKelompok || []).map(v => normalizeStr(v)));
+
+  let changed = false;
+  APP.settings.prizes.forEach(p => {
+    if (p.jenis && normalizeStr(p.jenis) !== 'semua' && !validJenis.has(normalizeStr(p.jenis))) {
+      p.jenis = 'Semua';
+      changed = true;
+    }
+    if (p.grup && normalizeStr(p.grup) !== 'semua' && !validGrup.has(normalizeStr(p.grup))) {
+      p.grup = 'Semua';
+      changed = true;
+    }
+    if (p.kelompok && normalizeStr(p.kelompok) !== 'semua' && !validKelompok.has(normalizeStr(p.kelompok))) {
+      p.kelompok = 'Semua';
+      changed = true;
+    }
+  });
+
+  return changed;
+}
+
 function computeUniqueCategories() {
   const uniqueJenis = new Set();
   const uniqueGrup = new Set();
   const uniqueKelompok = new Set();
 
   (APP.dataPeserta || []).forEach(p => {
-    uniqueJenis.add(p.jenisPeserta || '');
-    uniqueGrup.add(p.grup || '');
-    uniqueKelompok.add(p.kelompok || '');
+    if (p.jenisPeserta && p.jenisPeserta.trim()) uniqueJenis.add(p.jenisPeserta.trim());
+    if (p.grup && p.grup.trim()) uniqueGrup.add(p.grup.trim());
+    if (p.kelompok && p.kelompok.trim()) uniqueKelompok.add(p.kelompok.trim());
   });
 
   APP.uniqueJenis = Array.from(uniqueJenis).sort();
   APP.uniqueGrup = Array.from(uniqueGrup).sort();
   APP.uniqueKelompok = Array.from(uniqueKelompok).sort();
+
+  const changed = sanitizePrizeRules();
+  if (changed && typeof saveSettings === 'function') {
+    saveSettings();
+  }
 }
 
 function normalizeStr(str) {
@@ -1061,13 +1102,16 @@ function matchRuleParticipant(p, rule) {
     return matchParticipantCluster(p, rule.cluster);
   }
   if (rule.jenis && normalizeStr(rule.jenis) !== 'semua') {
-    if (normalizeStr(p.jenisPeserta) !== normalizeStr(rule.jenis)) return false;
+    const exists = (APP.uniqueJenis || []).some(j => normalizeStr(j) === normalizeStr(rule.jenis));
+    if (exists && normalizeStr(p.jenisPeserta) !== normalizeStr(rule.jenis)) return false;
   }
   if (rule.grup && normalizeStr(rule.grup) !== 'semua') {
-    if (normalizeStr(p.grup) !== normalizeStr(rule.grup)) return false;
+    const exists = (APP.uniqueGrup || []).some(g => normalizeStr(g) === normalizeStr(rule.grup));
+    if (exists && normalizeStr(p.grup) !== normalizeStr(rule.grup)) return false;
   }
   if (rule.kelompok && normalizeStr(rule.kelompok) !== 'semua') {
-    if (normalizeStr(p.kelompok) !== normalizeStr(rule.kelompok)) return false;
+    const exists = (APP.uniqueKelompok || []).some(k => normalizeStr(k) === normalizeStr(rule.kelompok));
+    if (exists && normalizeStr(p.kelompok) !== normalizeStr(rule.kelompok)) return false;
   }
   return true;
 }
@@ -1389,22 +1433,37 @@ window.handleSpin = function() {
     // Default fallback if round not configured in settings
     rules = [{ jenis: 'Semua', grup: 'Semua', kelompok: 'Semua', count: 1 }];
   }
+  
+  const activePesertaTotal = getActivePeserta();
+  if (activePesertaTotal.length === 0) {
+    showToast('Tidak ada peserta aktif yang belum diundi.', 'warning');
+    return;
+  }
 
   let totalCount = 0;
   for (const rule of rules) {
     totalCount += rule.count;
-    let available = APP.dataPeserta.filter(p => p.status === 'Belum Diundi' && matchRuleParticipant(p, rule));
-    if (available.length < rule.count) {
-      // Build a friendly text for target category
-      const parts = [];
-      if (rule.jenis && normalizeStr(rule.jenis) !== 'semua') parts.push(`Jenis: ${rule.jenis === '' ? '(Kosong)' : rule.jenis}`);
-      if (rule.grup && normalizeStr(rule.grup) !== 'semua') parts.push(`Grup: ${rule.grup === '' ? '(Kosong)' : rule.grup}`);
-      if (rule.kelompok && normalizeStr(rule.kelompok) !== 'semua') parts.push(`Kelompok: ${rule.kelompok === '' ? '(Kosong)' : rule.kelompok}`);
-      const ruleText = parts.length > 0 ? parts.join(' | ') : 'Semua';
-      
-      showToast(`Peserta aktif di target (${ruleText}) hanya ${available.length}, tidak cukup untuk ${rule.count} pemenang.`, 'error');
-      return;
+    const isJenisFiltered = rule.jenis && normalizeStr(rule.jenis) !== 'semua' && (APP.uniqueJenis || []).some(j => normalizeStr(j) === normalizeStr(rule.jenis));
+    const isGrupFiltered = rule.grup && normalizeStr(rule.grup) !== 'semua' && (APP.uniqueGrup || []).some(g => normalizeStr(g) === normalizeStr(rule.grup));
+    const isKelompokFiltered = rule.kelompok && normalizeStr(rule.kelompok) !== 'semua' && (APP.uniqueKelompok || []).some(k => normalizeStr(k) === normalizeStr(rule.kelompok));
+
+    if (isJenisFiltered || isGrupFiltered || isKelompokFiltered) {
+      let available = APP.dataPeserta.filter(p => p.status === 'Belum Diundi' && matchRuleParticipant(p, rule));
+      if (available.length < rule.count) {
+        const parts = [];
+        if (isJenisFiltered) parts.push(`Jenis: ${rule.jenis}`);
+        if (isGrupFiltered) parts.push(`Grup: ${rule.grup}`);
+        if (isKelompokFiltered) parts.push(`Kelompok: ${rule.kelompok}`);
+        const ruleText = parts.length > 0 ? parts.join(' | ') : 'Semua';
+        
+        showToast(`Kategori target (${ruleText}) hanya memiliki ${available.length} peserta aktif. Menggunakan peserta aktif lain sebagai pengganti.`, 'info');
+      }
     }
+  }
+
+  if (totalCount > activePesertaTotal.length) {
+    showToast(`Total pemenang yang diminta (${totalCount}) melebihi jumlah peserta aktif yang tersisa (${activePesertaTotal.length}).`, 'error');
+    return;
   }
 
   if (totalCount === 0) return;
@@ -1569,6 +1628,28 @@ function determineWinnersMulti(rules) {
         if (pIdx > -1) currentActive.splice(pIdx, 1);
       }
     }
+
+    // Fallback: if category filter produced fewer winners than requested, fill remaining from any active participants
+    if (ruleWinners.length < rule.count && currentActive.length > 0) {
+      const remainingShuffled = [...currentActive];
+      for (let i = remainingShuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [remainingShuffled[i], remainingShuffled[j]] = [remainingShuffled[j], remainingShuffled[i]];
+      }
+      for (let i = 0; i < remainingShuffled.length && ruleWinners.length < rule.count; i++) {
+        ruleWinners.push({
+          id: remainingShuffled[i].id,
+          nama: remainingShuffled[i].nama,
+          jenisPeserta: remainingShuffled[i].jenisPeserta,
+          grup: remainingShuffled[i].grup,
+          kelompok: remainingShuffled[i].kelompok,
+          cluster: remainingShuffled[i].cluster
+        });
+        const pIdx = currentActive.findIndex(p => p.id === remainingShuffled[i].id);
+        if (pIdx > -1) currentActive.splice(pIdx, 1);
+      }
+    }
+
     allWinners = allWinners.concat(ruleWinners);
   });
 
@@ -1673,13 +1754,6 @@ function highlightWinners() {
   document.querySelectorAll('.slot-cell[data-winner="true"]').forEach(cell => {
     cell.classList.add('winner-cell');
   });
-}
-
-function adjustWinnerCount(delta) {
-  const input = document.getElementById('winnerCount');
-  let val = parseInt(input.value) || 1;
-  val = Math.max(1, Math.min(50, val + delta));
-  input.value = val;
 }
 
 // ===================== WINNER MODAL & CONFETTI =====================
@@ -1791,42 +1865,70 @@ function updatePrizeSidebar() {
   if (!displayEl) return;
 
   const prizes = APP.settings.prizes || [];
-  const currentPrizes = prizes.filter(p => parseInt(p.ronde) === APP.currentRonde);
+  const roundPrizes = prizes.filter(p => parseInt(p.ronde) === APP.currentRonde);
 
-  if (currentPrizes.length > 1) {
-    displayEl.innerHTML = `<div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; width: 100%; align-items: start;">` + 
-      currentPrizes.map((prize) => `
-        <div class="prize-item-grid" style="display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px;">
-          <div class="prize-image-container" style="width: 100px; height: 100px; border-radius: var(--radius-md); overflow: hidden; background: rgba(var(--color-primary-rgb), 0.05); display: flex; align-items: center; justify-content: center; border: 1.5px dashed rgba(var(--color-primary-rgb), 0.2); box-shadow: var(--shadow-sm); margin: 0 auto;">
-            ${prize.imageBase64 ? `<img src="${prize.imageBase64}" alt="Hadiah" style="width: 100%; height: 100%; object-fit: contain; display: block;" />` : 
-              `<div class="prize-placeholder" style="font-size: 0.85rem; color: var(--color-text-muted); font-weight: 600;">🎁 Misteri</div>`}
+  // Group prizes strictly by NAME ONLY (case-insensitive) to combine duplicate entries
+  const groupedMap = new Map();
+
+  roundPrizes.forEach(prize => {
+    const rawName = (prize.name || 'Hadiah').trim();
+    const key = rawName.toLowerCase();
+
+    const count = parseInt(prize.count) || 1;
+    const imageBase64 = (prize.imageBase64 || '').trim();
+
+    if (groupedMap.has(key)) {
+      const existing = groupedMap.get(key);
+      existing.count += count;
+      // If existing entry didn't have photo but this rule has one, attach photo!
+      if (!existing.imageBase64 && imageBase64) {
+        existing.imageBase64 = imageBase64;
+      }
+    } else {
+      groupedMap.set(key, {
+        name: rawName,
+        imageBase64: imageBase64,
+        count: count
+      });
+    }
+  });
+
+  const mergedPrizes = Array.from(groupedMap.values());
+
+  if (mergedPrizes.length > 1) {
+    displayEl.innerHTML = `<div style="display: grid; grid-template-columns: repeat(${Math.min(mergedPrizes.length, 2)}, 1fr); gap: 14px; width: 100%; align-items: start;">` + 
+      mergedPrizes.map((prize) => {
+        const imageHtml = prize.imageBase64 ? 
+          `<div class="prize-image-container" style="width: 110px; height: 110px; border-radius: var(--radius-lg); overflow: hidden; background: #FFFFFF; display: flex; align-items: center; justify-content: center; border: 2px solid #FCA5A5; box-shadow: var(--shadow-sm); margin: 0 auto;">
+            <img src="${prize.imageBase64}" alt="${prize.name}" style="width: 100%; height: 100%; object-fit: contain; display: block;" />
+          </div>` : '';
+        const countBadge = prize.count ? `<div style="font-size: 0.9rem; font-weight: 700; color: #E11D48; margin-top: 2px; display: flex; align-items: center; justify-content: center; gap: 4px;">🏆 ${prize.count} Pemenang</div>` : '';
+        return `
+          <div class="prize-item-grid" style="display: flex; flex-direction: column; align-items: center; text-align: center; gap: 2px; padding: 4px;">
+            ${imageHtml}
+            <h4 class="prize-name" style="font-size: 0.95rem; font-weight: 900; color: #B91C1C; margin: 4px 0 0 0; line-height: 1.2; word-break: break-word; text-transform: uppercase;">${prize.name}</h4>
+            ${countBadge}
           </div>
-          <h4 class="prize-name" style="font-size: 0.9rem; font-weight: 700; color: var(--color-text); margin: 0; line-height: 1.2; word-break: break-word;">${prize.name || 'Hadiah'}</h4>
-        </div>
-      `).join('') + `</div>`;
-  } else if (currentPrizes.length === 1) {
-    const prize = currentPrizes[0];
-    const countBadge = prize.count && prize.count > 1 ? `<div style="font-size: 0.9rem; font-weight: 700; color: var(--color-primary); margin-top: 4px;">🏆 ${prize.count} Pemenang</div>` : '';
+        `;
+      }).join('') + `</div>`;
+  } else if (mergedPrizes.length === 1) {
+    const prize = mergedPrizes[0];
+    const countBadge = prize.count ? `<div style="font-size: 1rem; font-weight: 700; color: #E11D48; margin-top: 4px; display: flex; align-items: center; justify-content: center; gap: 4px;">🏆 ${prize.count} Pemenang</div>` : '';
+    const imageHtml = prize.imageBase64 ? 
+      `<div class="prize-image-container" style="width: 180px; height: 180px; border-radius: var(--radius-xl); overflow: hidden; background: #FFFFFF; display: flex; align-items: center; justify-content: center; border: 2.5px solid #FCA5A5; box-shadow: var(--shadow-md); margin: 0 auto 8px auto;">
+        <img src="${prize.imageBase64}" alt="${prize.name}" style="width: 100%; height: 100%; object-fit: contain; display: block;" />
+      </div>` : '';
     displayEl.innerHTML = `
-      <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-md); width: 100%;">
-        <div class="prize-image-container" style="width: 180px; height: 180px; border-radius: var(--radius-lg); overflow: hidden; background: rgba(var(--color-primary-rgb), 0.05); display: flex; align-items: center; justify-content: center; border: 2px dashed rgba(var(--color-primary-rgb), 0.2); box-shadow: var(--shadow-md); margin: 0 auto;">
-          ${prize.imageBase64 ? `<img src="${prize.imageBase64}" alt="Hadiah" style="width: 100%; height: 100%; object-fit: contain; display: block;" />` : 
-            `<div class="prize-placeholder" style="font-size: 1.1rem; color: var(--color-text-muted); font-weight: 600;">🎁 Hadiah Misteri</div>`}
-        </div>
-        <h3 class="prize-name" style="font-size: 1.5rem; font-weight: 800; color: var(--color-text); margin: 0; background: var(--gradient-main); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; line-height: 1.3;">${prize.name || 'Hadiah Spesial'}</h3>
+      <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; width: 100%; text-align: center;">
+        ${imageHtml}
+        <h3 class="prize-name" style="font-size: 1.4rem; font-weight: 900; color: #B91C1C; margin: 4px 0 0 0; line-height: 1.2; text-transform: uppercase; word-break: break-word;">${prize.name}</h3>
         ${countBadge}
       </div>
     `;
   } else {
     displayEl.innerHTML = `
-      <div class="prize-item-multiple">
-        <div class="prize-image-container" style="margin: 0 auto;">
-          <img src="" alt="Hadiah" style="display:none;" />
-          <div class="prize-placeholder" style="display:flex;">
-            🎁 Hadiah Misteri
-          </div>
-        </div>
-        <h3 class="prize-name">Menunggu...</h3>
+      <div class="prize-item-multiple" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 20px 10px;">
+        <h3 class="prize-name" style="font-size: 1.2rem; font-weight: 800; color: var(--color-text-muted); margin: 0;">Ronde ${APP.currentRonde}</h3>
       </div>
     `;
   }

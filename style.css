@@ -567,10 +567,11 @@ h1, h2, h3, h4, h5, h6 {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  padding: var(--space-lg) var(--space-xl) 180px var(--space-xl);
-  gap: var(--space-sm);
-  overflow-y: auto;
+  justify-content: space-between;
+  padding: 16px 24px;
+  height: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
   position: relative;
   background:
     radial-gradient(ellipse at 30% 30%, rgba(var(--color-primary-rgb), 0.03) 0%, transparent 60%),
@@ -582,16 +583,18 @@ h1, h2, h3, h4, h5, h6 {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-xl);
-  padding: 4px;
+  padding: 12px 16px;
   box-shadow: var(--shadow-xl);
   position: relative;
   transition: all var(--transition-base);
-  margin: 0 auto;
-  max-width: 100%;
-  flex-shrink: 0;
-  max-height: 65vh;
+  margin: auto;
+  width: fit-content;
+  max-width: 96vw;
+  height: fit-content;
+  max-height: calc(100vh - 180px);
   overflow-y: auto;
   overflow-x: hidden;
+  box-sizing: border-box;
 }
 
 /* Custom scrollbar for slot machine frame */
@@ -612,7 +615,7 @@ h1, h2, h3, h4, h5, h6 {
   display: flex;
   justify-content: center;
   gap: var(--space-md);
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
 
 .slot-light {
@@ -641,10 +644,13 @@ h1, h2, h3, h4, h5, h6 {
   display: flex;
   justify-content: center;
   align-items: center;
+  align-content: center;
   flex-wrap: wrap;
-  gap: 14px;
-  padding: 12px;
-  width: 100%;
+  gap: 10px;
+  padding: 4px;
+  width: fit-content;
+  max-width: 100%;
+  height: auto;
   box-sizing: border-box;
   transition: all 0.3s ease;
 }
@@ -684,17 +690,22 @@ h1, h2, h3, h4, h5, h6 {
 /* Single Cell Reel (Dynamic High-Visibility Stage Reel) */
 .slot-reel.single-cell-reel {
   height: auto;
-  border-radius: var(--radius-lg);
-  background: rgba(15, 23, 42, 0.75);
-  border: 2px solid var(--color-primary);
-  box-shadow: 0 6px 25px rgba(0, 0, 0, 0.45), inset 0 0 15px rgba(var(--color-primary-rgb), 0.25);
+  border-radius: var(--radius-xl);
+  background: #FFFFFF;
+  border: 3px solid var(--color-primary);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 4px;
+  padding: 12px;
   box-sizing: border-box;
   transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   position: relative;
+}
+
+body.dark-theme .slot-reel.single-cell-reel {
+  background: #0F172A;
+  border-color: var(--color-primary);
 }
 
 .slot-reel.single-cell-reel::before,
@@ -710,86 +721,160 @@ h1, h2, h3, h4, h5, h6 {
   text-align: center;
   font-family: 'Outfit', var(--font-event, sans-serif);
   text-transform: var(--text-transform-event, uppercase);
-  color: var(--color-text, #FFFFFF);
+  font-weight: 900;
+  line-height: 0.95 !important;
+  text-shadow: none !important; /* NO NEON BLUR */
   transition: all 0.2s ease;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  padding: 0 10px;
+  padding: 2px 6px !important;
+}
+
+/* High contrast crisp text colors for maximum readability */
+.slot-reel.single-cell-reel .slot-cell.is-number {
+  color: #0F172A !important;
+  text-shadow: none !important;
+  font-weight: 900 !important;
+}
+
+.slot-reel.single-cell-reel .slot-cell.is-name {
+  color: #1E293B !important;
+  text-shadow: none !important;
+  font-weight: 900 !important;
+}
+
+body.dark-theme .slot-reel.single-cell-reel .slot-cell.is-number,
+body.dark-theme .slot-reel.single-cell-reel .slot-cell.is-name {
+  color: #F8FAFC !important;
+  text-shadow: 0 2px 6px rgba(0,0,0,0.8) !important;
 }
 
 .slot-reel.single-cell-reel .slot-cell[data-winner="true"] {
-  color: #FCD34D !important;
-  text-shadow: 0 0 25px rgba(245, 158, 11, 0.9), 0 0 10px rgba(255, 255, 255, 0.8);
+  color: #D97706 !important; /* Rich crisp amber gold */
+  text-shadow: none !important;
   font-weight: 900 !important;
+}
+
+body.dark-theme .slot-reel.single-cell-reel .slot-cell[data-winner="true"] {
+  color: #FBBF24 !important;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.9) !important;
 }
 
 /* =========================================================
-   DYNAMIC REEL SCALING CLASSES (BASED ON WINNER COUNT)
+   DYNAMIC REEL SCALING CLASSES (STAGE PROPORTIONAL SCALING)
 ========================================================= */
 
-/* 1. MASSIVE REEL (1 Winner - Huge Stage Jackpot Display) */
+/* 1. MASSIVE REEL (1 Winner - Jackpot Display) */
 .slot-machine.massive-reel {
-  padding: 24px;
+  padding: 8px;
+  width: fit-content;
+  max-width: 100%;
+  height: auto;
 }
 .slot-machine.massive-reel .slot-reel.single-cell-reel {
-  width: min(650px, 90vw);
-  min-height: 150px;
-  border-width: 3px;
-  border-color: #FCD34D;
-  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6), 0 0 35px rgba(245, 158, 11, 0.5);
+  flex: 0 1 750px !important;
+  width: min(750px, 90vw) !important;
+  min-height: 220px !important;
+  padding: 10px 20px !important;
+  border-width: 4px !important;
+  border-color: var(--color-primary) !important;
   border-radius: var(--radius-xl);
 }
-.slot-machine.massive-reel .slot-cell {
-  font-size: clamp(2.5rem, 6vw, 4.8rem) !important;
-  font-weight: 900 !important;
-  letter-spacing: 3px;
+.slot-machine.massive-reel .slot-cell.is-number {
+  font-size: clamp(7.5rem, 17vw, 17rem) !important;
+  letter-spacing: -0.03em !important;
+}
+.slot-machine.massive-reel .slot-cell.is-name {
+  font-size: clamp(2.8rem, 6vw, 6rem) !important;
+  line-height: 1.15 !important;
+  white-space: normal !important;
+  word-break: break-word !important;
+  letter-spacing: 1px;
 }
 
 /* 2. LARGE REELS (2 - 4 Winners) */
 .slot-machine.large-reels {
-  gap: 18px;
-  padding: 16px;
+  gap: 14px;
+  padding: 8px;
+  width: fit-content;
+  max-width: 100%;
+  height: auto;
 }
 .slot-machine.large-reels .slot-reel.single-cell-reel {
-  width: min(320px, 45vw);
-  min-height: 105px;
-  border-width: 2.5px;
+  flex: 0 1 calc(48% - 14px) !important;
+  min-width: 280px !important;
+  max-width: 560px !important;
+  min-height: 150px !important;
+  padding: 6px 16px !important;
+  border-width: 3.5px !important;
 }
-.slot-machine.large-reels .slot-cell {
-  font-size: clamp(1.8rem, 3.5vw, 2.8rem) !important;
-  font-weight: 850 !important;
-  letter-spacing: 2px;
+.slot-machine.large-reels .slot-cell.is-number {
+  font-size: clamp(4.8rem, 9.5vw, 10rem) !important;
+  letter-spacing: -0.03em !important;
+}
+.slot-machine.large-reels .slot-cell.is-name {
+  font-size: clamp(1.8rem, 3.5vw, 3.5rem) !important;
+  line-height: 1.15 !important;
+  white-space: normal !important;
+  word-break: break-word !important;
+  letter-spacing: 1px;
 }
 
 /* 3. COMPACT REELS (5 - 9 Winners) */
 .slot-machine.compact-reels {
-  gap: 14px;
-  padding: 12px;
+  gap: 10px;
+  padding: 6px;
+  width: fit-content;
+  max-width: 100%;
+  height: auto;
 }
 .slot-machine.compact-reels .slot-reel.single-cell-reel {
-  width: min(220px, 30vw);
-  min-height: 82px;
+  flex: 0 1 calc(31% - 10px) !important;
+  min-width: 200px !important;
+  max-width: 380px !important;
+  min-height: 115px !important;
+  padding: 6px 10px !important;
+  border-width: 3px !important;
 }
-.slot-machine.compact-reels .slot-cell {
-  font-size: clamp(1.3rem, 2.2vw, 2.0rem) !important;
-  font-weight: 800 !important;
-  letter-spacing: 1.5px;
+.slot-machine.compact-reels .slot-cell.is-number {
+  font-size: clamp(3.6rem, 6.5vw, 6.8rem) !important;
+  letter-spacing: -0.03em !important;
+}
+.slot-machine.compact-reels .slot-cell.is-name {
+  font-size: clamp(1.3rem, 2.4vw, 2.4rem) !important;
+  line-height: 1.15 !important;
+  white-space: normal !important;
+  word-break: break-word !important;
+  letter-spacing: 0.5px;
 }
 
-/* 4. MICRO REELS (10 - 30+ Winners Grid - e.g. 20 Winners) */
+/* 4. MICRO REELS (10 - 30+ Winners Grid) */
 .slot-machine.micro-reels {
   gap: 10px;
-  padding: 10px;
+  padding: 6px;
+  width: fit-content;
+  max-width: 100%;
+  height: auto;
 }
 .slot-machine.micro-reels .slot-reel.single-cell-reel {
-  width: min(175px, 22vw);
-  min-height: 65px;
+  flex: 0 1 calc(19% - 10px) !important;
+  min-width: 140px !important;
+  max-width: 230px !important;
+  min-height: 90px !important;
+  padding: 4px 6px !important;
+  border-width: 2.5px !important;
 }
-.slot-machine.micro-reels .slot-cell {
-  font-size: clamp(1.1rem, 1.6vw, 1.5rem) !important;
-  font-weight: 800 !important;
-  letter-spacing: 1px;
+.slot-machine.micro-reels .slot-cell.is-number {
+  font-size: clamp(2.6rem, 4.2vw, 4.5rem) !important;
+  letter-spacing: -0.03em !important;
+}
+.slot-machine.micro-reels .slot-cell.is-name {
+  font-size: clamp(0.9rem, 1.4vw, 1.35rem) !important;
+  line-height: 1.15 !important;
+  white-space: normal !important;
+  word-break: break-word !important;
+  letter-spacing: 0px;
 }
   border-color: var(--color-accent);
   background: rgba(var(--color-accent-rgb), 0.08);
@@ -838,11 +923,12 @@ h1, h2, h3, h4, h5, h6 {
   max-width: 900px;
   width: 100%;
   flex-shrink: 0;
-  position: absolute;
-  bottom: 40px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 10;
+  position: relative;
+  margin-top: auto;
+  margin-bottom: 0;
+  padding-top: 12px;
+  padding-bottom: 8px;
+  z-index: 20;
 }
 
 .controls-row {
@@ -1908,103 +1994,38 @@ body.dark-theme.has-bg .slot-reel {
 .single-cell-reel {
   height: auto !important;
   min-height: 56px;
-  overflow: visible !important;
+  overflow: hidden !important;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 2px solid var(--color-primary) !important;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
+  border: 3px solid var(--color-primary) !important;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.12) !important;
   padding: 4px;
+  background: #FFFFFF;
+  border-radius: var(--radius-xl);
+  box-sizing: border-box;
 }
+
+body.dark-theme .single-cell-reel {
+  background: #0F172A;
+}
+
 .single-cell-reel::before, .single-cell-reel::after {
   display: none !important;
 }
+
 .single-cell-reel .slot-cell {
-  font-weight: 700;
-  height: auto !important;
-  line-height: normal !important;
-  padding: 20px 10px !important;
-  overflow: visible !important;
-}
-.slot-machine.compact-reels .single-cell-reel {
-  min-height: auto;
-  padding: 4px 10px;
-  width: auto !important;
-  min-width: 140px;
-}
-.slot-machine.compact-reels .slot-cell {
-  font-weight: 800;
-  height: auto !important;
-  padding: 8px 6px !important;
-}
-.slot-machine.compact-reels .slot-cell.is-number {
-  font-size: 3.5rem !important;
-}
-.slot-machine.compact-reels .slot-cell.is-name {
-  font-size: 1.8rem !important;
-}
-.slot-machine.micro-reels .single-cell-reel {
-  min-height: 40px;
-  padding: 4px 12px;
-  width: auto !important;
-  min-width: 100px;
-}
-.slot-machine.micro-reels .slot-cell {
-  font-weight: 800;
-  height: auto !important;
-  padding: 4px 4px !important;
-}
-.slot-machine.micro-reels .slot-cell.is-number {
-  font-size: 2.2rem !important;
-}
-.slot-machine.micro-reels .slot-cell.is-name {
-  font-size: 1.2rem !important;
-}
-.single-cell-reel.winner-reel {
-  border-color: var(--color-accent) !important;
-  background: rgba(var(--color-accent-rgb), 0.1) !important;
-  transform: scale(1.05);
-  transition: transform 0.3s;
+  font-weight: 900;
+  height: 100% !important;
+  overflow: hidden !important;
+  box-sizing: border-box;
 }
 
-/* UI scaling for 1-5 winners */
-.slot-machine.massive-reel .single-cell-reel {
-  width: auto !important;
-  min-width: 300px;
-  max-width: 95%;
-  min-height: auto;
-  padding: 10px 30px;
-}
-.slot-machine.massive-reel .slot-cell {
-  font-weight: 900;
-  letter-spacing: 2px;
-  line-height: 1.1 !important;
-}
-.slot-machine.massive-reel .slot-cell.is-number {
-  font-size: 11rem !important;
-}
-.slot-machine.massive-reel .slot-cell.is-name {
-  font-size: 4rem !important;
-  word-wrap: break-word;
-  white-space: normal;
-  padding: 10px 0 !important;
-}
-.slot-machine.large-reels .single-cell-reel {
-  width: auto !important;
-  min-width: 180px;
-  max-width: 45%;
-  min-height: 100px;
-  padding: 15px 30px;
-}
-.slot-machine.large-reels .slot-cell {
-  font-weight: 700;
-  line-height: 1.1 !important;
-}
-.slot-machine.large-reels .slot-cell.is-number {
-  font-size: 5rem !important;
-}
-.slot-machine.large-reels .slot-cell.is-name {
-  font-size: 2.2rem !important;
+.single-cell-reel.winner-reel {
+  border-color: var(--color-accent) !important;
+  background: rgba(var(--color-accent-rgb), 0.15) !important;
+  transform: scale(1.03);
+  transition: transform 0.3s;
 }
 
 /* ===================== PRIZE SIDEBAR ===================== */
