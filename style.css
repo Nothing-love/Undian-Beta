@@ -782,8 +782,9 @@ body.dark-theme .slot-reel.single-cell-reel .slot-cell[data-winner="true"] {
   border-radius: var(--radius-xl);
 }
 .slot-machine.massive-reel .slot-cell.is-number {
-  font-size: clamp(7.5rem, 17vw, 17rem) !important;
-  letter-spacing: -0.03em !important;
+  font-size: clamp(6.5rem, 14vw, 14rem) !important;
+  letter-spacing: -0.04em !important;
+  padding: 0 16px !important;
 }
 .slot-machine.massive-reel .slot-cell.is-name {
   font-size: clamp(2.8rem, 6vw, 6rem) !important;
@@ -804,14 +805,15 @@ body.dark-theme .slot-reel.single-cell-reel .slot-cell[data-winner="true"] {
 .slot-machine.large-reels .slot-reel.single-cell-reel {
   flex: 0 1 calc(48% - 14px) !important;
   min-width: 280px !important;
-  max-width: 560px !important;
+  max-width: 580px !important;
   min-height: 150px !important;
-  padding: 6px 16px !important;
+  padding: 6px 14px !important;
   border-width: 3.5px !important;
 }
 .slot-machine.large-reels .slot-cell.is-number {
-  font-size: clamp(4.8rem, 9.5vw, 10rem) !important;
-  letter-spacing: -0.03em !important;
+  font-size: clamp(3.8rem, 7vw, 8rem) !important;
+  letter-spacing: -0.04em !important;
+  padding: 0 12px !important;
 }
 .slot-machine.large-reels .slot-cell.is-name {
   font-size: clamp(1.8rem, 3.5vw, 3.5rem) !important;
@@ -838,8 +840,9 @@ body.dark-theme .slot-reel.single-cell-reel .slot-cell[data-winner="true"] {
   border-width: 3px !important;
 }
 .slot-machine.compact-reels .slot-cell.is-number {
-  font-size: clamp(3.6rem, 6.5vw, 6.8rem) !important;
-  letter-spacing: -0.03em !important;
+  font-size: clamp(3rem, 5.2vw, 5.8rem) !important;
+  letter-spacing: -0.04em !important;
+  padding: 0 10px !important;
 }
 .slot-machine.compact-reels .slot-cell.is-name {
   font-size: clamp(1.3rem, 2.4vw, 2.4rem) !important;
@@ -866,8 +869,9 @@ body.dark-theme .slot-reel.single-cell-reel .slot-cell[data-winner="true"] {
   border-width: 2.5px !important;
 }
 .slot-machine.micro-reels .slot-cell.is-number {
-  font-size: clamp(2.6rem, 4.2vw, 4.5rem) !important;
-  letter-spacing: -0.03em !important;
+  font-size: clamp(2.2rem, 3.8vw, 4.2rem) !important;
+  letter-spacing: -0.04em !important;
+  padding: 0 6px !important;
 }
 .slot-machine.micro-reels .slot-cell.is-name {
   font-size: clamp(0.9rem, 1.4vw, 1.35rem) !important;
