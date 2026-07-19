@@ -184,9 +184,10 @@
   "titleSize": 2.2,
   "logoShape": "rounded",
   "bgStyle": "vignette",
-  "timestamp": 1784458836700,
+  "timestamp": 1784459216062,
   "prizeFontFamily": "Poppins, sans-serif",
   "prizeTitleColor": "#00d696",
   "reelNumberColor": "#1d7ad7",
-  "winnerNumberColor": "#f00505"
+  "winnerNumberColor": "#f00505",
+  "winnerBgPreset": "gold_gala"
 }
