@@ -125,9 +125,10 @@ app.get('/api/admin', requireAuth, (req, res) => {
 
 app.post('/api/admin', requireAuth, (req, res) => {
   const stateFile = path.join(ROOT, 'admin_state.json');
-  fs.writeFile(stateFile, JSON.stringify(req.body), 'utf8', err => {
+  const payload = { ...req.body, timestamp: Date.now() };
+  fs.writeFile(stateFile, JSON.stringify(payload, null, 2), 'utf8', err => {
     if (err) return res.status(500).json({ error: err.message });
-    res.json({ success: true });
+    res.json({ success: true, timestamp: payload.timestamp });
   });
 });
 
@@ -141,10 +142,74 @@ app.get('/api/peserta', requireAuth, (req, res) => {
 
 app.post('/api/peserta', requireAuth, (req, res) => {
   const stateFile = path.join(ROOT, 'peserta_state.json');
-  fs.writeFile(stateFile, JSON.stringify(req.body), 'utf8', err => {
+  const payload = { ...req.body, timestamp: Date.now() };
+  fs.writeFile(stateFile, JSON.stringify(payload, null, 2), 'utf8', err => {
     if (err) return res.status(500).json({ error: err.message });
-    res.json({ success: true });
+    res.json({ success: true, timestamp: payload.timestamp });
   });
+});
+
+// Settings API
+app.get('/api/settings', requireAuth, (req, res) => {
+  const stateFile = path.join(ROOT, 'settings_state.json');
+  fs.readFile(stateFile, 'utf8', (err, data) => {
+    if (err) return res.json({ settings: null });
+    try { res.json(JSON.parse(data)); } catch(e) { res.json({ settings: null }); }
+  });
+});
+
+app.post('/api/settings', requireAuth, (req, res) => {
+  const stateFile = path.join(ROOT, 'settings_state.json');
+  const payload = { ...req.body, timestamp: Date.now() };
+  fs.writeFile(stateFile, JSON.stringify(payload, null, 2), 'utf8', err => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ success: true, timestamp: payload.timestamp });
+  });
+});
+
+// Full Unified State API (for live sync across devices)
+app.get('/api/state', requireAuth, (req, res) => {
+  const settingsFile = path.join(ROOT, 'settings_state.json');
+  const pesertaFile = path.join(ROOT, 'peserta_state.json');
+  const adminFile = path.join(ROOT, 'admin_state.json');
+
+  let settings = null;
+  let peserta = { dataPeserta: [], availableClusters: [] };
+  let admin = { targets: [] };
+
+  try { if (fs.existsSync(settingsFile)) settings = JSON.parse(fs.readFileSync(settingsFile, 'utf8')); } catch(e){}
+  try { if (fs.existsSync(pesertaFile)) peserta = JSON.parse(fs.readFileSync(pesertaFile, 'utf8')); } catch(e){}
+  try { if (fs.existsSync(adminFile)) admin = JSON.parse(fs.readFileSync(adminFile, 'utf8')); } catch(e){}
+
+  const maxTs = Math.max(
+    settings?.timestamp || 0,
+    peserta?.timestamp || 0,
+    admin?.timestamp || 0
+  );
+
+  res.json({
+    settings,
+    peserta,
+    admin,
+    timestamp: maxTs
+  });
+});
+
+app.post('/api/state', requireAuth, (req, res) => {
+  const { settings, peserta, admin } = req.body;
+  const ts = Date.now();
+
+  if (settings) {
+    fs.writeFileSync(path.join(ROOT, 'settings_state.json'), JSON.stringify({ ...settings, timestamp: ts }, null, 2), 'utf8');
+  }
+  if (peserta) {
+    fs.writeFileSync(path.join(ROOT, 'peserta_state.json'), JSON.stringify({ ...peserta, timestamp: ts }, null, 2), 'utf8');
+  }
+  if (admin) {
+    fs.writeFileSync(path.join(ROOT, 'admin_state.json'), JSON.stringify({ ...admin, timestamp: ts }, null, 2), 'utf8');
+  }
+
+  res.json({ success: true, timestamp: ts });
 });
 
 // Start server

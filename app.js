@@ -136,12 +136,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   updateUI();
   
-  // Start syncing admin settings from remote if on laptop or phone
-  setInterval(() => {
-    syncAdminSettings();
-    if (APP.isRemoteMode) syncPesertaDataFromRemote();
-  }, 2000);
+  // Start 2-second background live sync for all connected devices
+  startLiveSync();
 });
+
+APP.lastSyncTs = 0;
 
 function loadSettings() {
   try {
@@ -157,7 +156,30 @@ function loadSettings() {
 
 function saveSettings() {
   localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(APP.settings));
-  syncPesertaDataToServer();
+  const ts = Date.now();
+  APP.lastSyncTs = ts;
+
+  if (window.location.protocol !== 'file:') {
+    const payload = {
+      settings: APP.settings,
+      peserta: {
+        dataPeserta: APP.dataPeserta,
+        availableClusters: APP.availableClusters || [],
+        hasilUndian: APP.hasilUndian || [],
+        currentRonde: APP.currentRonde || 1,
+        settings: APP.settings
+      },
+      admin: {
+        targets: APP.adminTargets || [],
+        password: APP.adminPassword || 'admin'
+      }
+    };
+    fetch('/api/state', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    }).catch(e => console.log('State sync POST error'));
+  }
 }
 
 function loadAdminSettings() {
@@ -179,6 +201,9 @@ function loadAdminSettings() {
 
 function saveAdminSettings() {
   APP.lastAdminSaveTime = Date.now();
+  const ts = Date.now();
+  APP.lastSyncTs = ts;
+
   const payload = {
     targets: APP.adminTargets,
     password: APP.adminPassword
@@ -193,57 +218,81 @@ function saveAdminSettings() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
-    }).catch(e => console.log('Remote sync skipped'));
+    }).catch(e => console.log('Remote admin sync error'));
+
+    // Also push unified state
+    saveSettings();
   }
 }
 
-// Automatically pull admin settings from server
-async function syncAdminSettings() {
+async function syncStateWithServer() {
   if (window.location.protocol === 'file:') return;
-  if (Date.now() - (APP.lastAdminSaveTime || 0) < 3000) return;
+  if (APP.isSpinning) return; // Do not interrupt rolling animation
+
   try {
-    const res = await fetch('/api/admin');
-    if (res.ok) {
-      const data = await res.json();
-      if (data && data.targets) {
-        // Simple check if there are changes
-        const currentTargetsStr = JSON.stringify(APP.adminTargets);
-        const newTargetsStr = JSON.stringify(data.targets);
-        
-        if (currentTargetsStr !== newTargetsStr) {
-          APP.adminTargets = data.targets;
-          if (data.password) APP.adminPassword = data.password;
-          
-          // Save locally so it's persistent
-          const localData = btoa(JSON.stringify(data));
-          localStorage.setItem(ADMIN_STORAGE_KEY, localData);
-          
-          // Refresh UI if admin panel is open
-          if (document.getElementById('adminModal') && document.getElementById('adminModal').classList.contains('active')) {
-            refreshAdminTable();
-          }
+    const res = await fetch('/api/state');
+    if (!res.ok) return;
+    const data = await res.json();
+    if (!data) return;
+
+    const serverTs = data.timestamp || 0;
+
+    if (serverTs > APP.lastSyncTs) {
+      APP.lastSyncTs = serverTs;
+
+      // 1. Sync Settings
+      if (data.settings && data.settings.eventTitle !== undefined) {
+        Object.assign(APP.settings, data.settings);
+        localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(APP.settings));
+        applyTheme(APP.settings.theme);
+        applyEventSettings();
+      }
+
+      // 2. Sync Peserta & Winners
+      if (data.peserta) {
+        if (data.peserta.dataPeserta) {
+          APP.dataPeserta = data.peserta.dataPeserta;
+          computeUniqueCategories();
+        }
+        if (data.peserta.availableClusters) APP.availableClusters = data.peserta.availableClusters;
+        if (data.peserta.hasilUndian) APP.hasilUndian = data.peserta.hasilUndian;
+        if (data.peserta.currentRonde !== undefined) APP.currentRonde = data.peserta.currentRonde;
+        if (data.peserta.settings && (!data.settings || !data.settings.eventTitle)) {
+          Object.assign(APP.settings, data.peserta.settings);
+          localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(APP.settings));
+          applyTheme(APP.settings.theme);
+          applyEventSettings();
         }
       }
+
+      // 3. Sync Admin Targets
+      if (data.admin && data.admin.targets) {
+        const currentTargetsStr = JSON.stringify(APP.adminTargets);
+        const newTargetsStr = JSON.stringify(data.admin.targets);
+        
+        if (currentTargetsStr !== newTargetsStr) {
+          APP.adminTargets = data.admin.targets;
+          if (data.admin.password) APP.adminPassword = data.admin.password;
+          
+          const localData = btoa(JSON.stringify(data.admin));
+          localStorage.setItem(ADMIN_STORAGE_KEY, localData);
+        }
+      }
+
+      // 4. Update UI Components
+      updateUI();
+      if (typeof updatePrizeSidebar === 'function') updatePrizeSidebar();
+      if (typeof updatePesertaDatalist === 'function') updatePesertaDatalist();
+      if (typeof refreshAdminTable === 'function') refreshAdminTable();
     }
   } catch (e) {
-    // Ignore fetch errors if server is down
+    // Ignore network drop
   }
 }
 
-function syncPesertaDataToServer() {
-  if (window.location.protocol === 'file:') return;
-  const payload = {
-    dataPeserta: APP.dataPeserta,
-    availableClusters: APP.availableClusters || [],
-    hasilUndian: APP.hasilUndian || [],
-    currentRonde: APP.currentRonde || 1,
-    settings: APP.settings
-  };
-  fetch('/api/peserta', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  }).catch(e => console.log('Sync peserta error'));
+function startLiveSync() {
+  syncStateWithServer();
+  setInterval(syncStateWithServer, 2000);
 }
 
 async function syncPesertaDataFromRemote() {
@@ -958,32 +1007,43 @@ function computeUniqueCategories() {
   APP.uniqueKelompok = Array.from(uniqueKelompok).sort();
 }
 
+function normalizeStr(str) {
+  return (str || '').toString().trim().toLowerCase();
+}
+
 function matchRuleParticipant(p, rule) {
   if (rule.cluster) {
     return matchParticipantCluster(p, rule.cluster);
   }
-  if (rule.jenis && rule.jenis !== 'Semua' && (p.jenisPeserta || '') !== rule.jenis) return false;
-  if (rule.grup && rule.grup !== 'Semua' && (p.grup || '') !== rule.grup) return false;
-  if (rule.kelompok && rule.kelompok !== 'Semua' && (p.kelompok || '') !== rule.kelompok) return false;
+  if (rule.jenis && rule.jenis !== 'Semua') {
+    if (normalizeStr(p.jenisPeserta) !== normalizeStr(rule.jenis)) return false;
+  }
+  if (rule.grup && rule.grup !== 'Semua') {
+    if (normalizeStr(p.grup) !== normalizeStr(rule.grup)) return false;
+  }
+  if (rule.kelompok && rule.kelompok !== 'Semua') {
+    if (normalizeStr(p.kelompok) !== normalizeStr(rule.kelompok)) return false;
+  }
   return true;
 }
 
 function matchParticipantCluster(p, category) {
   if (!category || category === 'Semua') return true;
-  if (category.startsWith('Jenis: ')) {
-    const val = category.substring(7);
-    return p.jenisPeserta === val;
-  } else if (category.startsWith('Grup: ')) {
-    const val = category.substring(6);
-    return p.grup === val;
-  } else if (category.startsWith('Kelompok: ')) {
-    const val = category.substring(10);
-    return p.kelompok === val;
+  const normCat = normalizeStr(category);
+  if (normCat.startsWith('jenis: ')) {
+    const val = normalizeStr(category.substring(7));
+    return normalizeStr(p.jenisPeserta) === val;
+  } else if (normCat.startsWith('grup: ')) {
+    const val = normalizeStr(category.substring(6));
+    return normalizeStr(p.grup) === val;
+  } else if (normCat.startsWith('kelompok: ')) {
+    const val = normalizeStr(category.substring(10));
+    return normalizeStr(p.kelompok) === val;
   } else {
-    return p.cluster === category || 
-           p.jenisPeserta === category || 
-           p.grup === category || 
-           p.kelompok === category;
+    return normalizeStr(p.cluster) === normCat || 
+           normalizeStr(p.jenisPeserta) === normCat || 
+           normalizeStr(p.grup) === normCat || 
+           normalizeStr(p.kelompok) === normCat;
   }
 }
 
