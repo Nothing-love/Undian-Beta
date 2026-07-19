@@ -1056,33 +1056,23 @@ window.handleSpin = function() {
     return;
   }
 
-  // Read rules from settings or prizes
+  // Read single unified round configuration for APP.currentRonde
   let rules = [];
-  const domRows = document.querySelectorAll('.draw-rule-row');
-  
-  // Cek apakah ada konfigurasi khusus hadiah & jumlah pemenang untuk ronde saat ini
   const prizes = APP.settings.prizes || [];
   const currentPrizes = prizes.filter(p => parseInt(p.ronde) === APP.currentRonde);
-  let configuredCountForRound = 0;
+
   if (currentPrizes.length > 0) {
     currentPrizes.forEach(p => {
-      configuredCountForRound += (p.count !== undefined ? parseInt(p.count) || 1 : 1);
+      rules.push({
+        jenis: p.jenis || 'Semua',
+        grup: p.grup || 'Semua',
+        kelompok: p.kelompok || 'Semua',
+        count: (p.count !== undefined ? parseInt(p.count) || 1 : 1)
+      });
     });
-  }
-
-  if (domRows.length > 0) {
-    domRows.forEach(row => {
-      const jenis = row.querySelector('.jenis-select').value;
-      const grup = row.querySelector('.grup-select').value;
-      const kelompok = row.querySelector('.kelompok-select').value;
-      const count = parseInt(row.querySelector('.rule-count').value) || 1;
-      rules.push({ jenis, grup, kelompok, count });
-    });
-    APP.settings.drawRules = rules; // keep in sync
-  } else if (configuredCountForRound > 0) {
-    rules = [{ jenis: 'Semua', grup: 'Semua', kelompok: 'Semua', count: configuredCountForRound }];
   } else {
-    rules = APP.settings.drawRules || [{ jenis: 'Semua', grup: 'Semua', kelompok: 'Semua', count: 1 }];
+    // Default fallback if round not configured in settings
+    rules = [{ jenis: 'Semua', grup: 'Semua', kelompok: 'Semua', count: 1 }];
   }
 
   let totalCount = 0;
@@ -1534,43 +1524,73 @@ function renderPrizeSettings() {
   list.innerHTML = '';
   const prizes = APP.settings.prizes || [];
   if (prizes.length === 0) {
-    list.innerHTML = '<p class="small text-muted" style="color:var(--color-text-muted);">Belum ada hadiah yang diatur.</p>';
+    list.innerHTML = '<p class="small text-muted" style="color:var(--color-text-muted);">Belum ada ronde/hadiah yang diatur.</p>';
     return;
   }
 
   prizes.forEach((p, index) => {
     const item = document.createElement('div');
     item.className = 'prize-setting-item';
-    item.style.cssText = 'padding: 10px; gap: 10px;';
+    item.style.cssText = 'padding: 12px; gap: 10px; flex-direction: column; align-items: stretch; border: 1px solid var(--color-border); background: var(--color-bg); border-radius: var(--radius-md); margin-bottom: 10px;';
     
-    // Pastikan setiap prize punya ID unik
     if (!p.id) p.id = Date.now().toString() + Math.random().toString().substring(2,5);
 
     let imgPreview = '';
-    const imgStyle = 'width: 50px; height: 50px; flex-shrink: 0; border-radius: var(--radius-sm); object-fit: contain; border: 1px solid var(--color-border); background: var(--color-surface);';
+    const imgStyle = 'width: 44px; height: 44px; flex-shrink: 0; border-radius: var(--radius-sm); object-fit: contain; border: 1px solid var(--color-border); background: var(--color-surface);';
     if (p.imageBase64) {
       imgPreview = `<img src="${p.imageBase64}" style="${imgStyle}" />`;
     } else {
       imgPreview = `<div style="${imgStyle} display:flex; align-items:center; justify-content:center; font-size:0.65rem; text-align:center; color:var(--color-text-muted); line-height:1.1;">No Image</div>`;
     }
 
+    let rJenis = p.jenis || 'Semua';
+    let rGrup = p.grup || 'Semua';
+    let rKelompok = p.kelompok || 'Semua';
+
+    let jenisOptions = '<option value="Semua">Semua Jenis</option>';
+    if (APP.uniqueJenis) {
+      APP.uniqueJenis.forEach(j => {
+        jenisOptions += `<option value="${j}" ${j === rJenis ? 'selected' : ''}>${j === '' ? '(Kosong)' : j}</option>`;
+      });
+    }
+
+    let grupOptions = '<option value="Semua">Semua Grup</option>';
+    if (APP.uniqueGrup) {
+      APP.uniqueGrup.forEach(g => {
+        grupOptions += `<option value="${g}" ${g === rGrup ? 'selected' : ''}>${g === '' ? '(Kosong)' : g}</option>`;
+      });
+    }
+
+    let kelompokOptions = '<option value="Semua">Semua Kelompok</option>';
+    if (APP.uniqueKelompok) {
+      APP.uniqueKelompok.forEach(k => {
+        kelompokOptions += `<option value="${k}" ${k === rKelompok ? 'selected' : ''}>${k === '' ? '(Kosong)' : k}</option>`;
+      });
+    }
+
     item.innerHTML = `
-      ${imgPreview}
-      <div class="prize-setting-info" style="display:flex; flex-direction:column; gap:6px; flex:1;">
-        <div style="display:flex; align-items:center; gap:6px;">
-          <span style="font-size:0.75rem; font-weight:600; color:var(--color-text-secondary);">Rnd:</span>
-          <input type="number" class="input-modern" style="width: 42px; height: 30px; padding: 0 2px; font-size: 0.8rem; text-align:center; font-weight:bold;" value="${p.ronde}" onchange="updatePrizeRonde('${p.id}', this.value)" min="1" title="Nomor Ronde" />
-          <span style="font-size:0.75rem; font-weight:600; color:var(--color-text-secondary);">Jml:</span>
-          <input type="number" class="input-modern" style="width: 42px; height: 30px; padding: 0 2px; font-size: 0.8rem; text-align:center; font-weight:bold;" value="${p.count !== undefined ? p.count : 1}" onchange="updatePrizeCount('${p.id}', this.value)" min="1" max="100" title="Jumlah Pemenang Ronde Ini" />
-          <input type="text" class="input-modern" style="flex:1; height: 30px; padding: 0 6px; font-size: 0.8rem; font-weight:500;" placeholder="Nama Hadiah" value="${p.name || ''}" onchange="updatePrizeName('${p.id}', this.value)" />
+      <div style="display:flex; align-items:center; gap:8px;">
+        ${imgPreview}
+        <div style="display:flex; flex-direction:column; gap:6px; flex:1;">
+          <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+            <span style="font-size:0.75rem; font-weight:700; color:var(--color-primary);">Ronde:</span>
+            <input type="number" class="input-modern" style="width: 44px; height: 28px; padding: 0 2px; font-size: 0.85rem; text-align:center; font-weight:bold;" value="${p.ronde}" onchange="updatePrizeRonde('${p.id}', this.value)" min="1" title="Nomor Ronde" />
+            <span style="font-size:0.75rem; font-weight:700; color:var(--color-primary);">Pemenang:</span>
+            <input type="number" class="input-modern" style="width: 44px; height: 28px; padding: 0 2px; font-size: 0.85rem; text-align:center; font-weight:bold;" value="${p.count !== undefined ? p.count : 1}" onchange="updatePrizeCount('${p.id}', this.value)" min="1" max="100" title="Jumlah Pemenang" />
+            <input type="text" class="input-modern" style="flex:1; height: 28px; padding: 0 8px; font-size: 0.85rem; font-weight:600;" placeholder="Nama Hadiah (Contoh: Voucher Belanja)" value="${p.name || ''}" onchange="updatePrizeName('${p.id}', this.value)" />
+          </div>
+          <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+            <span style="font-size:0.75rem; font-weight:600; color:var(--color-text-muted);">Target Filter:</span>
+            <select class="input-modern" style="flex:1; min-width:80px; height:26px; padding:0 4px; font-size:0.75rem;" onchange="updatePrizeCategory('${p.id}', 'jenis', this.value)">${jenisOptions}</select>
+            <select class="input-modern" style="flex:1; min-width:80px; height:26px; padding:0 4px; font-size:0.75rem;" onchange="updatePrizeCategory('${p.id}', 'grup', this.value)">${grupOptions}</select>
+            <select class="input-modern" style="flex:1; min-width:80px; height:26px; padding:0 4px; font-size:0.75rem;" onchange="updatePrizeCategory('${p.id}', 'kelompok', this.value)">${kelompokOptions}</select>
+            <button class="btn btn-outline btn-small" style="padding:2px 6px; font-size:0.75rem; height:26px; border-width:1px;" onclick="document.getElementById('prizeImgUpload_${p.id}').click()">Foto</button>
+            ${p.imageBase64 ? `<button class="btn btn-outline btn-small" onclick="removePrizeImage('${p.id}')" style="color:#ef4444; border-color:rgba(239,68,68,0.2); padding:2px 6px; font-size:0.75rem; height:26px; border-width:1px;">Hapus Foto</button>` : ''}
+            <input type="file" id="prizeImgUpload_${p.id}" accept="image/*" style="display:none;" onchange="handlePrizeImageUpload(event, '${p.id}')" />
+          </div>
         </div>
-        <div style="display:flex; gap:6px; align-items:center;">
-          <button class="btn btn-outline btn-small" style="padding:4px 8px; font-size:0.75rem; height:26px; border-width:1px;" onclick="document.getElementById('prizeImgUpload_${p.id}').click()">Upload Gambar</button>
-          ${p.imageBase64 ? `<button class="btn btn-outline btn-small" onclick="removePrizeImage('${p.id}')" style="color:#ef4444; border-color:rgba(239,68,68,0.2); padding:4px 8px; font-size:0.75rem; height:26px; border-width:1px;">Hapus</button>` : ''}
-          <input type="file" id="prizeImgUpload_${p.id}" accept="image/*" style="display:none;" onchange="handlePrizeImageUpload(event, '${p.id}')" />
-        </div>
+        <button class="btn-remove-rule" onclick="removePrize('${p.id}')" title="Hapus Ronde Ini" style="font-size:1.2rem; border:none; background:transparent; color:#ef4444; cursor:pointer; padding: 0 4px;">&times;</button>
       </div>
-      <button class="btn-remove-rule" onclick="removePrize('${p.id}')" title="Hapus Hadiah" style="align-self:center; display:flex; font-size:1.1rem; border:none; background:transparent; color:#ef4444; cursor:pointer; padding: 0 2px;">&times;</button>
     `;
     list.appendChild(item);
   });
@@ -1582,7 +1602,16 @@ function addPrizeRule() {
   if (APP.settings.prizes.length > 0) {
     nextRonde = Math.max(...APP.settings.prizes.map(p => parseInt(p.ronde) || 1)) + 1;
   }
-  APP.settings.prizes.push({ id: Date.now().toString(), ronde: nextRonde, name: '', count: 1, imageBase64: null });
+  APP.settings.prizes.push({
+    id: Date.now().toString(),
+    ronde: nextRonde,
+    name: '',
+    count: 1,
+    jenis: 'Semua',
+    grup: 'Semua',
+    kelompok: 'Semua',
+    imageBase64: null
+  });
   renderPrizeSettings();
   saveSettings();
 }
@@ -1590,6 +1619,12 @@ function addPrizeRule() {
 window.updatePrizeCount = function(id, count) {
   const prize = APP.settings.prizes.find(p => p.id === id);
   if (prize) prize.count = Math.max(1, parseInt(count) || 1);
+  saveSettings();
+};
+
+window.updatePrizeCategory = function(id, field, value) {
+  const prize = APP.settings.prizes.find(p => p.id === id);
+  if (prize) prize[field] = value;
   saveSettings();
 };
 
@@ -2051,16 +2086,7 @@ function saveEventSettings() {
     };
   }
 
-  // Read target rules from settings
-  const rules = [];
-  document.querySelectorAll('.draw-rule-row').forEach(row => {
-    const jenis = row.querySelector('.jenis-select').value;
-    const grup = row.querySelector('.grup-select').value;
-    const kelompok = row.querySelector('.kelompok-select').value;
-    const count = parseInt(row.querySelector('.rule-count').value) || 1;
-    rules.push({ jenis, grup, kelompok, count });
-  });
-  APP.settings.drawRules = rules;
+
 
   applyTheme(APP.settings.theme);
   applyEventSettings();
@@ -2200,73 +2226,6 @@ function openSettingsModal() {
     document.getElementById('bgUploadText').style.display = 'block';
     document.getElementById('removeBgBtn').classList.add('hidden');
     document.getElementById('bgOpacityGroup').classList.add('hidden');
-  }
-
-  // Populate draw targets
-  const rulesContainer = document.getElementById('drawRulesContainer');
-  if (rulesContainer) {
-    rulesContainer.innerHTML = '';
-    const rules = APP.settings.drawRules || [{ cluster: 'Semua', count: 1 }];
-    rules.forEach((rule, idx) => {
-      const row = document.createElement('div');
-      row.className = 'draw-rule-row';
-      
-      // Parse backward compatibility if needed
-      let rJenis = rule.jenis || 'Semua';
-      let rGrup = rule.grup || 'Semua';
-      let rKelompok = rule.kelompok || 'Semua';
-      if (rule.cluster && rule.cluster !== 'Semua') {
-        if (rule.cluster.startsWith('Jenis: ')) {
-          rJenis = rule.cluster.substring(7);
-        } else if (rule.cluster.startsWith('Grup: ')) {
-          rGrup = rule.cluster.substring(6);
-        } else if (rule.cluster.startsWith('Kelompok: ')) {
-          rKelompok = rule.cluster.substring(10);
-        } else {
-          rJenis = rule.cluster;
-        }
-      }
-      
-      let jenisOptions = '<option value="Semua">Semua Jenis</option>';
-      if (APP.uniqueJenis) {
-        APP.uniqueJenis.forEach(j => {
-          jenisOptions += `<option value="${j}" ${j === rJenis ? 'selected' : ''}>${j === '' ? '(Kosong)' : j}</option>`;
-        });
-      }
-      
-      let grupOptions = '<option value="Semua">Semua Grup</option>';
-      if (APP.uniqueGrup) {
-        APP.uniqueGrup.forEach(g => {
-          grupOptions += `<option value="${g}" ${g === rGrup ? 'selected' : ''}>${g === '' ? '(Kosong)' : g}</option>`;
-        });
-      }
-      
-      let kelompokOptions = '<option value="Semua">Semua Kelompok</option>';
-      if (APP.uniqueKelompok) {
-        APP.uniqueKelompok.forEach(k => {
-          kelompokOptions += `<option value="${k}" ${k === rKelompok ? 'selected' : ''}>${k === '' ? '(Kosong)' : k}</option>`;
-        });
-      }
-
-      row.innerHTML = `
-        <select class="jenis-select input-modern" style="flex: 1; min-width: 90px; height: 36px; padding: 0 8px; font-size: 0.85rem;">
-          ${jenisOptions}
-        </select>
-        <select class="grup-select input-modern" style="flex: 1; min-width: 90px; height: 36px; padding: 0 8px; font-size: 0.85rem;">
-          ${grupOptions}
-        </select>
-        <select class="kelompok-select input-modern" style="flex: 1; min-width: 90px; height: 36px; padding: 0 8px; font-size: 0.85rem;">
-          ${kelompokOptions}
-        </select>
-        <div class="number-input-group">
-          <button class="btn-num rule-decrease" onclick="decreaseRule(this)">-</button>
-          <input type="number" class="rule-count" value="${rule.count}" min="1" max="50" style="width: 40px; text-align: center;" />
-          <button class="btn-num rule-increase" onclick="increaseRule(this)">+</button>
-        </div>
-        <button class="btn-remove-rule" onclick="removeRule(this)" style="${rules.length > 1 ? 'display:block;' : 'display:none;'}" title="Hapus">&times;</button>
-      `;
-      rulesContainer.appendChild(row);
-    });
   }
 
   openModal('settingsModal');
