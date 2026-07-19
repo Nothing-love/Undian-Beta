@@ -293,7 +293,6 @@ async function syncStateWithServer() {
       if (typeof updatePesertaDatalist === 'function') updatePesertaDatalist();
       if (typeof refreshAdminTable === 'function') refreshAdminTable();
       if (typeof renderPrizeSettings === 'function') renderPrizeSettings();
-      if (typeof updateClusterDropdowns === 'function') updateClusterDropdowns();
     }
   } catch (e) {
     // Ignore network drop
@@ -334,7 +333,17 @@ async function syncPesertaDataFromRemote() {
         if (typeof updatePrizeSidebar === 'function') updatePrizeSidebar();
         
         // Sync cluster selects on setting/dashboard page
-        if (typeof updateClusterDropdowns === 'function') updateClusterDropdowns();
+        document.querySelectorAll('.cluster-select').forEach(select => {
+          const val = select.value;
+          select.innerHTML = '<option value="Semua">Semua Cluster</option>';
+          APP.availableClusters.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c;
+            opt.textContent = c;
+            select.appendChild(opt);
+          });
+          select.value = val || 'Semua';
+        });
       }
     }
   } catch(e) {}
@@ -1059,7 +1068,17 @@ function loadExcelFile(file) {
 
       APP.availableClusters = clusterOptions;
       
-      if (typeof updateClusterDropdowns === 'function') updateClusterDropdowns();
+      document.querySelectorAll('.cluster-select').forEach(select => {
+        const val = select.value;
+        select.innerHTML = '<option value="Semua">Semua Kategori</option>';
+        APP.availableClusters.forEach(c => {
+          const opt = document.createElement('option');
+          opt.value = c;
+          opt.textContent = c;
+          select.appendChild(opt);
+        });
+        select.value = val || 'Semua';
+      });
       APP.currentCluster = 'Semua';
 
       // Parse Sheet 2 (Hasil_Undian if present)
@@ -1133,23 +1152,6 @@ function computeUniqueCategories() {
     saveSettings();
   }
 }
-
-function updateClusterDropdowns() {
-  document.querySelectorAll('.cluster-select').forEach(select => {
-    const val = select.value;
-    select.innerHTML = '<option value="Semua">Semua Kategori</option>';
-    if (APP.availableClusters && APP.availableClusters.length > 0) {
-      APP.availableClusters.forEach(c => {
-        const opt = document.createElement('option');
-        opt.value = c;
-        opt.textContent = c;
-        select.appendChild(opt);
-      });
-    }
-    select.value = val || 'Semua';
-  });
-}
-window.updateClusterDropdowns = updateClusterDropdowns;
 
 function normalizeStr(str) {
   return (str || '').toString().trim().toLowerCase();
@@ -2436,49 +2438,10 @@ window.selectPesertaFromList = function(nama) {
   filterPesertaList();
 };
 
-function addManualTarget() {
-  const inputEl = document.getElementById('manualTargetInput');
-  if (!inputEl) return;
-  const val = inputEl.value.trim();
-  if (!val) return;
-
-  const parts = val.split(/[,;\n]+/).map(s => s.trim()).filter(Boolean);
-  let addedCount = 0;
-
-  parts.forEach(targetStr => {
-    let matchedName = targetStr;
-    if (APP.dataPeserta && APP.dataPeserta.length > 0) {
-      const found = APP.dataPeserta.find(p => 
-        String(p.nama).trim().toLowerCase() === targetStr.toLowerCase() ||
-        String(p.id).trim().toLowerCase() === targetStr.toLowerCase()
-      );
-      if (found) matchedName = found.nama;
-    }
-    
-    // Avoid duplicate chips
-    const chipContainer = document.getElementById('targetChipContainer');
-    const existing = chipContainer ? Array.from(chipContainer.querySelectorAll('.target-chip')).map(c => c.dataset.nama) : [];
-    if (!existing.includes(matchedName)) {
-      addTargetChip(matchedName);
-      addedCount++;
-    }
-  });
-
-  inputEl.value = '';
-  if (addedCount > 0) {
-    showToast(`${addedCount} target berhasil ditambahkan!`, 'success');
-  } else {
-    showToast('Target sudah ada di daftar pilih.', 'info');
-  }
-}
-window.addManualTarget = addManualTarget;
-
 function saveAdminTarget() {
   const clusterSelect = document.getElementById('adminCluster');
   const cluster = clusterSelect ? clusterSelect.value : 'Semua';
-  const rondeInput = document.getElementById('adminRonde');
-  const ronde = parseInt(rondeInput ? rondeInput.value : 1);
-
+  const ronde = parseInt(document.getElementById('adminRonde').value);
   if (!ronde || ronde < APP.currentRonde) {
     showToast('Ronde ini sudah terlewat! Silakan pilih ronde ' + APP.currentRonde + ' atau setelahnya.', 'error');
     return;
@@ -2491,7 +2454,7 @@ function saveAdminTarget() {
     : [];
 
   if (targets.length === 0) {
-    showToast('Minimal 1 target pemenang harus dipilih atau diketik.', 'error');
+    showToast('Minimal 1 target pemenang harus dipilih.', 'error');
     return;
   }
 
@@ -2500,6 +2463,16 @@ function saveAdminTarget() {
   const invalidTargets = targets.filter(t => prevWinners.has(t));
   if (invalidTargets.length > 0) {
     showToast('Target "' + invalidTargets.join(', ') + '" sudah pernah menang dan tidak bisa dipilih lagi!', 'error');
+    return;
+  }
+
+  // Validate: targets must exist in data for the selected cluster (or any if Semua)
+  const validPeserta = APP.dataPeserta.filter(p => matchParticipantCluster(p, cluster));
+  const validNames = validPeserta.map(p => p.nama);
+
+  const notFound = targets.filter(t => !validNames.includes(t));
+  if (notFound.length > 0) {
+    showToast('Nama "' + notFound.join(', ') + '" tidak ditemukan di kategori ' + cluster + '.', 'error');
     return;
   }
 
@@ -2518,16 +2491,14 @@ function saveAdminTarget() {
   refreshAdminTable();
 
   // Reset chip container dan input
-  if (chipContainer) chipContainer.innerHTML = '<span id="chipPlaceholder" style="color:var(--color-text-muted); font-size:0.85rem; align-self:center;">Belum ada target dipilih...</span>';
+  if (chipContainer) chipContainer.innerHTML = '';
   updateTargetChipCount();
 
-  showToast('Target Ronde ' + ronde + ' (' + targets.join(', ') + ') berhasil disimpan.', 'success');
+  showToast('Target Ronde ' + ronde + ' (' + targets.length + ' orang) berhasil disimpan.', 'success');
 }
-window.saveAdminTarget = saveAdminTarget;
 
 function refreshAdminTable() {
   const tbody = document.getElementById('adminTargetBody');
-  if (!tbody) return;
 
   if (!APP.adminTargets || APP.adminTargets.length === 0) {
     tbody.innerHTML = '<tr><td colspan="5" class="empty-row">Belum ada target yang disimpan</td></tr>';
@@ -2568,19 +2539,16 @@ function deleteAdminTarget(index) {
 window.deleteAdminTarget = deleteAdminTarget;
 
 function changeAdminPassword() {
-  const passwordInput = document.getElementById('newAdminPassword');
-  if (!passwordInput) return;
-  const newPass = passwordInput.value.trim();
+  const newPass = document.getElementById('newAdminPassword').value.trim();
   if (newPass.length < 4) {
     showToast('Password minimal 4 karakter.', 'error');
     return;
   }
   APP.adminPassword = newPass;
   saveAdminSettings();
-  passwordInput.value = '';
-  showToast('Password Admin berhasil diubah & disimpan ke server!', 'success');
+  document.getElementById('newAdminPassword').value = '';
+  showToast('Password berhasil diubah.', 'success');
 }
-window.changeAdminPassword = changeAdminPassword;
 
 function exportAdminConfig() {
   const config = btoa(JSON.stringify({
