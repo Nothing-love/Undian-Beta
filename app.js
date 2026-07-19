@@ -441,14 +441,12 @@ window.updateBrandingPreview = function() {
     miniTitle.style.fontFamily = font;
     miniTitle.style.textTransform = transform;
     miniTitle.style.color = titleColor;
-    miniTitle.style.fontSize = titleSize;
   }
   if (miniSubtitle) {
     miniSubtitle.textContent = subtitleVal || APP.settings.eventSubtitle || 'Aplikasi Undian Digital';
     miniSubtitle.style.fontFamily = font;
     miniSubtitle.style.textTransform = transform;
     miniSubtitle.style.color = subColor;
-    miniSubtitle.style.fontSize = subSize;
   }
 
   const logoPrev = document.getElementById('logoPreview');
