@@ -39,9 +39,9 @@ const APP = {
   isSpinning: false,
   lastWinners: [],
   settings: {
-    eventTitle: 'DORPRIZE',
+    eventTitle: 'DOORPRIZE',
     eventSubtitle: 'Aplikasi Undian Digital',
-    logoBase64: null,
+    logoUrl: null,
     theme: 'professional_blue',
     customColors: { primary: '#2563EB', secondary: '#7C3AED', accent: '#F59E0B' },
     prizes: []
@@ -50,7 +50,7 @@ const APP = {
 
 // Admin stored under innocuous key
 const ADMIN_STORAGE_KEY = '_sys_pref_cache';
-const SETTINGS_STORAGE_KEY = 'dorprize_settings';
+const LEGACY_SETTINGS_STORAGE_KEY = 'dorprize_settings';
 const HISTORY_STORAGE_KEY = 'dorprize_history';
 
 // ===================== THEME PRESETS =====================
@@ -143,59 +143,76 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 APP.lastSyncTs = 0;
 
+function normalizeClientSettings(settings = {}) {
+  const normalized = { ...settings };
+
+  // Compatibility with old data while ensuring Base64 is never persisted again.
+  if (!normalized.logoUrl && typeof normalized.logoBase64 === 'string' && normalized.logoBase64.startsWith('/uploads/')) {
+    normalized.logoUrl = normalized.logoBase64;
+  }
+  if (!normalized.bgUrl && typeof normalized.bgBase64 === 'string' && normalized.bgBase64.startsWith('/uploads/')) {
+    normalized.bgUrl = normalized.bgBase64;
+  }
+  if (!normalized.winnerBgUrl && typeof normalized.winnerBgBase64 === 'string' && normalized.winnerBgBase64.startsWith('/uploads/')) {
+    normalized.winnerBgUrl = normalized.winnerBgBase64;
+  }
+
+  delete normalized.logoBase64;
+  delete normalized.bgBase64;
+  delete normalized.winnerBgBase64;
+
+  normalized.prizes = Array.isArray(normalized.prizes)
+    ? normalized.prizes.map((prize) => {
+        const cleanPrize = { ...prize };
+        if (!cleanPrize.imageUrl && typeof cleanPrize.imageBase64 === 'string' && cleanPrize.imageBase64.startsWith('/uploads/')) {
+          cleanPrize.imageUrl = cleanPrize.imageBase64;
+        }
+        delete cleanPrize.imageBase64;
+        return cleanPrize;
+      })
+    : [];
+
+  return normalized;
+}
+
 function loadSettings() {
+  // Remove the legacy cache once. Settings now come from the server API.
   try {
-    const saved = localStorage.getItem(SETTINGS_STORAGE_KEY);
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      Object.assign(APP.settings, parsed);
-    }
+    localStorage.removeItem(LEGACY_SETTINGS_STORAGE_KEY);
   } catch (e) { /* ignore */ }
+
+  APP.settings = normalizeClientSettings(APP.settings);
   applyTheme(APP.settings.theme);
   applyEventSettings();
 }
 
 function saveSettings() {
-  try {
-    localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(APP.settings));
-  } catch (e) {
-    console.warn('LocalStorage settings quota exceeded, proceeding with server sync:', e);
-  }
+  APP.settings = normalizeClientSettings(APP.settings);
+
   const ts = Date.now();
   APP.lastSyncTs = ts;
 
-  if (window.location.protocol !== 'file:') {
-    const payloadPeserta = {
+  if (window.location.protocol === 'file:') return;
+
+  const payload = {
+    settings: APP.settings,
+    peserta: {
       dataPeserta: APP.dataPeserta || [],
       availableClusters: APP.availableClusters || [],
       hasilUndian: APP.hasilUndian || [],
-      currentRonde: APP.currentRonde || 1,
-      settings: APP.settings,
-      timestamp: ts
-    };
+      currentRonde: APP.currentRonde || 1
+    },
+    admin: {
+      targets: APP.adminTargets || [],
+      password: APP.adminPassword || 'admin'
+    }
+  };
 
-    const payload = {
-      settings: APP.settings,
-      peserta: payloadPeserta,
-      admin: {
-        targets: APP.adminTargets || [],
-        password: APP.adminPassword || 'admin'
-      },
-      timestamp: ts
-    };
-
-    fetch('/api/peserta', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payloadPeserta)
-    }).catch(e => console.log('Peserta sync POST error'));
-
-    fetch('/api/state', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    }).catch(e => console.log('State sync POST error'));
-  }
+  fetch('/api/state', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  }).catch((error) => console.warn('State sync POST error:', error.message));
 }
 
 function loadAdminSettings() {
@@ -265,12 +282,7 @@ async function syncStateWithServer() {
 
     // 1. Sync Settings
     if (data.settings && data.settings.eventTitle !== undefined) {
-      Object.assign(APP.settings, data.settings);
-      try {
-        localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(APP.settings));
-      } catch (e) {
-        console.warn('Sync settings: LocalStorage quota exceeded:', e);
-      }
+      APP.settings = normalizeClientSettings({ ...APP.settings, ...data.settings });
       applyTheme(APP.settings.theme);
       applyEventSettings();
     }
@@ -286,16 +298,6 @@ async function syncStateWithServer() {
       }
       if (data.peserta.hasilUndian) APP.hasilUndian = data.peserta.hasilUndian;
       if (data.peserta.currentRonde !== undefined) APP.currentRonde = data.peserta.currentRonde;
-      if (data.peserta.settings && (!data.settings || !data.settings.eventTitle)) {
-        Object.assign(APP.settings, data.peserta.settings);
-        try {
-          localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(APP.settings));
-        } catch (e) {
-          console.warn('Sync settings fallback: LocalStorage quota exceeded:', e);
-        }
-        applyTheme(APP.settings.theme);
-        applyEventSettings();
-      }
     }
 
     // 3. Sync Admin Targets & Password
@@ -345,12 +347,6 @@ async function syncPesertaDataFromRemote() {
         if (data.availableClusters) APP.availableClusters = data.availableClusters;
         if (data.hasilUndian) APP.hasilUndian = data.hasilUndian;
         if (data.currentRonde !== undefined) APP.currentRonde = data.currentRonde;
-        if (data.settings) {
-          APP.settings = data.settings;
-          // Apply settings immediately
-          applyTheme(APP.settings.theme);
-          applyEventSettings();
-        }
         
         if (typeof updatePesertaDatalist === 'function') updatePesertaDatalist();
         if (typeof updatePrizeSidebar === 'function') updatePrizeSidebar();
@@ -496,10 +492,10 @@ window.applyEventSettings = function() {
   const defaultLogo = document.getElementById('headerLogo');
   const customLogo = document.getElementById('customLogo');
 
-  if (APP.settings.logoBase64) {
+  if (APP.settings.logoUrl) {
     if (defaultLogo) defaultLogo.style.display = 'none';
     if (customLogo) {
-      customLogo.src = APP.settings.logoBase64;
+      customLogo.src = APP.settings.logoUrl;
       customLogo.classList.remove('hidden');
       customLogo.style.display = 'block';
     }
@@ -515,8 +511,8 @@ window.applyEventSettings = function() {
   document.body.className = document.body.className.replace(/bg-filter-\w+/g, '').trim();
   document.body.classList.add(`bg-filter-${bgStyle}`);
 
-  if (APP.settings.bgBase64) {
-    root.style.setProperty('--bg-image', `url(${APP.settings.bgBase64})`);
+  if (APP.settings.bgUrl) {
+    root.style.setProperty('--bg-image', `url("${APP.settings.bgUrl}")`);
     root.style.setProperty('--bg-opacity', bgOpacity);
     document.body.classList.add('has-bg');
   } else {
@@ -531,8 +527,8 @@ window.applyEventSettings = function() {
     winnerModalEl.className = winnerModalEl.className.replace(/\bwinner-preset-\S+/g, '').trim();
     winnerModalEl.classList.add(`winner-preset-${preset}`);
 
-    if (preset === 'custom' && APP.settings.winnerBgBase64) {
-      winnerBgEl.style.backgroundImage = `url(${APP.settings.winnerBgBase64})`;
+    if (preset === 'custom' && APP.settings.winnerBgUrl) {
+      winnerBgEl.style.backgroundImage = `url("${APP.settings.winnerBgUrl}")`;
     } else {
       winnerBgEl.style.backgroundImage = '';
     }
@@ -555,7 +551,7 @@ window.updateBrandingPreview = function() {
   const miniTitle = document.getElementById('miniTitle');
   const miniSubtitle = document.getElementById('miniSubtitle');
   if (miniTitle) {
-    miniTitle.textContent = titleVal || APP.settings.eventTitle || 'DORPRIZE EVENT';
+    miniTitle.textContent = titleVal || APP.settings.eventTitle || 'DOORPRIZE EVENT';
     miniTitle.style.fontFamily = font;
     miniTitle.style.textTransform = transform;
     miniTitle.style.color = titleColor;
@@ -611,7 +607,7 @@ window.updateThemePreview = function(themeKey) {
   const titleVal = document.getElementById('inputEventTitle') ? document.getElementById('inputEventTitle').value.trim() : '';
   const subtitleVal = document.getElementById('inputEventSubtitle') ? document.getElementById('inputEventSubtitle').value.trim() : '';
 
-  if (miniTitle) miniTitle.textContent = titleVal || APP.settings.eventTitle || 'DORPRIZE EVENT';
+  if (miniTitle) miniTitle.textContent = titleVal || APP.settings.eventTitle || 'DOORPRIZE EVENT';
   if (miniSubtitle) miniSubtitle.textContent = subtitleVal || APP.settings.eventSubtitle || 'Aplikasi Undian Digital';
 
   if (miniBadge) {
@@ -674,7 +670,7 @@ function applyEventSettings() {
   const defaultLogoEl = document.getElementById('headerLogo');
 
   // Update Main App Header
-  if (titleEl) titleEl.textContent = APP.settings.eventTitle || 'DORPRIZE';
+  if (titleEl) titleEl.textContent = APP.settings.eventTitle || 'DOORPRIZE';
   if (subtitleEl) {
     subtitleEl.textContent = APP.settings.eventSubtitle || 'Aplikasi Undian Digital';
     if (APP.settings.subtitleColor) {
@@ -691,8 +687,8 @@ function applyEventSettings() {
   
   if (typeof updatePrizeSidebar === 'function') updatePrizeSidebar();
 
-  if (APP.settings.logoBase64) {
-    if (customLogoEl) customLogoEl.src = APP.settings.logoBase64;
+  if (APP.settings.logoUrl) {
+    if (customLogoEl) customLogoEl.src = APP.settings.logoUrl;
     if (customLogoEl) customLogoEl.classList.remove('hidden');
     if (defaultLogoEl) defaultLogoEl.classList.add('hidden');
   } else {
@@ -706,7 +702,7 @@ function applyEventSettings() {
   const upLogoImg = document.getElementById('uploadLogoImg');
   const upDefLogo = document.getElementById('uploadDefaultLogo');
 
-  if (upTitle) upTitle.textContent = APP.settings.eventTitle || 'DORPRIZE';
+  if (upTitle) upTitle.textContent = APP.settings.eventTitle || 'DOORPRIZE';
   if (upSubtitle) {
     upSubtitle.textContent = APP.settings.eventSubtitle || 'Aplikasi Undian Digital Profesional';
     if (APP.settings.subtitleColor) {
@@ -721,9 +717,9 @@ function applyEventSettings() {
     }
   }
 
-  if (APP.settings.logoBase64) {
+  if (APP.settings.logoUrl) {
     if (upLogoImg) {
-      upLogoImg.src = APP.settings.logoBase64;
+      upLogoImg.src = APP.settings.logoUrl;
       upLogoImg.style.display = 'block';
     }
     if (upDefLogo) upDefLogo.style.display = 'none';
@@ -733,8 +729,8 @@ function applyEventSettings() {
   }
 
   // Apply Background Image to body
-  if (APP.settings.bgBase64) {
-    document.documentElement.style.setProperty('--bg-image', `url("${APP.settings.bgBase64}")`);
+  if (APP.settings.bgUrl) {
+    document.documentElement.style.setProperty('--bg-image', `url("${APP.settings.bgUrl}")`);
     document.documentElement.style.setProperty('--bg-opacity', APP.settings.bgOpacity !== undefined ? APP.settings.bgOpacity : 0.15);
     document.body.classList.add('has-bg');
   } else {
@@ -1913,8 +1909,8 @@ function showWinnerModal(winners) {
     modalEl.className = modalEl.className.replace(/\bwinner-preset-\S+/g, '').trim();
     modalEl.classList.add('modal-overlay', 'active', `winner-preset-${preset}`);
 
-    if (preset === 'custom' && APP.settings.winnerBgBase64) {
-      bgEl.style.backgroundImage = `url(${APP.settings.winnerBgBase64})`;
+    if (preset === 'custom' && APP.settings.winnerBgUrl) {
+      bgEl.style.backgroundImage = `url("${APP.settings.winnerBgUrl}")`;
     } else {
       bgEl.style.backgroundImage = '';
     }
@@ -2020,19 +2016,19 @@ function updatePrizeSidebar() {
     const key = rawName.toLowerCase();
 
     const count = parseInt(prize.count) || 1;
-    const imageBase64 = (prize.imageBase64 || '').trim();
+    const imageUrl = (prize.imageUrl || '').trim();
 
     if (groupedMap.has(key)) {
       const existing = groupedMap.get(key);
       existing.count += count;
       // If existing entry didn't have photo but this rule has one, attach photo!
-      if (!existing.imageBase64 && imageBase64) {
-        existing.imageBase64 = imageBase64;
+      if (!existing.imageUrl && imageUrl) {
+        existing.imageUrl = imageUrl;
       }
     } else {
       groupedMap.set(key, {
         name: rawName,
-        imageBase64: imageBase64,
+        imageUrl: imageUrl,
         count: count
       });
     }
@@ -2043,9 +2039,9 @@ function updatePrizeSidebar() {
   if (mergedPrizes.length > 1) {
     displayEl.innerHTML = `<div style="display: grid; grid-template-columns: repeat(${Math.min(mergedPrizes.length, 2)}, 1fr); gap: 14px; width: 100%; align-items: start;">` + 
       mergedPrizes.map((prize) => {
-        const imageHtml = prize.imageBase64 ? 
+        const imageHtml = prize.imageUrl ? 
           `<div class="prize-image-container" style="width: 110px; height: 110px; border-radius: var(--radius-lg); overflow: hidden; background: #FFFFFF; display: flex; align-items: center; justify-content: center; border: 2px solid #FCA5A5; box-shadow: var(--shadow-sm); margin: 0 auto;">
-            <img src="${prize.imageBase64}" alt="${prize.name}" style="width: 100%; height: 100%; object-fit: contain; display: block;" />
+            <img src="${prize.imageUrl}" alt="${prize.name}" style="width: 100%; height: 100%; object-fit: contain; display: block;" />
           </div>` : '';
         const countBadge = prize.count ? `<div style="font-size: 0.9rem; font-weight: 700; color: #E11D48; margin-top: 2px; display: flex; align-items: center; justify-content: center; gap: 4px;">🏆 ${prize.count} Pemenang</div>` : '';
         return `
@@ -2059,9 +2055,9 @@ function updatePrizeSidebar() {
   } else if (mergedPrizes.length === 1) {
     const prize = mergedPrizes[0];
     const countBadge = prize.count ? `<div style="font-size: 1rem; font-weight: 700; color: #E11D48; margin-top: 4px; display: flex; align-items: center; justify-content: center; gap: 4px;">🏆 ${prize.count} Pemenang</div>` : '';
-    const imageHtml = prize.imageBase64 ? 
+    const imageHtml = prize.imageUrl ? 
       `<div class="prize-image-container" style="width: 180px; height: 180px; border-radius: var(--radius-xl); overflow: hidden; background: #FFFFFF; display: flex; align-items: center; justify-content: center; border: 2.5px solid #FCA5A5; box-shadow: var(--shadow-md); margin: 0 auto 8px auto;">
-        <img src="${prize.imageBase64}" alt="${prize.name}" style="width: 100%; height: 100%; object-fit: contain; display: block;" />
+        <img src="${prize.imageUrl}" alt="${prize.name}" style="width: 100%; height: 100%; object-fit: contain; display: block;" />
       </div>` : '';
     displayEl.innerHTML = `
       <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; width: 100%; text-align: center;">
@@ -2098,8 +2094,8 @@ function renderPrizeSettings() {
 
     let imgPreview = '';
     const imgStyle = 'width: 44px; height: 44px; flex-shrink: 0; border-radius: var(--radius-sm); object-fit: contain; border: 1px solid var(--color-border); background: var(--color-surface);';
-    if (p.imageBase64) {
-      imgPreview = `<img src="${p.imageBase64}" style="${imgStyle}" />`;
+    if (p.imageUrl) {
+      imgPreview = `<img src="${p.imageUrl}" style="${imgStyle}" />`;
     } else {
       imgPreview = `<div style="${imgStyle} display:flex; align-items:center; justify-content:center; font-size:0.65rem; text-align:center; color:var(--color-text-muted); line-height:1.1;">No Image</div>`;
     }
@@ -2149,7 +2145,7 @@ function renderPrizeSettings() {
             <select class="input-modern" style="flex:1; min-width:80px; height:26px; padding:0 4px; font-size:0.75rem;" onchange="updatePrizeCategory('${p.id}', 'grup', this.value)">${grupOptions}</select>
             <select class="input-modern" style="flex:1; min-width:80px; height:26px; padding:0 4px; font-size:0.75rem;" onchange="updatePrizeCategory('${p.id}', 'kelompok', this.value)">${kelompokOptions}</select>
             <button class="btn btn-outline btn-small" style="padding:2px 6px; font-size:0.75rem; height:26px; border-width:1px;" onclick="document.getElementById('prizeImgUpload_${p.id}').click()">Foto</button>
-            ${p.imageBase64 ? `<button class="btn btn-outline btn-small" onclick="removePrizeImage('${p.id}')" style="color:#ef4444; border-color:rgba(239,68,68,0.2); padding:2px 6px; font-size:0.75rem; height:26px; border-width:1px;">Hapus Foto</button>` : ''}
+            ${p.imageUrl ? `<button class="btn btn-outline btn-small" onclick="removePrizeImage('${p.id}')" style="color:#ef4444; border-color:rgba(239,68,68,0.2); padding:2px 6px; font-size:0.75rem; height:26px; border-width:1px;">Hapus Foto</button>` : ''}
             <input type="file" id="prizeImgUpload_${p.id}" accept="image/*" style="display:none;" onchange="handlePrizeImageUpload(event, '${p.id}')" />
           </div>
         </div>
@@ -2174,7 +2170,7 @@ function addPrizeRule() {
     jenis: 'Semua',
     grup: 'Semua',
     kelompok: 'Semua',
-    imageBase64: null
+    imageUrl: null
   });
   renderPrizeSettings();
   saveSettings();
@@ -2206,63 +2202,46 @@ window.updatePrizeName = function(id, name) {
   if (APP.currentRonde == prize.ronde) updatePrizeSidebar();
 };
 
-window.removePrize = function(id) {
-  const prize = APP.settings.prizes.find(p => p.id === id);
-  APP.settings.prizes = APP.settings.prizes.filter(p => p.id !== id);
+window.removePrize = async function(id) {
+  const prize = APP.settings.prizes.find((item) => item.id === id);
+  APP.settings.prizes = APP.settings.prizes.filter((item) => item.id !== id);
+  if (prize?.imageUrl) await deleteImageFromServer(prize.imageUrl);
   renderPrizeSettings();
   saveSettings();
   if (prize && APP.currentRonde == prize.ronde) updatePrizeSidebar();
 };
 
-window.removePrizeImage = function(id) {
-  const prize = APP.settings.prizes.find(p => p.id === id);
-  if (prize) prize.imageBase64 = null;
+window.removePrizeImage = async function(id) {
+  const prize = APP.settings.prizes.find((item) => item.id === id);
+  if (!prize) return;
+  const oldUrl = prize.imageUrl;
+  prize.imageUrl = null;
+  await deleteImageFromServer(oldUrl);
   renderPrizeSettings();
   saveSettings();
-  if (prize && APP.currentRonde == prize.ronde) updatePrizeSidebar();
+  if (APP.currentRonde == prize.ronde) updatePrizeSidebar();
 };
 
-window.handlePrizeImageUpload = function(e, id) {
-  const file = e.target.files[0];
+window.handlePrizeImageUpload = async function(e, id) {
+  const file = e.target.files?.[0];
   if (!file) return;
-  const reader = new FileReader();
-  reader.onload = (ev) => {
-    const img = new Image();
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      const MAX_WIDTH = 600;
-      const MAX_HEIGHT = 600;
-      let width = img.width;
-      let height = img.height;
 
-      if (width > height) {
-        if (width > MAX_WIDTH) {
-          height *= MAX_WIDTH / width;
-          width = MAX_WIDTH;
-        }
-      } else {
-        if (height > MAX_HEIGHT) {
-          width *= MAX_HEIGHT / height;
-          height = MAX_HEIGHT;
-        }
-      }
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0, width, height);
-      
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
-      const prize = APP.settings.prizes.find(p => p.id === id);
-      if (prize) {
-        prize.imageBase64 = dataUrl;
-        renderPrizeSettings();
-        saveSettings();
-        if (APP.currentRonde == prize.ronde) updatePrizeSidebar();
-      }
-    };
-    img.src = ev.target.result;
-  };
-  reader.readAsDataURL(file);
+  const prize = APP.settings.prizes.find((item) => item.id === id);
+  if (!prize) return;
+
+  try {
+    const oldUrl = prize.imageUrl;
+    const url = await uploadImageToServer(file, 'prize');
+    prize.imageUrl = url;
+    if (oldUrl && oldUrl !== url) await deleteImageFromServer(oldUrl);
+    renderPrizeSettings();
+    saveSettings();
+    if (APP.currentRonde == prize.ronde) updatePrizeSidebar();
+    showToast('Foto hadiah berhasil di-upload ke server.', 'success');
+  } catch (error) {
+    showToast(error.message, 'error');
+    e.target.value = '';
+  }
 };
 // ===================== ADMIN PANEL =====================
 function openAdminLogin() {
@@ -2732,129 +2711,206 @@ function saveEventSettings() {
   showToast('Pengaturan berhasil disimpan!', 'success');
 }
 
-function handleWinnerBgUpload(e) {
-  const file = e.target.files[0];
-  if (!file) return;
+const ALLOWED_UPLOAD_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
+const MAX_UPLOAD_SIZE = 10 * 1024 * 1024;
 
-  if (!file.type.startsWith('image/')) {
-    showToast('File harus berupa gambar.', 'error');
-    return;
+async function uploadImageToServer(file, category = 'image') {
+  if (!file) throw new Error('File tidak ditemukan.');
+  if (!ALLOWED_UPLOAD_TYPES.has(file.type)) {
+    throw new Error('Format gambar harus JPG, PNG, WEBP, atau GIF.');
+  }
+  if (file.size > MAX_UPLOAD_SIZE) {
+    throw new Error('Ukuran gambar maksimal 10 MB.');
   }
 
-  const reader = new FileReader();
-  reader.onload = (ev) => {
-    APP.settings.winnerBgBase64 = ev.target.result;
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('category', category);
+
+  const response = await fetch('/api/upload/image', {
+    method: 'POST',
+    body: formData
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok || !result.url) {
+    throw new Error(result.error || 'Upload gambar gagal.');
+  }
+  return result.url;
+}
+
+async function deleteImageFromServer(url) {
+  if (!url || !url.startsWith('/uploads/')) return;
+  try {
+    await fetch('/api/upload/image', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url })
+    });
+  } catch (e) {
+    console.warn('File lama belum dapat dihapus:', e.message);
+  }
+}
+
+async function handleWinnerBgUpload(e) {
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  try {
+    const oldUrl = APP.settings.winnerBgUrl;
+    const url = await uploadImageToServer(file, 'winner-background');
+    APP.settings.winnerBgUrl = url;
     APP.settings.winnerBgPreset = 'custom';
-    if (document.getElementById('inputWinnerBgPreset')) {
-      document.getElementById('inputWinnerBgPreset').value = 'custom';
-    }
+    if (oldUrl && oldUrl !== url) await deleteImageFromServer(oldUrl);
+
+    const presetInput = document.getElementById('inputWinnerBgPreset');
+    if (presetInput) presetInput.value = 'custom';
     const preview = document.getElementById('winnerBgPreview');
     if (preview) {
-      preview.src = ev.target.result;
+      preview.src = url;
       preview.style.display = 'block';
     }
-    if (document.getElementById('winnerBgUploadText')) document.getElementById('winnerBgUploadText').style.display = 'none';
-    if (document.getElementById('removeWinnerBgBtn')) document.getElementById('removeWinnerBgBtn').classList.remove('hidden');
+    const uploadText = document.getElementById('winnerBgUploadText');
+    if (uploadText) uploadText.style.display = 'none';
+    const removeButton = document.getElementById('removeWinnerBgBtn');
+    if (removeButton) removeButton.classList.remove('hidden');
 
     applyEventSettings();
     saveSettings();
-    showToast('Background Pemenang (Custom Gambar) berhasil disimpan & diterapkan!', 'success');
-  };
-  reader.readAsDataURL(file);
+    showToast('Background pemenang berhasil di-upload ke server.', 'success');
+  } catch (error) {
+    showToast(error.message, 'error');
+    e.target.value = '';
+  }
 }
 
-function removeWinnerBg() {
-  APP.settings.winnerBgBase64 = null;
+async function removeWinnerBg() {
+  const oldUrl = APP.settings.winnerBgUrl;
+  APP.settings.winnerBgUrl = null;
   APP.settings.winnerBgPreset = 'gold_gala';
-  if (document.getElementById('inputWinnerBgPreset')) {
-    document.getElementById('inputWinnerBgPreset').value = 'gold_gala';
-  }
+  await deleteImageFromServer(oldUrl);
+
+  const presetInput = document.getElementById('inputWinnerBgPreset');
+  if (presetInput) presetInput.value = 'gold_gala';
   const preview = document.getElementById('winnerBgPreview');
   if (preview) {
     preview.src = '';
     preview.style.display = 'none';
   }
-  if (document.getElementById('winnerBgUploadText')) document.getElementById('winnerBgUploadText').style.display = 'block';
-  if (document.getElementById('removeWinnerBgBtn')) document.getElementById('removeWinnerBgBtn').classList.add('hidden');
-  if (document.getElementById('winnerBgFileInput')) document.getElementById('winnerBgFileInput').value = '';
+  const uploadText = document.getElementById('winnerBgUploadText');
+  if (uploadText) uploadText.style.display = 'block';
+  const removeButton = document.getElementById('removeWinnerBgBtn');
+  if (removeButton) removeButton.classList.add('hidden');
+  const fileInput = document.getElementById('winnerBgFileInput');
+  if (fileInput) fileInput.value = '';
 
   applyEventSettings();
   saveSettings();
-  showToast('Background Custom dihapus, kembali ke preset Royal Gold Gala.', 'info');
+  showToast('Background custom dihapus.', 'info');
 }
 
-function handleLogoUpload(e) {
-  const file = e.target.files[0];
+async function handleLogoUpload(e) {
+  const file = e.target.files?.[0];
   if (!file) return;
 
-  if (!file.type.startsWith('image/')) {
-    showToast('File harus berupa gambar.', 'error');
-    return;
-  }
+  try {
+    const oldUrl = APP.settings.logoUrl;
+    const url = await uploadImageToServer(file, 'logo');
+    APP.settings.logoUrl = url;
+    if (oldUrl && oldUrl !== url) await deleteImageFromServer(oldUrl);
 
-  const reader = new FileReader();
-  reader.onload = (ev) => {
-    APP.settings.logoBase64 = ev.target.result;
     const preview = document.getElementById('logoPreview');
-    preview.src = ev.target.result;
-    preview.style.display = 'block';
-    document.getElementById('logoUploadText').style.display = 'none';
-    document.getElementById('removeLogoBtn').classList.remove('hidden');
-  };
-  reader.readAsDataURL(file);
+    if (preview) {
+      preview.src = url;
+      preview.style.display = 'block';
+    }
+    const uploadText = document.getElementById('logoUploadText');
+    if (uploadText) uploadText.style.display = 'none';
+    const removeButton = document.getElementById('removeLogoBtn');
+    if (removeButton) removeButton.classList.remove('hidden');
+
+    applyEventSettings();
+    saveSettings();
+    showToast('Logo berhasil di-upload ke server.', 'success');
+  } catch (error) {
+    showToast(error.message, 'error');
+    e.target.value = '';
+  }
 }
 
-function removeLogo() {
-  APP.settings.logoBase64 = null;
+async function removeLogo() {
+  const oldUrl = APP.settings.logoUrl;
+  APP.settings.logoUrl = null;
+  await deleteImageFromServer(oldUrl);
+
   const preview = document.getElementById('logoPreview');
-  preview.src = '';
-  preview.style.display = 'none';
-  document.getElementById('logoUploadText').style.display = 'block';
-  document.getElementById('removeLogoBtn').classList.add('hidden');
-  document.getElementById('logoFileInput').value = '';
+  if (preview) {
+    preview.src = '';
+    preview.style.display = 'none';
+  }
+  const uploadText = document.getElementById('logoUploadText');
+  if (uploadText) uploadText.style.display = 'block';
+  const removeButton = document.getElementById('removeLogoBtn');
+  if (removeButton) removeButton.classList.add('hidden');
+  const fileInput = document.getElementById('logoFileInput');
+  if (fileInput) fileInput.value = '';
+
+  applyEventSettings();
+  saveSettings();
 }
 
-function handleBgUpload(e) {
-  const file = e.target.files[0];
+async function handleBgUpload(e) {
+  const file = e.target.files?.[0];
   if (!file) return;
 
-  if (!file.type.startsWith('image/')) {
-    showToast('File harus berupa gambar.', 'error');
-    return;
-  }
+  try {
+    const oldUrl = APP.settings.bgUrl;
+    const url = await uploadImageToServer(file, 'background');
+    APP.settings.bgUrl = url;
+    if (oldUrl && oldUrl !== url) await deleteImageFromServer(oldUrl);
 
-  const reader = new FileReader();
-  reader.onload = (ev) => {
-    APP.settings.bgBase64 = ev.target.result;
     const preview = document.getElementById('bgPreview');
-    preview.src = ev.target.result;
-    preview.style.display = 'block';
-    document.getElementById('bgUploadText').style.display = 'none';
-    document.getElementById('removeBgBtn').classList.remove('hidden');
-    document.getElementById('bgOpacityGroup').classList.remove('hidden');
-    
-    // Set default opacity if not set
-    if (APP.settings.bgOpacity === undefined) {
-      APP.settings.bgOpacity = 0.15;
+    if (preview) {
+      preview.src = url;
+      preview.style.display = 'block';
     }
-    document.documentElement.style.setProperty('--bg-image', `url(${ev.target.result})`);
-    document.documentElement.style.setProperty('--bg-opacity', APP.settings.bgOpacity);
-    document.body.classList.add('has-bg');
-  };
-  reader.readAsDataURL(file);
+    const uploadText = document.getElementById('bgUploadText');
+    if (uploadText) uploadText.style.display = 'none';
+    const removeButton = document.getElementById('removeBgBtn');
+    if (removeButton) removeButton.classList.remove('hidden');
+    const opacityGroup = document.getElementById('bgOpacityGroup');
+    if (opacityGroup) opacityGroup.classList.remove('hidden');
+
+    if (APP.settings.bgOpacity === undefined) APP.settings.bgOpacity = 0.15;
+    applyEventSettings();
+    saveSettings();
+    showToast('Background berhasil di-upload ke server.', 'success');
+  } catch (error) {
+    showToast(error.message, 'error');
+    e.target.value = '';
+  }
 }
 
-function removeBg() {
-  APP.settings.bgBase64 = null;
+async function removeBg() {
+  const oldUrl = APP.settings.bgUrl;
+  APP.settings.bgUrl = null;
+  await deleteImageFromServer(oldUrl);
+
   const preview = document.getElementById('bgPreview');
-  preview.src = '';
-  preview.style.display = 'none';
-  document.getElementById('bgUploadText').style.display = 'block';
-  document.getElementById('removeBgBtn').classList.add('hidden');
-  document.getElementById('bgOpacityGroup').classList.add('hidden');
-  document.getElementById('bgFileInput').value = '';
-  document.documentElement.style.setProperty('--bg-image', 'none');
-  document.body.classList.remove('has-bg');
+  if (preview) {
+    preview.src = '';
+    preview.style.display = 'none';
+  }
+  const uploadText = document.getElementById('bgUploadText');
+  if (uploadText) uploadText.style.display = 'block';
+  const removeButton = document.getElementById('removeBgBtn');
+  if (removeButton) removeButton.classList.add('hidden');
+  const opacityGroup = document.getElementById('bgOpacityGroup');
+  if (opacityGroup) opacityGroup.classList.add('hidden');
+  const fileInput = document.getElementById('bgFileInput');
+  if (fileInput) fileInput.value = '';
+
+  applyEventSettings();
+  saveSettings();
 }
 
 function openSettingsModal() {
@@ -2907,9 +2963,9 @@ function openSettingsModal() {
   updateBrandingPreview();
 
   // Show logo preview if exists
-  if (APP.settings.logoBase64) {
+  if (APP.settings.logoUrl) {
     const preview = document.getElementById('logoPreview');
-    preview.src = APP.settings.logoBase64;
+    preview.src = APP.settings.logoUrl;
     preview.style.display = 'block';
     if (document.getElementById('logoUploadText')) document.getElementById('logoUploadText').style.display = 'none';
     if (document.getElementById('removeLogoBtn')) document.getElementById('removeLogoBtn').classList.remove('hidden');
@@ -2919,9 +2975,9 @@ function openSettingsModal() {
     if (document.getElementById('removeLogoBtn')) document.getElementById('removeLogoBtn').classList.add('hidden');
   }
 
-  if (APP.settings.bgBase64) {
+  if (APP.settings.bgUrl) {
     const preview = document.getElementById('bgPreview');
-    preview.src = APP.settings.bgBase64;
+    preview.src = APP.settings.bgUrl;
     preview.style.display = 'block';
     if (document.getElementById('bgUploadText')) document.getElementById('bgUploadText').style.display = 'none';
     if (document.getElementById('removeBgBtn')) document.getElementById('removeBgBtn').classList.remove('hidden');
@@ -2938,10 +2994,10 @@ function openSettingsModal() {
     if (document.getElementById('bgOpacityGroup')) document.getElementById('bgOpacityGroup').classList.add('hidden');
   }
 
-  if (APP.settings.winnerBgBase64) {
+  if (APP.settings.winnerBgUrl) {
     const preview = document.getElementById('winnerBgPreview');
     if (preview) {
-      preview.src = APP.settings.winnerBgBase64;
+      preview.src = APP.settings.winnerBgUrl;
       preview.style.display = 'block';
     }
     if (document.getElementById('winnerBgUploadText')) document.getElementById('winnerBgUploadText').style.display = 'none';

@@ -1,365 +1,521 @@
+'use strict';
+
 require('dotenv').config();
+
+const crypto = require('crypto');
 const express = require('express');
-const session = require('express-session');
 const fs = require('fs');
 const path = require('path');
-const { spawn, execSync } = require('child_process');
+const session = require('express-session');
+const FileStore = require('session-file-store')(session);
+const multer = require('multer');
+const { spawn } = require('child_process');
 
 const app = express();
-const PORT = 8080;
 const ROOT = __dirname;
+const PUBLIC_DIR = path.join(ROOT, 'public');
+const UPLOAD_DIR = path.join(PUBLIC_DIR, 'uploads');
+const DATA_DIR = path.join(ROOT, 'data');
+const SESSION_DIR = path.join(DATA_DIR, 'sessions');
+const PORT = Number.parseInt(process.env.PORT || '8082', 10);
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ limit: '50mb', extended: true }));
+const STATE_FILES = {
+  settings: path.join(DATA_DIR, 'settings_state.json'),
+  peserta: path.join(DATA_DIR, 'peserta_state.json'),
+  admin: path.join(DATA_DIR, 'admin_state.json')
+};
+
+const DEFAULT_STATE = {
+  settings: {
+    eventTitle: 'DOORPRIZE',
+    eventSubtitle: 'Aplikasi Undian Digital',
+    logoUrl: null,
+    bgUrl: null,
+    winnerBgUrl: null,
+    theme: 'professional_blue',
+    customColors: {
+      primary: '#2563EB',
+      secondary: '#7C3AED',
+      accent: '#F59E0B'
+    },
+    prizes: [],
+    timestamp: 0
+  },
+  peserta: {
+    dataPeserta: [],
+    availableClusters: [],
+    hasilUndian: [],
+    currentRonde: 1,
+    timestamp: 0
+  },
+  admin: {
+    targets: [],
+    password: 'admin2026',
+    timestamp: 0
+  }
+};
+
+fs.mkdirSync(PUBLIC_DIR, { recursive: true });
+fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+fs.mkdirSync(DATA_DIR, { recursive: true });
+fs.mkdirSync(SESSION_DIR, { recursive: true });
+
+function clone(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function readJson(filePath, fallback) {
+  try {
+    return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  } catch (error) {
+    return clone(fallback);
+  }
+}
+
+function writeJsonAtomic(filePath, value) {
+  const tempPath = `${filePath}.${process.pid}.${Date.now()}.tmp`;
+  fs.writeFileSync(tempPath, JSON.stringify(value, null, 2), 'utf8');
+  fs.renameSync(tempPath, filePath);
+}
+
+function safeStringEqual(left, right) {
+  const a = Buffer.from(String(left));
+  const b = Buffer.from(String(right));
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
+function sanitizeCategory(value) {
+  const cleaned = String(value || 'image')
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 40);
+  return cleaned || 'image';
+}
+
+function detectImage(buffer) {
+  if (!Buffer.isBuffer(buffer) || buffer.length < 12) return null;
+
+  if (buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) {
+    return { extension: 'jpg', mimeType: 'image/jpeg' };
+  }
+
+  if (
+    buffer[0] === 0x89 &&
+    buffer[1] === 0x50 &&
+    buffer[2] === 0x4e &&
+    buffer[3] === 0x47 &&
+    buffer[4] === 0x0d &&
+    buffer[5] === 0x0a &&
+    buffer[6] === 0x1a &&
+    buffer[7] === 0x0a
+  ) {
+    return { extension: 'png', mimeType: 'image/png' };
+  }
+
+  if (buffer.subarray(0, 4).toString('ascii') === 'RIFF' && buffer.subarray(8, 12).toString('ascii') === 'WEBP') {
+    return { extension: 'webp', mimeType: 'image/webp' };
+  }
+
+  const gifHeader = buffer.subarray(0, 6).toString('ascii');
+  if (gifHeader === 'GIF87a' || gifHeader === 'GIF89a') {
+    return { extension: 'gif', mimeType: 'image/gif' };
+  }
+
+  return null;
+}
+
+function persistImageBuffer(buffer, category = 'image') {
+  const detected = detectImage(buffer);
+  if (!detected) {
+    const error = new Error('Isi file bukan gambar JPG, PNG, WEBP, atau GIF yang valid.');
+    error.status = 415;
+    throw error;
+  }
+
+  const prefix = sanitizeCategory(category);
+  const uniqueId = `${Date.now()}-${crypto.randomBytes(10).toString('hex')}`;
+  const filename = `${prefix}-${uniqueId}.${detected.extension}`;
+  const destination = path.join(UPLOAD_DIR, filename);
+
+  fs.writeFileSync(destination, buffer, { flag: 'wx' });
+  return `/uploads/${filename}`;
+}
+
+function migrateDataUrl(value, category) {
+  if (typeof value !== 'string') return null;
+  if (value.startsWith('/uploads/')) return value;
+
+  const match = value.match(/^data:image\/(png|jpe?g|webp|gif);base64,([A-Za-z0-9+/=\r\n]+)$/i);
+  if (!match) return null;
+
+  try {
+    return persistImageBuffer(Buffer.from(match[2], 'base64'), category);
+  } catch (error) {
+    console.warn(`Gagal memigrasikan gambar ${category}:`, error.message);
+    return null;
+  }
+}
+
+function normalizeSettings(input) {
+  const source = input && typeof input === 'object' ? { ...input } : {};
+
+  const imageMappings = [
+    ['logoUrl', 'logoBase64', 'logo'],
+    ['bgUrl', 'bgBase64', 'background'],
+    ['winnerBgUrl', 'winnerBgBase64', 'winner-background']
+  ];
+
+  for (const [urlKey, legacyKey, category] of imageMappings) {
+    const candidate = source[urlKey] || source[legacyKey];
+    const migrated = migrateDataUrl(candidate, category);
+    source[urlKey] = migrated || (typeof candidate === 'string' && candidate.startsWith('/uploads/') ? candidate : null);
+    delete source[legacyKey];
+  }
+
+  source.prizes = Array.isArray(source.prizes)
+    ? source.prizes.map((prize, index) => {
+        if (!prize || typeof prize !== 'object') return null;
+        const cleanPrize = { ...prize };
+        const candidate = cleanPrize.imageUrl || cleanPrize.imageBase64;
+        const migrated = migrateDataUrl(candidate, `prize-${index + 1}`);
+        cleanPrize.imageUrl = migrated || (typeof candidate === 'string' && candidate.startsWith('/uploads/') ? candidate : null);
+        delete cleanPrize.imageBase64;
+        return cleanPrize;
+      }).filter(Boolean)
+    : [];
+
+  return source;
+}
+
+function normalizePeserta(input) {
+  const source = input && typeof input === 'object' ? { ...input } : {};
+  delete source.settings;
+  return {
+    dataPeserta: Array.isArray(source.dataPeserta) ? source.dataPeserta : [],
+    availableClusters: Array.isArray(source.availableClusters) ? source.availableClusters : [],
+    hasilUndian: Array.isArray(source.hasilUndian) ? source.hasilUndian : [],
+    currentRonde: Number.isFinite(Number(source.currentRonde)) ? Number(source.currentRonde) : 1,
+    timestamp: Number(source.timestamp) || 0
+  };
+}
+
+function normalizeAdmin(input) {
+  const source = input && typeof input === 'object' ? input : {};
+  return {
+    targets: Array.isArray(source.targets) ? source.targets : [],
+    password: typeof source.password === 'string' && source.password ? source.password.slice(0, 128) : 'admin2026',
+    timestamp: Number(source.timestamp) || 0
+  };
+}
+
+function migrateLegacyStateFiles() {
+  for (const [key, destination] of Object.entries(STATE_FILES)) {
+    const legacyPath = path.join(ROOT, `${key === 'peserta' ? 'peserta' : key}_state.json`);
+    if (!fs.existsSync(destination) && fs.existsSync(legacyPath)) {
+      fs.copyFileSync(legacyPath, destination);
+    }
+  }
+
+  const settings = normalizeSettings(readJson(STATE_FILES.settings, DEFAULT_STATE.settings));
+  const peserta = normalizePeserta(readJson(STATE_FILES.peserta, DEFAULT_STATE.peserta));
+  const admin = normalizeAdmin(readJson(STATE_FILES.admin, DEFAULT_STATE.admin));
+
+  writeJsonAtomic(STATE_FILES.settings, settings);
+  writeJsonAtomic(STATE_FILES.peserta, peserta);
+  writeJsonAtomic(STATE_FILES.admin, admin);
+}
+
+migrateLegacyStateFiles();
+
+if (IS_PRODUCTION) app.set('trust proxy', 1);
+app.disable('x-powered-by');
+
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('Referrer-Policy', 'same-origin');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  next();
+});
+
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '2mb', extended: false }));
+
+const sessionSecret = process.env.SESSION_SECRET || 'CHANGE-ME-DOORPRIZE-SESSION-SECRET';
+if (!process.env.SESSION_SECRET) {
+  console.warn('⚠️ SESSION_SECRET belum diatur di .env. Ganti sebelum produksi.');
+}
 
 app.use(session({
-  secret: 'dorprize-secret-key-2026',
+  name: 'doorprize.sid',
+  store: new FileStore({
+    path: SESSION_DIR,
+    ttl: 24 * 60 * 60,
+    retries: 1,
+    logFn: () => {}
+  }),
+  secret: sessionSecret,
   resave: false,
   saveUninitialized: false,
-  cookie: { maxAge: 24 * 60 * 60 * 1000 } // 1 day
+  cookie: {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: IS_PRODUCTION ? 'auto' : false,
+    maxAge: 24 * 60 * 60 * 1000
+  }
 }));
 
-// Hardcoded user/pass for simple security
 const USERNAME = process.env.ADMIN_USERNAME || 'admin';
 const PASSWORD = process.env.ADMIN_PASSWORD || 'rahasia123';
 
-// Auth middleware
 function requireAuth(req, res, next) {
-  if (req.session.loggedIn) {
-    next();
-  } else {
-    if (req.path.startsWith('/api/')) {
-      res.status(401).json({ error: 'Unauthorized' });
-    } else {
-      res.redirect('/login');
-    }
-  }
+  if (req.session && req.session.loggedIn === true) return next();
+  if (req.path.startsWith('/api/')) return res.status(401).json({ error: 'Unauthorized' });
+  return res.redirect('/login');
 }
 
-// Middleware to enforce clean URLs and block direct static HTML access
 app.use((req, res, next) => {
-  if (req.path.endsWith('.html')) {
-    const cleanPath = req.path.slice(0, -5); // remove '.html'
-    if (cleanPath === '/login') {
-      return res.redirect('/login');
-    }
-    // Redirect other HTML views to their clean routes, which will run requireAuth
-    if (['/dashboard', '/setting', '/adm1n'].includes(cleanPath)) {
-      return res.redirect(cleanPath);
-    }
-    // Block any other direct HTML access
-    return res.redirect('/login');
+  if (!req.path.endsWith('.html')) return next();
+  const cleanPath = req.path.slice(0, -5);
+  if (['/login', '/dashboard', '/setting', '/adm1n'].includes(cleanPath)) {
+    return res.redirect(cleanPath);
   }
-  next();
+  return res.redirect('/login');
 });
 
-// Serve static assets unconditionally (CSS, JS, images)
-// Restrict static files to only allow app.js and style.css
-app.use((req, res, next) => {
-  const allowedStatic = ['/app.js', '/style.css'];
-  if (allowedStatic.includes(req.path.toLowerCase())) {
-    return next();
-  }
-  if (path.extname(req.path)) {
-    return res.status(403).send('Access Denied');
-  }
-  next();
-});
+app.get('/favicon.ico', (req, res) => res.status(204).end());
 
-app.use(express.static(ROOT, {
+app.use('/uploads', express.static(UPLOAD_DIR, {
   index: false,
+  immutable: true,
+  maxAge: '30d',
+  fallthrough: false
+}));
+
+app.use(express.static(PUBLIC_DIR, {
+  index: false,
+  etag: true,
   setHeaders: (res, filePath) => {
-    // Disable caching for all files during upgrade
-    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
-    res.set('Expires', '-1');
-    res.set('Pragma', 'no-cache');
+    if (/\.(?:js|css|html)$/i.test(filePath)) {
+      res.setHeader('Cache-Control', 'no-cache');
+    }
   }
 }));
 
-// Routes for HTML views
 app.get('/login', (req, res) => {
   if (req.session.loggedIn) return res.redirect('/dashboard');
-  res.sendFile(path.join(ROOT, 'login.html'));
+  return res.sendFile(path.join(PUBLIC_DIR, 'login.html'));
 });
 
 app.post('/login', (req, res) => {
-  let { username, password } = req.body;
-  
-  if (typeof username !== 'string' || typeof password !== 'string') {
-    return res.redirect('/login?error=1');
-  }
-  if (username.length > 50 || password.length > 50) {
+  const username = typeof req.body.username === 'string' ? req.body.username.trim() : '';
+  const password = typeof req.body.password === 'string' ? req.body.password : '';
+
+  if (username.length > 50 || password.length > 128) {
     return res.redirect('/login?error=1');
   }
 
-  username = username.replace(/[<>'"&]/g, '').trim();
-  password = password.trim();
-
-  if (username === USERNAME && password === PASSWORD) {
-    req.session.loggedIn = true;
-    res.redirect('/dashboard');
-  } else {
-    res.redirect('/login?error=1');
+  if (safeStringEqual(username, USERNAME) && safeStringEqual(password, PASSWORD)) {
+    return req.session.regenerate((error) => {
+      if (error) return res.redirect('/login?error=1');
+      req.session.loggedIn = true;
+      return req.session.save(() => res.redirect('/dashboard'));
+    });
   }
+
+  return res.redirect('/login?error=1');
 });
 
 app.get('/logout', (req, res) => {
-  req.session.destroy();
-  res.redirect('/login');
+  if (!req.session) return res.redirect('/login');
+  return req.session.destroy(() => {
+    res.clearCookie('doorprize.sid');
+    res.redirect('/login');
+  });
 });
 
-// Protected routes
 app.get('/', requireAuth, (req, res) => res.redirect('/dashboard'));
-app.get('/dashboard', requireAuth, (req, res) => res.sendFile(path.join(ROOT, 'dashboard.html')));
-app.get('/setting', requireAuth, (req, res) => res.sendFile(path.join(ROOT, 'setting.html')));
-app.get('/adm1n', requireAuth, (req, res) => res.sendFile(path.join(ROOT, 'adm1n.html')));
+app.get('/dashboard', requireAuth, (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'dashboard.html')));
+app.get('/setting', requireAuth, (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'setting.html')));
+app.get('/adm1n', requireAuth, (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'adm1n.html')));
 
-// APIs
-app.get('/api/admin', requireAuth, (req, res) => {
-  const stateFile = path.join(ROOT, 'admin_state.json');
-  fs.readFile(stateFile, 'utf8', (err, data) => {
-    if (err) return res.json({ targets: [], password: 'admin2026' });
-    try { res.json(JSON.parse(data)); } catch(e) { res.json({ targets: [] }); }
-  });
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    files: 1,
+    fileSize: 10 * 1024 * 1024
+  }
 });
 
-app.post('/api/admin', requireAuth, (req, res) => {
-  const stateFile = path.join(ROOT, 'admin_state.json');
-  const payload = { ...req.body, timestamp: Date.now() };
-  fs.writeFile(stateFile, JSON.stringify(payload, null, 2), 'utf8', err => {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json({ success: true, timestamp: payload.timestamp });
-  });
+app.post('/api/upload/image', requireAuth, upload.single('file'), (req, res) => {
+  if (!req.file || !req.file.buffer) {
+    return res.status(400).json({ error: 'File gambar tidak ditemukan.' });
+  }
+
+  const url = persistImageBuffer(req.file.buffer, req.body.category);
+  return res.status(201).json({ success: true, url });
 });
 
-app.get('/api/peserta', requireAuth, (req, res) => {
-  const stateFile = path.join(ROOT, 'peserta_state.json');
-  fs.readFile(stateFile, 'utf8', (err, data) => {
-    if (err) return res.json({ dataPeserta: [], availableClusters: [] });
-    try { res.json(JSON.parse(data)); } catch(e) { res.json({ dataPeserta: [] }); }
-  });
+app.delete('/api/upload/image', requireAuth, (req, res) => {
+  const url = typeof req.body.url === 'string' ? req.body.url : '';
+  const match = url.match(/^\/uploads\/([a-zA-Z0-9._-]+)$/);
+  if (!match) return res.status(400).json({ error: 'URL upload tidak valid.' });
+
+  const filename = path.basename(match[1]);
+  const filePath = path.join(UPLOAD_DIR, filename);
+  if (!filePath.startsWith(`${UPLOAD_DIR}${path.sep}`)) {
+    return res.status(400).json({ error: 'Path upload tidak valid.' });
+  }
+
+  try {
+    fs.unlinkSync(filePath);
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
+  }
+
+  return res.json({ success: true });
 });
 
-app.post('/api/peserta', requireAuth, (req, res) => {
-  const stateFile = path.join(ROOT, 'peserta_state.json');
-  const payload = { ...req.body, timestamp: Date.now() };
-  fs.writeFile(stateFile, JSON.stringify(payload, null, 2), 'utf8', err => {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json({ success: true, timestamp: payload.timestamp });
-  });
-});
-
-// Settings API
 app.get('/api/settings', requireAuth, (req, res) => {
-  const stateFile = path.join(ROOT, 'settings_state.json');
-  fs.readFile(stateFile, 'utf8', (err, data) => {
-    if (err) return res.json({ settings: null });
-    try { res.json(JSON.parse(data)); } catch(e) { res.json({ settings: null }); }
-  });
+  return res.json(readJson(STATE_FILES.settings, DEFAULT_STATE.settings));
 });
 
 app.post('/api/settings', requireAuth, (req, res) => {
-  const stateFile = path.join(ROOT, 'settings_state.json');
-  const payload = { ...req.body, timestamp: Date.now() };
-  fs.writeFile(stateFile, JSON.stringify(payload, null, 2), 'utf8', err => {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json({ success: true, timestamp: payload.timestamp });
-  });
+  const payload = {
+    ...normalizeSettings(req.body),
+    timestamp: Date.now()
+  };
+  writeJsonAtomic(STATE_FILES.settings, payload);
+  return res.json({ success: true, timestamp: payload.timestamp });
 });
 
-function getLatestFileTimestamp() {
-  let maxTs = 0;
-  const files = ['settings_state.json', 'peserta_state.json', 'admin_state.json'];
-  files.forEach(f => {
-    try {
-      const p = path.join(ROOT, f);
-      if (fs.existsSync(p)) {
-        const stat = fs.statSync(p);
-        if (stat.mtimeMs > maxTs) maxTs = stat.mtimeMs;
-      }
-    } catch(e) {}
-  });
-  return Math.floor(maxTs);
-}
+app.get('/api/peserta', requireAuth, (req, res) => {
+  return res.json(readJson(STATE_FILES.peserta, DEFAULT_STATE.peserta));
+});
 
-// Full Unified State API (for live sync across devices)
+app.post('/api/peserta', requireAuth, (req, res) => {
+  const payload = {
+    ...normalizePeserta(req.body),
+    timestamp: Date.now()
+  };
+  writeJsonAtomic(STATE_FILES.peserta, payload);
+  return res.json({ success: true, timestamp: payload.timestamp });
+});
+
+app.get('/api/admin', requireAuth, (req, res) => {
+  return res.json(readJson(STATE_FILES.admin, DEFAULT_STATE.admin));
+});
+
+app.post('/api/admin', requireAuth, (req, res) => {
+  const payload = {
+    ...normalizeAdmin(req.body),
+    timestamp: Date.now()
+  };
+  writeJsonAtomic(STATE_FILES.admin, payload);
+  return res.json({ success: true, timestamp: payload.timestamp });
+});
+
 app.get('/api/state', requireAuth, (req, res) => {
-  const clientTs = parseInt(req.query.ts || 0);
-  const serverTs = getLatestFileTimestamp();
+  const settings = normalizeSettings(readJson(STATE_FILES.settings, DEFAULT_STATE.settings));
+  const peserta = normalizePeserta(readJson(STATE_FILES.peserta, DEFAULT_STATE.peserta));
+  const admin = normalizeAdmin(readJson(STATE_FILES.admin, DEFAULT_STATE.admin));
+  const timestamp = Math.max(settings.timestamp || 0, peserta.timestamp || 0, admin.timestamp || 0);
+  const clientTimestamp = Number(req.query.ts) || 0;
 
-  if (clientTs && serverTs <= clientTs) {
-    return res.json({ changed: false, timestamp: serverTs });
+  if (clientTimestamp >= timestamp && timestamp > 0) {
+    return res.json({ changed: false, timestamp });
   }
 
-  const settingsFile = path.join(ROOT, 'settings_state.json');
-  const pesertaFile = path.join(ROOT, 'peserta_state.json');
-  const adminFile = path.join(ROOT, 'admin_state.json');
-
-  let settings = null;
-  let peserta = { dataPeserta: [], availableClusters: [] };
-  let admin = { targets: [] };
-
-  try { if (fs.existsSync(settingsFile)) settings = JSON.parse(fs.readFileSync(settingsFile, 'utf8')); } catch(e){}
-  try { if (fs.existsSync(pesertaFile)) peserta = JSON.parse(fs.readFileSync(pesertaFile, 'utf8')); } catch(e){}
-  try { if (fs.existsSync(adminFile)) admin = JSON.parse(fs.readFileSync(adminFile, 'utf8')); } catch(e){}
-
-  res.json({
-    changed: true,
-    settings,
-    peserta,
-    admin,
-    timestamp: serverTs
-  });
+  return res.json({ changed: true, settings, peserta, admin, timestamp });
 });
 
 app.post('/api/state', requireAuth, (req, res) => {
-  const { settings, peserta, admin } = req.body;
-  const ts = Date.now();
+  const timestamp = Date.now();
 
-  if (settings) {
-    fs.writeFileSync(path.join(ROOT, 'settings_state.json'), JSON.stringify({ ...settings, timestamp: ts }, null, 2), 'utf8');
-  }
-  if (peserta) {
-    fs.writeFileSync(path.join(ROOT, 'peserta_state.json'), JSON.stringify({ ...peserta, timestamp: ts }, null, 2), 'utf8');
-  }
-  if (admin) {
-    fs.writeFileSync(path.join(ROOT, 'admin_state.json'), JSON.stringify({ ...admin, timestamp: ts }, null, 2), 'utf8');
+  if (req.body.settings && typeof req.body.settings === 'object') {
+    writeJsonAtomic(STATE_FILES.settings, {
+      ...normalizeSettings(req.body.settings),
+      timestamp
+    });
   }
 
-  res.json({ success: true, timestamp: ts });
+  if (req.body.peserta && typeof req.body.peserta === 'object') {
+    writeJsonAtomic(STATE_FILES.peserta, {
+      ...normalizePeserta(req.body.peserta),
+      timestamp
+    });
+  }
+
+  if (req.body.admin && typeof req.body.admin === 'object') {
+    writeJsonAtomic(STATE_FILES.admin, {
+      ...normalizeAdmin(req.body.admin),
+      timestamp
+    });
+  }
+
+  return res.json({ success: true, timestamp });
 });
 
-// Express Global Error Handler (Handles client aborts & body-parser errors gracefully)
-app.use((err, req, res, next) => {
-  if (err && (err.type === 'request.aborted' || err.message === 'request aborted' || err.code === 'ECONNRESET')) {
-    // Client cancelled/aborted request before body stream finished (e.g. page refresh/navigation)
-    if (!res.headersSent) {
-      res.status(400).json({ error: 'Request aborted by client' });
-    }
-    return;
-  }
-  if (err && err.status === 413) {
-    if (!res.headersSent) {
-      res.status(413).json({ error: 'Payload size too large' });
-    }
-    return;
-  }
-  console.error('⚠️ Express Request Error:', err.message);
-  if (!res.headersSent) {
-    res.status(err.status || 500).json({ error: err.message || 'Internal Server Error' });
-  }
+app.use((req, res) => {
+  if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'API endpoint tidak ditemukan.' });
+  return res.status(404).send('Not Found');
 });
 
-// Start server
-app.listen(PORT, async () => {
-  console.log(`\n  ✅ Server berjalan di http://localhost:${PORT}`);
-  
-  const tunnelProvider = (process.env.TUNNEL_PROVIDER || 'ngrok').toLowerCase().trim();
-
-  if (tunnelProvider === 'cloudflare' || tunnelProvider === 'cloudflared' || tunnelProvider === 'localtunnel') {
-    try {
-      console.log('  Membuka Tunnel Cadangan (LocalTunnel - Unlimited Mode)...');
-      
-      const ltCmd = process.platform === 'win32' ? 'cmd.exe' : 'npx';
-      const ltArgs = process.platform === 'win32' ? ['/c', `npx -y localtunnel --port ${PORT}`] : ['-y', 'localtunnel', '--port', PORT.toString()];
-      
-      const ltProcess = spawn(ltCmd, ltArgs);
-
-      let tunnelFound = false;
-
-      const parseOutput = (data) => {
-        const str = data.toString();
-        const match = str.match(/https:\/\/[a-zA-Z0-9-]+\.loca\.lt/) || str.match(/your url is:\s*(https:\/\/[^\s]+)/i);
-        if (match && !tunnelFound) {
-          tunnelFound = true;
-          const url = match[1] || match[0];
-          console.log('  ========================================');
-          console.log(`  🌐 Akses Publik Cadangan (Unlimited): ${url}`);
-          console.log('  ========================================');
-          console.log(`  Login   : ${url}/login`);
-          console.log(`  Undian  : ${url}/dashboard`);
-          console.log(`  Setting : ${url}/setting`);
-          console.log(`  Admin   : ${url}/adm1n`);
-          console.log('  ========================================');
-        }
-      };
-
-      if (ltProcess.stdout) ltProcess.stdout.on('data', parseOutput);
-      if (ltProcess.stderr) ltProcess.stderr.on('data', parseOutput);
-
-      ltProcess.on('close', (code) => {
-        if (!tunnelFound && code !== 0) {
-          console.error(`\n  ❌ Tunnel Cadangan keluar dengan kode ${code}`);
-        }
-      });
-    } catch (err) {
-      console.error('  ❌ Gagal menjalankan Tunnel Cadangan:', err.message);
+app.use((error, req, res, next) => {
+  if (error instanceof multer.MulterError) {
+    if (error.code === 'LIMIT_FILE_SIZE') {
+      return res.status(413).json({ error: 'Ukuran gambar maksimal 10 MB.' });
     }
+    return res.status(400).json({ error: error.message });
+  }
+
+  if (error && (error.type === 'request.aborted' || error.code === 'ECONNRESET')) {
+    return res.status(400).json({ error: 'Request dibatalkan oleh client.' });
+  }
+
+  const status = Number(error.status) || 500;
+  console.error('Express error:', error.stack || error.message || error);
+  if (res.headersSent) return next(error);
+  return res.status(status).json({ error: status >= 500 ? 'Internal Server Error' : error.message });
+});
+
+function startOptionalTunnel() {
+  const provider = String(process.env.TUNNEL_PROVIDER || 'none').trim().toLowerCase();
+  if (!provider || provider === 'none' || provider === 'off') return;
+
+  let command;
+  let args;
+
+  if (provider === 'cloudflare' || provider === 'cloudflared') {
+    command = 'cloudflared';
+    args = ['tunnel', '--url', `http://127.0.0.1:${PORT}`];
+  } else if (provider === 'localtunnel') {
+    command = process.platform === 'win32' ? 'npx.cmd' : 'npx';
+    args = ['-y', 'localtunnel', '--port', String(PORT)];
+  } else if (provider === 'ngrok') {
+    command = process.platform === 'win32' ? 'npx.cmd' : 'npx';
+    args = ['ngrok', 'http', String(PORT)];
+    if (process.env.NGROK_AUTHTOKEN) args.push('--authtoken', process.env.NGROK_AUTHTOKEN);
   } else {
-    // Start ngrok if token is provided
-    const ngrokToken = process.env.NGROK_AUTHTOKEN;
-    if (ngrokToken) {
-      try {
-        // Terminate any hanging/orphan ngrok.exe processes to prevent "account limited to 1 active tunnel" errors
-        try {
-          execSync('taskkill /F /IM ngrok.exe', { stdio: 'ignore' });
-        } catch (e) {}
-
-        console.log('  Membuka tunnel Ngrok (CLI Mode)...');
-        const ngrokPath = path.join(__dirname, 'node_modules', 'ngrok', 'bin', 'ngrok.exe');
-        
-        const ngrokProcess = spawn(ngrokPath, ['http', PORT.toString(), '--authtoken', ngrokToken]);
-        
-        let ngrokErrorOutput = '';
-        if (ngrokProcess.stderr) {
-          ngrokProcess.stderr.on('data', (data) => {
-            ngrokErrorOutput += data.toString();
-          });
-        }
-
-        ngrokProcess.on('close', (code) => {
-          if (code && code !== 0) {
-            console.error(`\n  ❌ Proses Ngrok keluar dengan kode ${code}`);
-            if (ngrokErrorOutput) {
-              console.error(`  Detail Error Ngrok:\n${ngrokErrorOutput}`);
-            }
-          }
-        });
-
-        // Polling setiap 3 detik (maksimal 15 kali) untuk mendapatkan url public
-        let attempts = 0;
-        const checkInterval = setInterval(async () => {
-          attempts++;
-          try {
-            const response = await fetch('http://127.0.0.1:4040/api/tunnels');
-            const data = await response.json();
-            if (data && data.tunnels && data.tunnels.length > 0) {
-              const url = data.tunnels[0].public_url;
-              console.log('  ========================================');
-              console.log(`  🌐 Akses Publik (Ngrok): ${url}`);
-              console.log('  ========================================');
-              console.log(`  Login   : ${url}/login`);
-              console.log(`  Undian  : ${url}/dashboard`);
-              console.log(`  Setting : ${url}/setting`);
-              console.log(`  Admin   : ${url}/adm1n`);
-              console.log('  ========================================');
-              clearInterval(checkInterval);
-            } else if (attempts >= 15) {
-               console.log('  ⚠️ Ngrok berjalan, tetapi koneksi Anda sangat lambat. Silakan cek http://127.0.0.1:4040 di browser.');
-               clearInterval(checkInterval);
-            }
-          } catch (err) {
-            if (attempts >= 15) {
-              console.error('  ❌ Gagal mendapatkan URL Ngrok setelah 45 detik:', err.message);
-              clearInterval(checkInterval);
-            }
-          }
-        }, 3000);
-      } catch (err) {
-        console.error('  ❌ Gagal menjalankan Ngrok CLI:', err.message);
-      }
-    } else {
-      console.log('  ⚠️ NGROK_AUTHTOKEN tidak ditemukan di .env. Aplikasi hanya bisa diakses secara lokal.');
-    }
+    console.warn(`⚠️ TUNNEL_PROVIDER tidak dikenal: ${provider}`);
+    return;
   }
+
+  try {
+    const child = spawn(command, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+    child.stdout.on('data', (data) => process.stdout.write(`[tunnel] ${data}`));
+    child.stderr.on('data', (data) => process.stderr.write(`[tunnel] ${data}`));
+    child.on('error', (error) => console.warn(`⚠️ Tunnel tidak dapat dijalankan: ${error.message}`));
+    child.on('exit', (code) => console.warn(`⚠️ Tunnel berhenti dengan kode ${code}`));
+  } catch (error) {
+    console.warn(`⚠️ Gagal menjalankan tunnel: ${error.message}`);
+  }
+}
+
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`✅ Doorprize berjalan di http://0.0.0.0:${PORT}`);
+  console.log(`📁 Upload tersimpan di ${UPLOAD_DIR}`);
+  startOptionalTunnel();
 });

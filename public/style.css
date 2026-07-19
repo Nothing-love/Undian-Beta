@@ -739,7 +739,7 @@ body.dark-theme .slot-reel.single-cell-reel {
 }
 
 .slot-reel.single-cell-reel .slot-cell.is-name {
-  color: #1E293B !important;
+  color: var(--reel-number-color, #0F172A) !important;
   text-shadow: none !important;
   font-weight: 900 !important;
 }
