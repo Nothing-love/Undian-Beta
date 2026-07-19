@@ -349,6 +349,118 @@ function applyTheme(themeKey) {
   root.style.setProperty('--color-border-light', colors.borderLight);
 }
 
+window.applyEventSettings = function() {
+  const root = document.documentElement;
+  
+  const font = APP.settings.fontFamily || 'Outfit, sans-serif';
+  const transform = APP.settings.textTransform || 'uppercase';
+  const titleColor = APP.settings.titleColor || '#FFFFFF';
+  const titleSize = (APP.settings.titleSize || 2.2) + 'rem';
+  const subColor = APP.settings.subtitleColor || '#FFE042';
+  const subSize = (APP.settings.subtitleSize || 1.0) + 'rem';
+  const logoShape = APP.settings.logoShape || 'rounded';
+  const bgStyle = APP.settings.bgStyle || 'glass';
+  const bgOpacity = APP.settings.bgOpacity !== undefined ? APP.settings.bgOpacity : 0.65;
+
+  root.style.setProperty('--font-event', font);
+  root.style.setProperty('--text-transform-event', transform);
+  root.style.setProperty('--title-color-event', titleColor);
+  root.style.setProperty('--title-size-event', titleSize);
+  root.style.setProperty('--subtitle-color-event', subColor);
+  root.style.setProperty('--subtitle-size-event', subSize);
+
+  const titleEls = document.querySelectorAll('.event-title, .header-title, #eventTitleDisplay, #miniTitle');
+  titleEls.forEach(el => {
+    if (el) {
+      if (APP.settings.eventTitle && el.id !== 'miniTitle') el.textContent = APP.settings.eventTitle;
+      el.style.fontFamily = font;
+      el.style.textTransform = transform;
+      el.style.color = titleColor;
+      el.style.fontSize = titleSize;
+    }
+  });
+
+  const subEls = document.querySelectorAll('.event-subtitle, .header-subtitle, #eventSubtitleDisplay, #miniSubtitle');
+  subEls.forEach(el => {
+    if (el) {
+      if (APP.settings.eventSubtitle && el.id !== 'miniSubtitle') el.textContent = APP.settings.eventSubtitle;
+      el.style.fontFamily = font;
+      el.style.textTransform = transform;
+      el.style.color = subColor;
+      el.style.fontSize = subSize;
+    }
+  });
+
+  const logoImgs = document.querySelectorAll('#headerLogo, #logoPreview, .header-logo img');
+  logoImgs.forEach(img => {
+    if (img) {
+      img.className = img.className.replace(/logo-shape-\w+/g, '').trim();
+      img.classList.add(`logo-shape-${logoShape}`);
+    }
+  });
+
+  if (APP.settings.logoBase64) {
+    document.querySelectorAll('#headerLogo, .header-logo img').forEach(img => {
+      if (img) {
+        img.src = APP.settings.logoBase64;
+        img.style.display = 'block';
+      }
+    });
+  }
+
+  document.body.className = document.body.className.replace(/bg-filter-\w+/g, '').trim();
+  document.body.classList.add(`bg-filter-${bgStyle}`);
+
+  if (APP.settings.bgBase64) {
+    root.style.setProperty('--bg-image', `url(${APP.settings.bgBase64})`);
+    root.style.setProperty('--bg-opacity', bgOpacity);
+    document.body.classList.add('has-bg');
+  } else {
+    root.style.setProperty('--bg-image', 'none');
+    document.body.classList.remove('has-bg');
+  }
+};
+
+window.updateBrandingPreview = function() {
+  const font = document.getElementById('inputFontFamily') ? document.getElementById('inputFontFamily').value : 'Outfit, sans-serif';
+  const transform = document.getElementById('inputTextTransform') ? document.getElementById('inputTextTransform').value : 'uppercase';
+  const titleColor = document.getElementById('inputTitleColor') ? document.getElementById('inputTitleColor').value : '#FFFFFF';
+  const titleSize = document.getElementById('inputTitleSize') ? document.getElementById('inputTitleSize').value + 'rem' : '2.2rem';
+  const subColor = document.getElementById('inputSubtitleColor') ? document.getElementById('inputSubtitleColor').value : '#FFE042';
+  const subSize = document.getElementById('inputSubtitleSize') ? document.getElementById('inputSubtitleSize').value + 'rem' : '1.0rem';
+  const logoShape = document.getElementById('inputLogoShape') ? document.getElementById('inputLogoShape').value : 'rounded';
+  const bgStyle = document.getElementById('inputBgStyle') ? document.getElementById('inputBgStyle').value : 'glass';
+
+  const titleVal = document.getElementById('inputEventTitle') ? document.getElementById('inputEventTitle').value.trim() : '';
+  const subtitleVal = document.getElementById('inputEventSubtitle') ? document.getElementById('inputEventSubtitle').value.trim() : '';
+
+  const miniTitle = document.getElementById('miniTitle');
+  const miniSubtitle = document.getElementById('miniSubtitle');
+  if (miniTitle) {
+    miniTitle.textContent = titleVal || APP.settings.eventTitle || 'DORPRIZE EVENT';
+    miniTitle.style.fontFamily = font;
+    miniTitle.style.textTransform = transform;
+    miniTitle.style.color = titleColor;
+    miniTitle.style.fontSize = titleSize;
+  }
+  if (miniSubtitle) {
+    miniSubtitle.textContent = subtitleVal || APP.settings.eventSubtitle || 'Aplikasi Undian Digital';
+    miniSubtitle.style.fontFamily = font;
+    miniSubtitle.style.textTransform = transform;
+    miniSubtitle.style.color = subColor;
+    miniSubtitle.style.fontSize = subSize;
+  }
+
+  const logoPrev = document.getElementById('logoPreview');
+  if (logoPrev) {
+    logoPrev.className = logoPrev.className.replace(/logo-shape-\w+/g, '').trim();
+    logoPrev.classList.add(`logo-shape-${logoShape}`);
+  }
+
+  document.body.className = document.body.className.replace(/bg-filter-\w+/g, '').trim();
+  document.body.classList.add(`bg-filter-${bgStyle}`);
+};
+
 window.updateThemePreview = function(themeKey) {
   const previewBox = document.getElementById('themePreviewBox');
   if (!previewBox) return;
@@ -2149,15 +2261,21 @@ function importAdminConfig() {
 
 // ===================== SETTINGS MODAL HANDLERS =====================
 function saveEventSettings() {
-  const title = document.getElementById('inputEventTitle').value.trim();
-  const subtitle = document.getElementById('inputEventSubtitle').value.trim();
-  const subColor = document.getElementById('inputSubtitleColor').value;
-  const subSize = parseFloat(document.getElementById('inputSubtitleSize').value) || 0.78;
+  const title = document.getElementById('inputEventTitle') ? document.getElementById('inputEventTitle').value.trim() : '';
+  const subtitle = document.getElementById('inputEventSubtitle') ? document.getElementById('inputEventSubtitle').value.trim() : '';
 
   if (title) APP.settings.eventTitle = title;
   APP.settings.eventSubtitle = subtitle;
-  APP.settings.subtitleColor = subColor;
-  APP.settings.subtitleSize = subSize;
+
+  if (document.getElementById('inputFontFamily')) APP.settings.fontFamily = document.getElementById('inputFontFamily').value;
+  if (document.getElementById('inputTextTransform')) APP.settings.textTransform = document.getElementById('inputTextTransform').value;
+  if (document.getElementById('inputTitleColor')) APP.settings.titleColor = document.getElementById('inputTitleColor').value;
+  if (document.getElementById('inputTitleSize')) APP.settings.titleSize = parseFloat(document.getElementById('inputTitleSize').value);
+  if (document.getElementById('inputSubtitleColor')) APP.settings.subtitleColor = document.getElementById('inputSubtitleColor').value;
+  if (document.getElementById('inputSubtitleSize')) APP.settings.subtitleSize = parseFloat(document.getElementById('inputSubtitleSize').value);
+  if (document.getElementById('inputLogoShape')) APP.settings.logoShape = document.getElementById('inputLogoShape').value;
+  if (document.getElementById('inputBgStyle')) APP.settings.bgStyle = document.getElementById('inputBgStyle').value;
+  if (document.getElementById('inputBgOpacity')) APP.settings.bgOpacity = parseFloat(document.getElementById('inputBgOpacity').value);
 
   // Get selected theme
   const activeSwatch = document.querySelector('.theme-swatch.active');
@@ -2173,8 +2291,6 @@ function saveEventSettings() {
       accent: document.getElementById('customAccent').value
     };
   }
-
-
 
   applyTheme(APP.settings.theme);
   applyEventSettings();
@@ -2260,15 +2376,29 @@ function removeBg() {
 function openSettingsModal() {
   renderPrizeSettings();
   // Populate current values
-  document.getElementById('inputEventTitle').value = APP.settings.eventTitle || '';
-  document.getElementById('inputEventSubtitle').value = APP.settings.eventSubtitle || '';
+  if (document.getElementById('inputEventTitle')) document.getElementById('inputEventTitle').value = APP.settings.eventTitle || '';
+  if (document.getElementById('inputEventSubtitle')) document.getElementById('inputEventSubtitle').value = APP.settings.eventSubtitle || '';
 
-  const subColor = APP.settings.subtitleColor || '#94A3B8';
-  const subSize = APP.settings.subtitleSize || 0.78;
-  document.getElementById('inputSubtitleColor').value = subColor;
-  document.getElementById('subtitleColorValue').textContent = subColor.toUpperCase();
-  document.getElementById('inputSubtitleSize').value = subSize;
-  document.getElementById('subtitleSizeValue').textContent = subSize + 'rem';
+  if (document.getElementById('inputFontFamily')) document.getElementById('inputFontFamily').value = APP.settings.fontFamily || 'Outfit, sans-serif';
+  if (document.getElementById('inputTextTransform')) document.getElementById('inputTextTransform').value = APP.settings.textTransform || 'uppercase';
+  
+  if (document.getElementById('inputTitleColor')) document.getElementById('inputTitleColor').value = APP.settings.titleColor || '#FFFFFF';
+  if (document.getElementById('inputTitleSize')) {
+    const tSize = APP.settings.titleSize || 2.2;
+    document.getElementById('inputTitleSize').value = tSize;
+    if (document.getElementById('titleSizeValue')) document.getElementById('titleSizeValue').textContent = tSize + 'rem';
+  }
+
+  const subColor = APP.settings.subtitleColor || '#FFE042';
+  const subSize = APP.settings.subtitleSize || 1.0;
+  if (document.getElementById('inputSubtitleColor')) document.getElementById('inputSubtitleColor').value = subColor;
+  if (document.getElementById('inputSubtitleSize')) {
+    document.getElementById('inputSubtitleSize').value = subSize;
+    if (document.getElementById('subtitleSizeValue')) document.getElementById('subtitleSizeValue').textContent = subSize + 'rem';
+  }
+
+  if (document.getElementById('inputLogoShape')) document.getElementById('inputLogoShape').value = APP.settings.logoShape || 'rounded';
+  if (document.getElementById('inputBgStyle')) document.getElementById('inputBgStyle').value = APP.settings.bgStyle || 'glass';
 
   // Set active theme swatch & update preview
   document.querySelectorAll('.theme-swatch').forEach(s => {
@@ -2285,37 +2415,38 @@ function openSettingsModal() {
   }
 
   updateThemePreview(APP.settings.theme || 'professional_blue');
+  updateBrandingPreview();
 
   // Show logo preview if exists
   if (APP.settings.logoBase64) {
     const preview = document.getElementById('logoPreview');
     preview.src = APP.settings.logoBase64;
     preview.style.display = 'block';
-    document.getElementById('logoUploadText').style.display = 'none';
-    document.getElementById('removeLogoBtn').classList.remove('hidden');
+    if (document.getElementById('logoUploadText')) document.getElementById('logoUploadText').style.display = 'none';
+    if (document.getElementById('removeLogoBtn')) document.getElementById('removeLogoBtn').classList.remove('hidden');
   } else {
-    document.getElementById('logoPreview').style.display = 'none';
-    document.getElementById('logoUploadText').style.display = 'block';
-    document.getElementById('removeLogoBtn').classList.add('hidden');
+    if (document.getElementById('logoPreview')) document.getElementById('logoPreview').style.display = 'none';
+    if (document.getElementById('logoUploadText')) document.getElementById('logoUploadText').style.display = 'block';
+    if (document.getElementById('removeLogoBtn')) document.getElementById('removeLogoBtn').classList.add('hidden');
   }
 
   if (APP.settings.bgBase64) {
     const preview = document.getElementById('bgPreview');
     preview.src = APP.settings.bgBase64;
     preview.style.display = 'block';
-    document.getElementById('bgUploadText').style.display = 'none';
-    document.getElementById('removeBgBtn').classList.remove('hidden');
-    document.getElementById('bgOpacityGroup').classList.remove('hidden');
+    if (document.getElementById('bgUploadText')) document.getElementById('bgUploadText').style.display = 'none';
+    if (document.getElementById('removeBgBtn')) document.getElementById('removeBgBtn').classList.remove('hidden');
+    if (document.getElementById('bgOpacityGroup')) document.getElementById('bgOpacityGroup').classList.remove('hidden');
     
     // Set slider value
-    const opacityVal = APP.settings.bgOpacity !== undefined ? APP.settings.bgOpacity : 0.15;
-    document.getElementById('inputBgOpacity').value = opacityVal;
-    document.getElementById('bgOpacityValue').textContent = Math.round(opacityVal * 100) + '%';
+    const opacityVal = APP.settings.bgOpacity !== undefined ? APP.settings.bgOpacity : 0.65;
+    if (document.getElementById('inputBgOpacity')) document.getElementById('inputBgOpacity').value = opacityVal;
+    if (document.getElementById('bgOpacityValue')) document.getElementById('bgOpacityValue').textContent = Math.round(opacityVal * 100) + '%';
   } else {
-    document.getElementById('bgPreview').style.display = 'none';
-    document.getElementById('bgUploadText').style.display = 'block';
-    document.getElementById('removeBgBtn').classList.add('hidden');
-    document.getElementById('bgOpacityGroup').classList.add('hidden');
+    if (document.getElementById('bgPreview')) document.getElementById('bgPreview').style.display = 'none';
+    if (document.getElementById('bgUploadText')) document.getElementById('bgUploadText').style.display = 'block';
+    if (document.getElementById('removeBgBtn')) document.getElementById('removeBgBtn').classList.add('hidden');
+    if (document.getElementById('bgOpacityGroup')) document.getElementById('bgOpacityGroup').classList.add('hidden');
   }
 
   openModal('settingsModal');

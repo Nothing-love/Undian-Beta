@@ -365,49 +365,106 @@
               </button>
             </div>
             <p style="font-size: 0.8rem; color: var(--color-text-muted); margin: 0; text-align: center;">
-              Unduh template di atas untuk melihat struktur kolom yang didukung sistem (ID, Nama, Jenis_Peserta, Grup, Kelompok, Status).
-            </p>
-          </div>
-        </section>
-
-        <!-- CARD: Event Branding -->
+  <!-- MAIN CONTENT CONTAINER -->
+  <main class="settings-container">
+    <div class="settings-grid-main">
+      
+      <!-- COLUMN 1: EVENT BRANDING & THEME -->
+      <div style="display: flex; flex-direction: column; gap: var(--space-xl);">
+        
+        <!-- CARD: Event Identity, Typography & Dynamic Branding -->
         <section class="settings-card">
           <div class="settings-card-header">
             <h2>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-              Identitas & Branding Acara
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+              Identitas & Branding Acara (Tipografi & Frame Dinamis)
             </h2>
           </div>
           <div class="settings-card-body">
             
             <div class="form-group">
               <label for="inputEventTitle" style="font-weight: 600; margin-bottom: 6px; display: block;">Judul Acara Utama</label>
-              <input type="text" id="inputEventTitle" class="form-control" placeholder="Contoh: Undian Tahunan PT Digital Sejahtera" style="width: 100%; box-sizing: border-box;" />
+              <input type="text" id="inputEventTitle" class="form-control" placeholder="Contoh: Undian Tahunan PT Digital Sejahtera" style="width: 100%; box-sizing: border-box;" oninput="updateBrandingPreview()" />
             </div>
             
             <div class="form-group">
               <label for="inputEventSubtitle" style="font-weight: 600; margin-bottom: 6px; display: block;">Sub-judul Acara</label>
-              <input type="text" id="inputEventSubtitle" class="form-control" placeholder="Contoh: Grand Prize Drawing 2026" style="width: 100%; box-sizing: border-box;" />
+              <input type="text" id="inputEventSubtitle" class="form-control" placeholder="Contoh: Grand Prize Drawing 2026" style="width: 100%; box-sizing: border-box;" oninput="updateBrandingPreview()" />
             </div>
 
-            <div class="settings-grid" style="grid-template-columns: 1fr 1.2fr; gap: 15px; margin-top: 10px; margin-bottom: 15px;">
+            <!-- TYPOGRAPHY & TEXT FORMAT CONTROLS -->
+            <div class="settings-grid" style="grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 10px; margin-bottom: 12px;">
               <div class="form-group">
-                <label for="inputSubtitleColor" style="font-weight: 600; margin-bottom: 6px; display: block; font-size: 0.9rem;">Warna Sub-judul</label>
+                <label for="inputFontFamily" style="font-weight: 600; margin-bottom: 6px; display: block; font-size: 0.85rem;">Jenis Font (Font Family)</label>
+                <select id="inputFontFamily" class="form-control" style="width: 100%; font-size: 0.85rem;" onchange="updateBrandingPreview()">
+                  <option value="Outfit, sans-serif" style="font-family: 'Outfit';">Outfit (Modern & Bold)</option>
+                  <option value="Inter, sans-serif" style="font-family: 'Inter';">Inter (Clean & Minimalist)</option>
+                  <option value="Montserrat, sans-serif" style="font-family: 'Montserrat';">Montserrat (Corporate)</option>
+                  <option value="'Playfair Display', serif" style="font-family: 'Playfair Display';">Playfair Display (Royal Gala)</option>
+                  <option value="Orbitron, sans-serif" style="font-family: 'Orbitron';">Orbitron (Cyberpunk / Tech)</option>
+                  <option value="'Bebas Neue', sans-serif" style="font-family: 'Bebas Neue';">Bebas Neue (Festival Impact)</option>
+                  <option value="Poppins, sans-serif" style="font-family: 'Poppins';">Poppins (Soft & Friendly)</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="inputTextTransform" style="font-weight: 600; margin-bottom: 6px; display: block; font-size: 0.85rem;">Format Huruf (Text Case)</label>
+                <select id="inputTextTransform" class="form-control" style="width: 100%; font-size: 0.85rem;" onchange="updateBrandingPreview()">
+                  <option value="uppercase">HURUF BESAR SEMUA (UPPERCASE)</option>
+                  <option value="capitalize">Huruf Besar Tiap Kata (Capitalize)</option>
+                  <option value="lowercase">huruf kecil semua (lowercase)</option>
+                  <option value="none">Asli Sesuai Ketikan (Normal)</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- TITLE & SUBTITLE SIZES & COLORS -->
+            <div class="settings-grid" style="grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+              <div class="form-group">
+                <label for="inputTitleSize" style="font-weight: 600; margin-bottom: 6px; display: block; font-size: 0.85rem;">Ukuran & Warna Judul Utama</label>
                 <div style="display: flex; align-items: center; gap: 8px;">
-                  <input type="color" id="inputSubtitleColor" class="form-control" style="width: 50px; height: 38px; padding: 4px; cursor: pointer; border-radius: 6px; border: 1px solid var(--color-border);" />
-                  <span id="subtitleColorValue" style="font-size: 0.85rem; font-family: monospace; font-weight: 600; color: var(--color-text-secondary);">#94A3B8</span>
+                  <input type="color" id="inputTitleColor" class="form-control" value="#FFFFFF" style="width: 42px; height: 32px; padding: 2px; cursor: pointer; border-radius: 6px;" onchange="updateBrandingPreview()" />
+                  <input type="range" id="inputTitleSize" min="1.0" max="3.5" step="0.1" value="2.2" style="flex: 1; cursor: pointer;" oninput="document.getElementById('titleSizeValue').textContent = this.value + 'rem'; updateBrandingPreview();" />
+                  <span id="titleSizeValue" style="min-width: 45px; font-weight: 700; font-size: 0.8rem; color: var(--color-text-secondary);">2.2rem</span>
                 </div>
               </div>
-              
+
               <div class="form-group">
-                <label for="inputSubtitleSize" style="font-weight: 600; margin-bottom: 6px; display: block; font-size: 0.9rem;">Ukuran Sub-judul</label>
-                <div style="display: flex; align-items: center; gap: 10px;">
-                  <input type="range" id="inputSubtitleSize" min="0.7" max="2.0" step="0.05" style="flex: 1; cursor: pointer;" />
-                  <span id="subtitleSizeValue" style="min-width: 45px; font-weight: 700; font-size: 0.9rem; color: var(--color-text-secondary);">0.78rem</span>
+                <label for="inputSubtitleSize" style="font-weight: 600; margin-bottom: 6px; display: block; font-size: 0.85rem;">Ukuran & Warna Sub-judul</label>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <input type="color" id="inputSubtitleColor" class="form-control" value="#FFE042" style="width: 42px; height: 32px; padding: 2px; cursor: pointer; border-radius: 6px;" onchange="updateBrandingPreview()" />
+                  <input type="range" id="inputSubtitleSize" min="0.6" max="2.2" step="0.05" value="1.0" style="flex: 1; cursor: pointer;" oninput="document.getElementById('subtitleSizeValue').textContent = this.value + 'rem'; updateBrandingPreview();" />
+                  <span id="subtitleSizeValue" style="min-width: 45px; font-weight: 700; font-size: 0.8rem; color: var(--color-text-secondary);">1.0rem</span>
                 </div>
               </div>
             </div>
 
+            <!-- LOGO SHAPE & BACKGROUND FILTERS -->
+            <div class="settings-grid" style="grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+              <div class="form-group">
+                <label for="inputLogoShape" style="font-weight: 600; margin-bottom: 6px; display: block; font-size: 0.85rem;">Bentuk/Bingkai Logo</label>
+                <select id="inputLogoShape" class="form-control" style="width: 100%; font-size: 0.85rem;" onchange="updateBrandingPreview()">
+                  <option value="rounded">🔳 Persegi Lengkung (Rounded)</option>
+                  <option value="circle">⚪ Lingkaran Presisi (Circle Shield)</option>
+                  <option value="hexagon">💎 Hexagon Shield (Segi Enam)</option>
+                  <option value="glow">✨ Neon Glow Frame (Bingkai Glow)</option>
+                  <option value="clean">🖼️ Tanpa Bingkai (Transparent Clean)</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="inputBgStyle" style="font-weight: 600; margin-bottom: 6px; display: block; font-size: 0.85rem;">Efek/Filter Background</label>
+                <select id="inputBgStyle" class="form-control" style="width: 100%; font-size: 0.85rem;" onchange="updateBrandingPreview()">
+                  <option value="glass">🌊 Glassmorphism Blur Soft</option>
+                  <option value="dark">🌑 Dark Overlay Sinematik</option>
+                  <option value="vignette">🎨 Radial Vignette Spotlight</option>
+                  <option value="glow">⚡ Neon Color Accent Glow</option>
+                  <option value="normal">🖼️ Normal Tajam (Original)</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- UPLOAD LOGO & BACKGROUND -->
             <div class="settings-grid" style="grid-template-columns: 1fr 1fr; gap: 15px;">
               <div class="form-group">
                 <label style="font-weight: 600; margin-bottom: 6px; display: block; font-size: 0.9rem;">Logo Acara (Upload)</label>
@@ -415,7 +472,7 @@
                   <span id="logoUploadText" style="font-size: 0.75rem; color: var(--color-text-muted);">Format PNG / JPG</span>
                   <img id="logoPreview" src="" alt="Logo Preview" style="display:none;" />
                 </div>
-                <input type="file" id="logoFileInput" accept="image/png, image/jpeg" hidden />
+                <input type="file" id="logoFileInput" accept="image/png, image/jpeg, image/svg+xml" hidden />
                 <button class="btn btn-small btn-outline hidden" id="removeLogoBtn" style="margin-top: 8px; width: 100%; color: red; border-color: rgba(255,0,0,0.2);">Hapus Logo</button>
               </div>
 
@@ -430,11 +487,11 @@
               </div>
             </div>
             
-            <div class="form-group hidden" id="bgOpacityGroup">
+            <div class="form-group hidden" id="bgOpacityGroup" style="margin-top:12px;">
               <label for="inputBgOpacity" style="font-weight: 600; margin-bottom: 6px; display: block; font-size: 0.9rem;">Transparansi Background</label>
               <div style="display:flex; align-items:center; gap: 12px;">
-                <input type="range" id="inputBgOpacity" min="0" max="1" step="0.05" value="0.15" style="flex:1; cursor:pointer;" />
-                <span id="bgOpacityValue" style="min-width: 40px; font-weight:700; font-size: 0.9rem;">15%</span>
+                <input type="range" id="inputBgOpacity" min="0" max="1" step="0.05" value="0.65" style="flex:1; cursor:pointer;" oninput="document.getElementById('bgOpacityValue').textContent = Math.round(this.value * 100) + '%'; updateBrandingPreview();" />
+                <span id="bgOpacityValue" style="min-width: 40px; font-weight:700; font-size: 0.9rem;">65%</span>
               </div>
             </div>
             

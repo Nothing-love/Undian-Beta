@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700&family=Montserrat:wght@400;600;700;800&family=Orbitron:wght@500;700;900&family=Outfit:wght@400;600;700;800;900&family=Playfair+Display:ital,wght@0,600;0,800;1,600&family=Poppins:wght@400;600;700&display=swap');
+
 /* ============================================================
    DORPRIZE — Aplikasi Undian Digital Profesional
    Design System & Styles
@@ -5,6 +7,14 @@
 
 /* ===================== CSS CUSTOM PROPERTIES ===================== */
 :root {
+  /* Dynamic Typography & Branding */
+  --font-event: 'Outfit', sans-serif;
+  --text-transform-event: uppercase;
+  --title-color-event: #FFFFFF;
+  --title-size-event: 2.2rem;
+  --subtitle-color-event: #FFE042;
+  --subtitle-size-event: 1.0rem;
+
   /* Theme Colors (updated dynamically by JS) */
   --color-primary: #2563EB;
   --color-primary-light: #3B82F6;
@@ -2090,4 +2100,59 @@ input:checked + .slider:before { transform: translateX(20px); background-color: 
   border: 1px solid var(--color-border);
   position: relative;
   overflow: hidden;
+}
+
+/* ===================== LOGO FRAME SHAPES ===================== */
+.logo-shape-rounded img, img.logo-shape-rounded, .header-logo img.logo-shape-rounded {
+  border-radius: var(--radius-md) !important;
+  border: 2px solid rgba(var(--color-primary-rgb), 0.3);
+  padding: 2px;
+}
+
+.logo-shape-circle img, img.logo-shape-circle, .header-logo img.logo-shape-circle {
+  border-radius: 50% !important;
+  border: 2.5px solid var(--color-primary);
+  box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+  padding: 2px;
+}
+
+.logo-shape-hexagon img, img.logo-shape-hexagon, .header-logo img.logo-shape-hexagon {
+  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%) !important;
+  border-radius: 0 !important;
+}
+
+.logo-shape-glow img, img.logo-shape-glow, .header-logo img.logo-shape-glow {
+  border-radius: var(--radius-md) !important;
+  border: 2px solid var(--color-primary);
+  box-shadow: 0 0 20px var(--color-primary), 0 0 10px var(--color-accent) !important;
+  padding: 2px;
+}
+
+.logo-shape-clean img, img.logo-shape-clean, .header-logo img.logo-shape-clean {
+  border-radius: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+
+/* ===================== BACKGROUND EFFECT FILTERS ===================== */
+body.bg-filter-glass::before {
+  backdrop-filter: blur(12px) brightness(0.85) !important;
+}
+
+body.bg-filter-dark::before {
+  backdrop-filter: brightness(0.4) contrast(1.2) !important;
+}
+
+body.bg-filter-vignette::before {
+  background: radial-gradient(circle at center, transparent 30%, rgba(0, 0, 0, 0.85) 100%) !important;
+}
+
+body.bg-filter-glow::before {
+  backdrop-filter: contrast(1.15) !important;
+  box-shadow: inset 0 0 120px var(--color-primary) !important;
+}
+
+body.bg-filter-normal::before {
+  backdrop-filter: none !important;
 }
