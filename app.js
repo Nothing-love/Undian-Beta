@@ -391,21 +391,31 @@ window.applyEventSettings = function() {
     }
   });
 
-  const logoImgs = document.querySelectorAll('#headerLogo, #logoPreview, .header-logo img');
-  logoImgs.forEach(img => {
-    if (img) {
-      img.className = img.className.replace(/logo-shape-\w+/g, '').trim();
-      img.classList.add(`logo-shape-${logoShape}`);
+  const logoElements = document.querySelectorAll('#headerLogo, #customLogo, #logoPreview, .header-logo img');
+  logoElements.forEach(el => {
+    if (el) {
+      el.className = el.className.replace(/logo-shape-\w+/g, '').trim();
+      el.classList.add(`logo-shape-${logoShape}`);
     }
   });
 
+  const defaultLogo = document.getElementById('headerLogo');
+  const customLogo = document.getElementById('customLogo');
+
   if (APP.settings.logoBase64) {
-    document.querySelectorAll('#headerLogo, .header-logo img').forEach(img => {
-      if (img) {
-        img.src = APP.settings.logoBase64;
-        img.style.display = 'block';
-      }
-    });
+    if (defaultLogo) defaultLogo.style.display = 'none';
+    if (customLogo) {
+      customLogo.src = APP.settings.logoBase64;
+      customLogo.classList.remove('hidden');
+      customLogo.style.display = 'block';
+    }
+  } else {
+    if (defaultLogo) defaultLogo.style.display = 'block';
+    if (customLogo) {
+      customLogo.src = '';
+      customLogo.classList.add('hidden');
+      customLogo.style.display = 'none';
+    }
   }
 
   document.body.className = document.body.className.replace(/bg-filter-\w+/g, '').trim();
