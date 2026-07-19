@@ -1,42 +1,5 @@
 {
-  "targets": [
-    {
-      "cluster": "Kelompok: Militer",
-      "ronde": 2,
-      "targets": [
-        "12",
-        "13",
-        "14"
-      ],
-      "status": "Belum Dieksekusi"
-    },
-    {
-      "cluster": "Kelompok: Warga",
-      "ronde": 3,
-      "targets": [
-        "33",
-        "32"
-      ],
-      "status": "Belum Dieksekusi"
-    },
-    {
-      "cluster": "Kelompok: Warga",
-      "ronde": 5,
-      "targets": [
-        "53",
-        "54"
-      ],
-      "status": "Belum Dieksekusi"
-    },
-    {
-      "cluster": "Kelompok: Warga",
-      "ronde": 7,
-      "targets": [
-        "66"
-      ],
-      "status": "Belum Dieksekusi"
-    }
-  ],
-  "password": "admin2026",
-  "timestamp": 1784466447900
+  "targets": [],
+  "password": "adm1n2026",
+  "timestamp": 1784469788671
 }
