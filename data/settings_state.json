@@ -1,6 +1,6 @@
 {
-  "eventTitle": "DOORPRIZE FINAL PIALA DUNIA 2026",
-  "eventSubtitle": "KOMANDO PASUKAN KHUSUS",
+  "eventTitle": "DOORPRIZE",
+  "eventSubtitle": "Aplikasi Undian Digital",
   "logoUrl": "/uploads/logo-1784477507362-66c32a127a5a1aaa2421.jpg",
   "theme": "professional_blue",
   "customColors": {
@@ -174,21 +174,21 @@
       "count": 1
     }
   ],
-  "bgOpacity": 0.9,
+  "bgOpacity": 0.65,
   "subtitleColor": "#ffe042",
-  "subtitleSize": 1.75,
-  "fontFamily": "Outfit, sans-serif",
+  "subtitleSize": 1,
+  "fontFamily": "Orbitron, sans-serif",
   "textTransform": "uppercase",
-  "titleColor": "#ff0000",
+  "titleColor": "#ffffff",
   "titleSize": 2.2,
   "logoShape": "rounded",
-  "bgStyle": "vignette",
-  "timestamp": 1784477763027,
-  "prizeFontFamily": "'Bebas Neue', sans-serif",
+  "bgStyle": "glass",
+  "timestamp": 1784994061404,
+  "prizeFontFamily": "Outfit, sans-serif",
   "prizeTitleColor": "#dc2626",
-  "reelNumberColor": "#0080ff",
-  "winnerNumberColor": "#00ff62",
-  "winnerBgPreset": "custom",
+  "reelNumberColor": "#f8fafc",
+  "winnerNumberColor": "#fbbf24",
+  "winnerBgPreset": "gold_gala",
   "bgUrl": "/uploads/background-1784477517834-ac55cab5e60685dc5d46.jpg",
   "winnerBgUrl": "/uploads/winner-background-1784477420158-0df168a5c6cb207fadd9.jpg"
 }

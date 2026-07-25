@@ -5,6 +5,9 @@
 ```text
 doorprize/
 ├── server.js                 # Server Express, port 8082
+├── slim.bat                  # Script 1-click launcher untuk Windows (CMD / Double Click)
+├── slim.sh                   # Script 1-click launcher untuk Linux / VPS / OpenWrt
+├── serve.ps1                 # Script 1-click launcher untuk Windows PowerShell
 ├── ecosystem.config.js       # Konfigurasi PM2
 ├── package.json
 ├── .env                      # Login, session secret, dan opsi tunnel
@@ -30,7 +33,44 @@ File gambar tidak lagi disimpan sebagai Base64 di `localStorage` atau file setti
 }
 ```
 
-## Konfigurasi `.env`
+## Quick Start (1 Kali Jalan)
+
+### A. Untuk Windows (Komputer Lokal):
+Cukup **double-click** file **`slim.bat`** di File Explorer, atau jika lewat PowerShell / Terminal ketik:
+
+```powershell
+.\slim.bat
+```
+
+Atau menggunakan PowerShell script (bila permission diizinkan):
+```powershell
+powershell -ExecutionPolicy Bypass -File .\serve.ps1
+```
+
+### B. Untuk Linux / VPS / OpenWrt (Server Publik):
+Jalankan perintah berikut di terminal server:
+
+```bash
+chmod +x slim.sh
+./slim.sh
+```
+
+Atau menggunakan npm:
+```bash
+npm run slim
+```
+
+Script akan secara otomatis:
+1. Memeriksa keberadaan Node.js.
+2. Membuat file `.env` otomatis dengan `SESSION_SECRET` unik jika belum ada.
+3. Membuat folder `data/sessions` & `public/uploads`.
+4. Menginstall dependencies (`npm install`) jika belum ada.
+5. Memvalidasi sintaks kode (`node --check`).
+6. Menjalankan server otomatis.
+
+---
+
+## Konfigurasi Manual `.env`
 
 ```env
 PORT=8082

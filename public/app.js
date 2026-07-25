@@ -465,8 +465,10 @@ window.applyEventSettings = function() {
       if (APP.settings.eventTitle && el.id !== 'miniTitle') el.textContent = APP.settings.eventTitle;
       el.style.fontFamily = font;
       el.style.textTransform = transform;
-      el.style.color = titleColor;
-      el.style.fontSize = titleSize;
+      if (!el.classList.contains('event-title')) {
+        el.style.color = titleColor;
+        el.style.fontSize = titleSize;
+      }
     }
   });
 
@@ -476,8 +478,10 @@ window.applyEventSettings = function() {
       if (APP.settings.eventSubtitle && el.id !== 'miniSubtitle') el.textContent = APP.settings.eventSubtitle;
       el.style.fontFamily = font;
       el.style.textTransform = transform;
-      el.style.color = subColor;
-      el.style.fontSize = subSize;
+      if (!el.classList.contains('event-subtitle')) {
+        el.style.color = subColor;
+        el.style.fontSize = subSize;
+      }
     }
   });
 
@@ -2037,32 +2041,32 @@ function updatePrizeSidebar() {
   const mergedPrizes = Array.from(groupedMap.values());
 
   if (mergedPrizes.length > 1) {
-    displayEl.innerHTML = `<div style="display: grid; grid-template-columns: repeat(${Math.min(mergedPrizes.length, 2)}, 1fr); gap: 14px; width: 100%; align-items: start;">` + 
+    displayEl.innerHTML = `<div style="display: grid; grid-template-columns: repeat(${Math.min(mergedPrizes.length, 2)}, 1fr); gap: 14px; width: 100%; align-items: stretch;">` + 
       mergedPrizes.map((prize) => {
         const imageHtml = prize.imageUrl ? 
-          `<div class="prize-image-container" style="width: 110px; height: 110px; border-radius: var(--radius-lg); overflow: hidden; background: #FFFFFF; display: flex; align-items: center; justify-content: center; border: 2px solid #FCA5A5; box-shadow: var(--shadow-sm); margin: 0 auto;">
+          `<div class="prize-image-container" style="width: 105px; height: 105px; border-radius: var(--radius-lg); overflow: hidden; background: #FFFFFF; display: flex; align-items: center; justify-content: center; border: 2px solid #FCA5A5; box-shadow: var(--shadow-sm); margin: 6px auto;">
             <img src="${prize.imageUrl}" alt="${prize.name}" style="width: 100%; height: 100%; object-fit: contain; display: block;" />
           </div>` : '';
-        const countBadge = prize.count ? `<div style="font-size: 0.9rem; font-weight: 700; color: #E11D48; margin-top: 2px; display: flex; align-items: center; justify-content: center; gap: 4px;">🏆 ${prize.count} Pemenang</div>` : '';
+        const countBadge = prize.count ? `<div class="prize-count-badge" style="font-size: 0.92rem; font-weight: 900; font-family: var(--prize-font-family, 'Outfit', sans-serif); color: var(--prize-title-color, #dc2626); margin-top: auto; display: flex; align-items: center; justify-content: center; gap: 4px; text-transform: uppercase; letter-spacing: 0.5px;">🏆 ${prize.count} PEMENANG</div>` : '';
         return `
-          <div class="prize-item-grid" style="display: flex; flex-direction: column; align-items: center; text-align: center; gap: 2px; padding: 4px;">
+          <div class="prize-item-grid" style="display: flex; flex-direction: column; align-items: center; text-align: center; justify-content: space-between; gap: 2px; padding: 4px; height: 100%;">
+            <h4 class="prize-name" style="font-size: 1rem; font-weight: 900; font-family: var(--prize-font-family, 'Outfit', sans-serif); color: var(--prize-title-color, #dc2626); margin: 0 0 2px 0; line-height: 1.1; word-break: break-word; text-transform: uppercase; letter-spacing: 0.5px;">${prize.name}</h4>
             ${imageHtml}
-            <h4 class="prize-name" style="font-size: 0.95rem; font-weight: 900; font-family: var(--prize-font-family, 'Outfit', sans-serif); color: var(--prize-title-color, #B91C1C); margin: 4px 0 0 0; line-height: 1.2; word-break: break-word; text-transform: uppercase;">${prize.name}</h4>
             ${countBadge}
           </div>
         `;
       }).join('') + `</div>`;
   } else if (mergedPrizes.length === 1) {
     const prize = mergedPrizes[0];
-    const countBadge = prize.count ? `<div style="font-size: 1rem; font-weight: 700; color: #E11D48; margin-top: 4px; display: flex; align-items: center; justify-content: center; gap: 4px;">🏆 ${prize.count} Pemenang</div>` : '';
+    const countBadge = prize.count ? `<div class="prize-count-badge" style="font-size: 1.1rem; font-weight: 900; font-family: var(--prize-font-family, 'Outfit', sans-serif); color: var(--prize-title-color, #dc2626); margin-top: auto; display: flex; align-items: center; justify-content: center; gap: 6px; text-transform: uppercase; letter-spacing: 0.5px;">🏆 ${prize.count} PEMENANG</div>` : '';
     const imageHtml = prize.imageUrl ? 
-      `<div class="prize-image-container" style="width: 180px; height: 180px; border-radius: var(--radius-xl); overflow: hidden; background: #FFFFFF; display: flex; align-items: center; justify-content: center; border: 2.5px solid #FCA5A5; box-shadow: var(--shadow-md); margin: 0 auto 8px auto;">
+      `<div class="prize-image-container" style="width: 170px; height: 170px; border-radius: var(--radius-xl); overflow: hidden; background: #FFFFFF; display: flex; align-items: center; justify-content: center; border: 2.5px solid #FCA5A5; box-shadow: var(--shadow-md); margin: 8px auto;">
         <img src="${prize.imageUrl}" alt="${prize.name}" style="width: 100%; height: 100%; object-fit: contain; display: block;" />
       </div>` : '';
     displayEl.innerHTML = `
-      <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; width: 100%; text-align: center;">
+      <div style="display: flex; flex-direction: column; align-items: center; justify-content: space-between; gap: 4px; width: 100%; text-align: center;">
+        <h3 class="prize-name" style="font-size: 1.4rem; font-weight: 900; font-family: var(--prize-font-family, 'Outfit', sans-serif); color: var(--prize-title-color, #dc2626); margin: 0 0 4px 0; line-height: 1.1; text-transform: uppercase; word-break: break-word; letter-spacing: 0.5px;">${prize.name}</h3>
         ${imageHtml}
-        <h3 class="prize-name" style="font-size: 1.4rem; font-weight: 900; font-family: var(--prize-font-family, 'Outfit', sans-serif); color: var(--prize-title-color, #B91C1C); margin: 4px 0 0 0; line-height: 1.2; text-transform: uppercase; word-break: break-word;">${prize.name}</h3>
         ${countBadge}
       </div>
     `;
