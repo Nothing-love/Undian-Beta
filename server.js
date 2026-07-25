@@ -488,7 +488,7 @@ function startOptionalTunnel() {
   let command;
   let args;
 
-  if (provider === 'cloudflare' || provider === 'cloudflared') {
+  if (provider === 'cloudflare' || provider === 'cloudflared' || provider === 'claudflare') {
     command = 'cloudflared';
     args = ['tunnel', '--url', `http://127.0.0.1:${PORT}`];
   } else if (provider === 'localtunnel') {

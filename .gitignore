@@ -1,4 +1,6 @@
 node_modules/
 .env
+data/sessions/
+*.tmp
 *.xlsx
 ~$*.xlsx
