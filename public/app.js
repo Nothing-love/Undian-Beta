@@ -120,10 +120,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   checkRemoteAccess();
   bindEvents();
   
-  // Ambil state utuh dari server pada saat startup
-  await syncPesertaDataFromRemote();
+  // Ambil state utuh dari server pada saat startup SEBELUM populasi form
+  await syncFullStateFromRemote();
   
-  // Jika ini halaman pengaturan, populasi data input settings
+  // Jika ini halaman pengaturan, populasi data input settings dengan nilai dari server
   const inputTitle = document.getElementById('inputEventTitle');
   if (inputTitle && !inputTitle.isDummy) {
     openSettingsModal();
@@ -285,6 +285,12 @@ async function syncStateWithServer() {
       APP.settings = normalizeClientSettings({ ...APP.settings, ...data.settings });
       applyTheme(APP.settings.theme);
       applyEventSettings();
+
+      // Jika halaman pengaturan sedang dibuka, perbarui nilai-nilai input form agar tidak tertimpa default
+      const inputTitle = document.getElementById('inputEventTitle');
+      if (inputTitle && !inputTitle.isDummy) {
+        openSettingsModal();
+      }
     }
 
     // 2. Sync Peserta & Winners
@@ -296,8 +302,21 @@ async function syncStateWithServer() {
       if (data.peserta.availableClusters && data.peserta.availableClusters.length > 0) {
         APP.availableClusters = data.peserta.availableClusters;
       }
-      if (data.peserta.hasilUndian) APP.hasilUndian = data.peserta.hasilUndian;
-      if (data.peserta.currentRonde !== undefined) APP.currentRonde = data.peserta.currentRonde;
+      // ANTI-DUPLIKASI RONDE: Hanya terima hasilUndian dari server jika lebih baru/lengkap
+      if (data.peserta.hasilUndian) {
+        const serverLen = data.peserta.hasilUndian.length;
+        const localLen = (APP.hasilUndian || []).length;
+        if (serverLen >= localLen) {
+          APP.hasilUndian = data.peserta.hasilUndian;
+        }
+      }
+      // ANTI-DUPLIKASI RONDE: Jangan pernah mundurkan currentRonde dari server
+      if (data.peserta.currentRonde !== undefined) {
+        const serverRonde = data.peserta.currentRonde;
+        if (serverRonde >= APP.currentRonde) {
+          APP.currentRonde = serverRonde;
+        }
+      }
     }
 
     // 3. Sync Admin Targets & Password
@@ -333,39 +352,55 @@ function startLiveSync() {
   setInterval(syncStateWithServer, 2000);
 }
 
-async function syncPesertaDataFromRemote() {
+async function syncFullStateFromRemote() {
   if (window.location.protocol === 'file:') return;
   try {
-    const res = await fetch('/api/peserta');
-    if (res.ok) {
-      const data = await res.json();
-      if (data) {
-        if (data.dataPeserta) {
-          APP.dataPeserta = data.dataPeserta;
-          computeUniqueCategories(false);
-        }
-        if (data.availableClusters) APP.availableClusters = data.availableClusters;
-        if (data.hasilUndian) APP.hasilUndian = data.hasilUndian;
-        if (data.currentRonde !== undefined) APP.currentRonde = data.currentRonde;
-        
-        if (typeof updatePesertaDatalist === 'function') updatePesertaDatalist();
-        if (typeof updatePrizeSidebar === 'function') updatePrizeSidebar();
-        
-        // Sync cluster selects on setting/dashboard page
-        document.querySelectorAll('.cluster-select').forEach(select => {
-          const val = select.value;
-          select.innerHTML = '<option value="Semua">Semua Cluster</option>';
-          APP.availableClusters.forEach(c => {
-            const opt = document.createElement('option');
-            opt.value = c;
-            opt.textContent = c;
-            select.appendChild(opt);
-          });
-          select.value = val || 'Semua';
-        });
-      }
+    const res = await fetch('/api/state?ts=0');
+    if (!res.ok) return;
+    const data = await res.json();
+    if (!data) return;
+
+    if (data.timestamp) APP.lastSyncTs = data.timestamp;
+
+    if (data.settings && typeof data.settings === 'object') {
+      APP.settings = normalizeClientSettings({ ...APP.settings, ...data.settings });
+      applyTheme(APP.settings.theme);
+      applyEventSettings();
     }
-  } catch(e) {}
+
+    if (data.peserta) {
+      if (data.peserta.dataPeserta) {
+        APP.dataPeserta = data.peserta.dataPeserta;
+        computeUniqueCategories(false);
+      }
+      if (data.peserta.availableClusters) APP.availableClusters = data.peserta.availableClusters;
+      if (data.peserta.hasilUndian) APP.hasilUndian = data.peserta.hasilUndian;
+      if (data.peserta.currentRonde !== undefined) APP.currentRonde = data.peserta.currentRonde;
+      
+      if (typeof updatePesertaDatalist === 'function') updatePesertaDatalist();
+      if (typeof updatePrizeSidebar === 'function') updatePrizeSidebar();
+      
+      // Sync cluster selects on setting/dashboard page
+      document.querySelectorAll('.cluster-select').forEach(select => {
+        const val = select.value;
+        select.innerHTML = '<option value="Semua">Semua Cluster</option>';
+        APP.availableClusters.forEach(c => {
+          const opt = document.createElement('option');
+          opt.value = c;
+          opt.textContent = c;
+          select.appendChild(opt);
+        });
+        select.value = val || 'Semua';
+      });
+    }
+
+    if (data.admin) {
+      if (data.admin.password) APP.adminPassword = data.admin.password;
+      if (data.admin.targets) APP.adminTargets = data.admin.targets;
+    }
+  } catch (e) {
+    console.warn('syncFullStateFromRemote error:', e.message);
+  }
 }
 
 function checkRemoteAccess() {
@@ -445,8 +480,8 @@ window.applyEventSettings = function() {
 
   const prizeFont = APP.settings.prizeFontFamily || "'Outfit', sans-serif";
   const prizeTitleColor = APP.settings.prizeTitleColor || '#B91C1C';
-  const reelNumColor = APP.settings.reelNumberColor || '';
-  const winnerNumColor = APP.settings.winnerNumberColor || '';
+  const reelNumColor = APP.settings.reelNumberColor || '#F8FAFC';
+  const winnerNumColor = APP.settings.winnerNumberColor || '#FBBF24';
 
   root.style.setProperty('--font-event', font);
   root.style.setProperty('--text-transform-event', transform);
@@ -456,8 +491,8 @@ window.applyEventSettings = function() {
   root.style.setProperty('--subtitle-size-event', subSize);
   root.style.setProperty('--prize-font-family', prizeFont);
   root.style.setProperty('--prize-title-color', prizeTitleColor);
-  if (reelNumColor) root.style.setProperty('--reel-number-color', reelNumColor);
-  if (winnerNumColor) root.style.setProperty('--winner-number-color', winnerNumColor);
+  root.style.setProperty('--reel-number-color', reelNumColor);
+  root.style.setProperty('--winner-number-color', winnerNumColor);
 
   const titleEls = document.querySelectorAll('.event-title, .header-title, #eventTitleDisplay, #miniTitle');
   titleEls.forEach(el => {
@@ -549,6 +584,17 @@ window.updateBrandingPreview = function() {
   const logoShape = document.getElementById('inputLogoShape') ? document.getElementById('inputLogoShape').value : 'rounded';
   const bgStyle = document.getElementById('inputBgStyle') ? document.getElementById('inputBgStyle').value : 'glass';
 
+  const prizeFont = document.getElementById('inputPrizeFontFamily') ? document.getElementById('inputPrizeFontFamily').value : 'Outfit, sans-serif';
+  const prizeTitleColor = document.getElementById('inputPrizeTitleColor') ? document.getElementById('inputPrizeTitleColor').value : '#DC2626';
+  const reelNumColor = document.getElementById('inputReelNumberColor') ? document.getElementById('inputReelNumberColor').value : '#F8FAFC';
+  const winnerNumColor = document.getElementById('inputWinnerNumberColor') ? document.getElementById('inputWinnerNumberColor').value : '#FBBF24';
+
+  const root = document.documentElement;
+  root.style.setProperty('--prize-font-family', prizeFont);
+  root.style.setProperty('--prize-title-color', prizeTitleColor);
+  root.style.setProperty('--reel-number-color', reelNumColor);
+  root.style.setProperty('--winner-number-color', winnerNumColor);
+
   const titleVal = document.getElementById('inputEventTitle') ? document.getElementById('inputEventTitle').value.trim() : '';
   const subtitleVal = document.getElementById('inputEventSubtitle') ? document.getElementById('inputEventSubtitle').value.trim() : '';
 
@@ -565,6 +611,11 @@ window.updateBrandingPreview = function() {
     miniSubtitle.style.fontFamily = font;
     miniSubtitle.style.textTransform = transform;
     miniSubtitle.style.color = subColor;
+  }
+
+  const miniReel = document.getElementById('miniReel');
+  if (miniReel) {
+    miniReel.style.color = winnerNumColor;
   }
 
   const logoPrev = document.getElementById('logoPreview');
@@ -1031,6 +1082,7 @@ function loadExcelFile(file) {
       }
 
       // 3. Ultra-flexible column extractor (case-insensitive, space-insensitive, special-char-insensitive)
+      const usedIds = new Set();
       APP.dataPeserta = rawData.map((row, index) => {
         const getColVal = (candidates) => {
           for (const key of Object.keys(row)) {
@@ -1059,15 +1111,23 @@ function loadExcelFile(file) {
         }
 
         let nameVal = rawNameVal || idVal || `Peserta-${String(index + 1).padStart(3, '0')}`;
+        let baseId = idVal || `PST-${String(index + 1).padStart(3, '0')}`;
+        let finalId = baseId;
+        let counter = 1;
+        while (usedIds.has(finalId)) {
+          finalId = `${baseId}-${counter}`;
+          counter++;
+        }
+        usedIds.add(finalId);
 
         return {
-          id: idVal || `PST-${String(index + 1).padStart(3, '0')}`,
+          id: finalId,
           nama: nameVal,
           jenisPeserta: jVal,
           grup: gVal,
           kelompok: kVal,
           cluster: jVal,
-          status: sVal === 'Sudah Diundi' ? 'Sudah Diundi' : 'Belum Diundi'
+          status: sVal === 'Sudah Diundi' ? 'Sudah Diundi' : (sVal === 'Gugur' ? 'Gugur' : 'Belum Diundi')
         };
       }).filter(Boolean);
 
@@ -1098,10 +1158,45 @@ function loadExcelFile(file) {
       });
       APP.currentCluster = 'Semua';
 
-      // Parse Sheet 2 (Hasil_Undian if present)
-      let sheet2 = APP.workbook.Sheets['Hasil_Undian'] || APP.workbook.Sheets['Hasil Undian'] || APP.workbook.Sheets['Hasil'];
+      // Parse Sheet 2 (Hasil_Undian / Semua_Ronde if present)
+      let sheet2 = APP.workbook.Sheets['Hasil_Undian'] || 
+                   APP.workbook.Sheets['Hasil Undian'] || 
+                   APP.workbook.Sheets['Hasil'] || 
+                   APP.workbook.Sheets['Semua_Ronde'] || 
+                   APP.workbook.Sheets['Semua Ronde'];
+
       if (sheet2) {
-        APP.hasilUndian = XLSX.utils.sheet_to_json(sheet2);
+        const rawHistory = XLSX.utils.sheet_to_json(sheet2);
+        if (rawHistory.length > 0 && (rawHistory[0]['ID Peserta'] || rawHistory[0]['ID_Peserta'])) {
+          const roundMap = new Map();
+          rawHistory.forEach(row => {
+            const rondeNum = parseInt(String(row.Ronde || row.Ronde_Ke || '').replace(/[^0-9]/g, '')) || 1;
+            if (!roundMap.has(rondeNum)) {
+              roundMap.set(rondeNum, {
+                Ronde_Ke: rondeNum,
+                Waktu_Pengundian: row['Waktu Pengundian'] || row.Waktu_Pengundian || row.Waktu || '',
+                Cluster_Diundi: row.Cluster_Diundi || row['Cluster Diundi'] || 'Semua',
+                Jumlah_Pemenang: 0,
+                winners: [],
+                Hadiah: row.Hadiah || 'Hadiah Spesial'
+              });
+            }
+            const rec = roundMap.get(rondeNum);
+            rec.Jumlah_Pemenang++;
+            const winnerStr = `${row['ID Peserta'] || row.ID_Peserta || ''} - ${row.Nama || ''} (${row['Jenis Peserta'] || row.Jenis_Peserta || 'Umum'} | ${row.Grup || row.Group || 'Umum'} | ${row.Kelompok || 'Umum'})`;
+            rec.winners.push(winnerStr);
+          });
+          APP.hasilUndian = Array.from(roundMap.values()).map(r => ({
+            Ronde_Ke: r.Ronde_Ke,
+            Waktu_Pengundian: r.Waktu_Pengundian,
+            Cluster_Diundi: r.Cluster_Diundi,
+            Jumlah_Pemenang: r.Jumlah_Pemenang,
+            Daftar_Pemenang_Keluar: r.winners.join(', '),
+            Hadiah: r.Hadiah
+          }));
+        } else {
+          APP.hasilUndian = rawHistory;
+        }
         APP.currentRonde = APP.hasilUndian.length + 1;
       } else {
         APP.hasilUndian = [];
@@ -1232,18 +1327,31 @@ function getAllPreviousWinners() {
   if (APP.adminTargets) {
     APP.adminTargets.forEach(t => {
       if (t.status === 'Sudah Dieksekusi') {
-        t.targets.forEach(id => winners.add(id));
+        (t.targets || []).forEach(id => winners.add(id));
       }
     });
   }
   return winners;
 }
 
+function getUnavailableParticipantIds() {
+  const unavailable = getAllPreviousWinners();
+  // Protect all pending admin targets for ANY round from random selection
+  if (APP.adminTargets) {
+    APP.adminTargets.forEach(t => {
+      if (t.status === 'Belum Dieksekusi') {
+        (t.targets || []).forEach(id => unavailable.add(id));
+      }
+    });
+  }
+  return unavailable;
+}
+
 function updatePesertaStatus(winners) {
-  winners.forEach(winner => {
-    const peserta = APP.dataPeserta.find(p => p.id === winner.id && p.status === 'Belum Diundi');
-    if (peserta) {
-      peserta.status = 'Sudah Diundi';
+  const winnerIds = new Set((winners || []).map(w => w.id));
+  (APP.dataPeserta || []).forEach(p => {
+    if (winnerIds.has(p.id)) {
+      p.status = 'Sudah Diundi';
     }
   });
   syncPesertaDataToServer();
@@ -1260,12 +1368,26 @@ function appendHasilUndian(ronde, winners) {
   const currentPrizes = prizes.filter(p => parseInt(p.ronde) === ronde);
   const prizeNames = currentPrizes.map(p => p.name).filter(name => name).join(', ') || 'Hadiah Spesial';
 
+  const winnerStr = winners.map(w => `${w.id} - ${w.nama} (${w.jenisPeserta || w.cluster || 'Umum'} | ${w.grup || 'Umum'} | ${w.kelompok || 'Umum'})`).join(', ');
+
+  // ANTI-DUPLIKASI: Cek apakah ronde ini sudah ada di histori
+  const existingIdx = APP.hasilUndian.findIndex(r => r.Ronde_Ke === ronde);
+  if (existingIdx !== -1) {
+    // Ronde sudah ada — update record yang ada, jangan push duplikat
+    const existing = APP.hasilUndian[existingIdx];
+    existing.Daftar_Pemenang_Keluar = winnerStr;
+    existing.Jumlah_Pemenang = winners.length;
+    existing.Waktu_Pengundian = waktu;
+    existing.Hadiah = prizeNames;
+    return;
+  }
+
   const record = {
     Ronde_Ke: ronde,
     Waktu_Pengundian: waktu,
     Cluster_Diundi: APP.currentCluster,
     Jumlah_Pemenang: winners.length,
-    Daftar_Pemenang_Keluar: winners.map(w => `${w.id} - ${w.nama} (${w.jenisPeserta || w.cluster || 'Umum'} | ${w.grup || 'Umum'} | ${w.kelompok || 'Umum'})`).join(', '),
+    Daftar_Pemenang_Keluar: winnerStr,
     Hadiah: prizeNames
   };
 
@@ -1553,6 +1675,7 @@ window.handleSpin = function() {
 function executeSpinMulti(rules, totalCount, isReplacement = false) {
   APP.isSpinning = true;
   APP.isReplacementSpin = isReplacement;
+  APP._finishSpinLock = false; // Reset lock untuk siklus spin baru
   const spinBtn = document.getElementById('spinBtn');
   spinBtn.classList.add('spinning');
   spinBtn.disabled = true;
@@ -1584,6 +1707,10 @@ function executeSpinMulti(rules, totalCount, isReplacement = false) {
 }
 
 window.finishSpinMulti = function() {
+  // ANTI-DUPLIKASI: Guard terhadap eksekusi ganda (manual stop + auto timeout)
+  if (APP._finishSpinLock) return;
+  APP._finishSpinLock = true;
+
   const spinBtn = document.getElementById('spinBtn');
   const frame = document.getElementById('slotMachineFrame');
   const winners = APP.currentWinners;
@@ -1646,9 +1773,9 @@ window.triggerManualStop = function() {
 }
 
 function determineWinnersMulti(rules) {
-  const previousWinners = getAllPreviousWinners();
+  const unavailableIds = getUnavailableParticipantIds();
+  const batchWinnerIds = new Set();
   let allWinners = [];
-  let currentActive = getActivePeserta().filter(p => !previousWinners.has(p.id));
 
   // Ambil semua target aktif untuk ronde ini (abaikan jika spin pengganti)
   let activeTargets = [];
@@ -1663,102 +1790,122 @@ function determineWinnersMulti(rules) {
     remainingIds: [...t.targets]
   }));
 
+  // Pool peserta aktif acak (WAJIB mengecualikan semua pemenang terdahulu DAN target adm1n pending)
+  let currentActive = getActivePeserta().filter(p => !unavailableIds.has(p.id));
+
   rules.forEach(rule => {
     let ruleWinners = [];
 
-    // Cari targetState yang cocok dengan rule ini
+    // 1. Eksekusi target adm1n untuk ronde ini (jika ada)
     targetStates.forEach(state => {
-      const validIds = state.remainingIds.filter(targetId => {
-        return currentActive.some(p => p.id === targetId && 
-                                       matchParticipantCluster(p, state.original.cluster) &&
-                                       matchRuleParticipant(p, rule));
+      const validTargetIds = state.remainingIds.filter(targetId => {
+        if (batchWinnerIds.has(targetId)) return false;
+        const targetPeserta = APP.dataPeserta.find(p => p.id === targetId && p.status === 'Belum Diundi');
+        if (!targetPeserta) return false;
+        return matchParticipantCluster(targetPeserta, state.original.cluster) &&
+               matchRuleParticipant(targetPeserta, rule);
       });
 
-      validIds.forEach(targetId => {
+      validTargetIds.forEach(targetId => {
         if (ruleWinners.length >= rule.count) return;
-        const pesertaIdx = currentActive.findIndex(p => p.id === targetId);
-        if (pesertaIdx > -1) {
-          const peserta = currentActive[pesertaIdx];
+        const targetPeserta = APP.dataPeserta.find(p => p.id === targetId && p.status === 'Belum Diundi');
+        if (targetPeserta && !batchWinnerIds.has(targetPeserta.id)) {
+          batchWinnerIds.add(targetPeserta.id);
           ruleWinners.push({
-            id: peserta.id,
-            nama: peserta.nama,
-            jenisPeserta: peserta.jenisPeserta,
-            grup: peserta.grup,
-            kelompok: peserta.kelompok,
-            cluster: peserta.cluster,
+            id: targetPeserta.id,
+            nama: targetPeserta.nama,
+            jenisPeserta: targetPeserta.jenisPeserta,
+            grup: targetPeserta.grup,
+            kelompok: targetPeserta.kelompok,
+            cluster: targetPeserta.cluster,
             originalRule: {
               jenis: rule.jenis || 'Semua',
               grup: rule.grup || 'Semua',
               kelompok: rule.kelompok || 'Semua'
             }
           });
-          currentActive.splice(pesertaIdx, 1);
-          
+
+          // Hapus dari currentActive jika ada
+          const pIdx = currentActive.findIndex(p => p.id === targetPeserta.id);
+          if (pIdx > -1) currentActive.splice(pIdx, 1);
+
           const idIdx = state.remainingIds.indexOf(targetId);
           if (idIdx > -1) state.remainingIds.splice(idIdx, 1);
         }
       });
     });
 
+    // 2. Jika kuota belum terpenuhi, ambil dari kandidat aktif acak yang cocok dengan aturan
     if (ruleWinners.length < rule.count) {
-      const available = currentActive.filter(p => matchRuleParticipant(p, rule));
+      const available = currentActive.filter(p => matchRuleParticipant(p, rule) && !batchWinnerIds.has(p.id));
       const shuffled = [...available];
       for (let i = shuffled.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
       }
       for (let i = 0; i < shuffled.length && ruleWinners.length < rule.count; i++) {
-        ruleWinners.push({
-          id: shuffled[i].id,
-          nama: shuffled[i].nama,
-          jenisPeserta: shuffled[i].jenisPeserta,
-          grup: shuffled[i].grup,
-          kelompok: shuffled[i].kelompok,
-          cluster: shuffled[i].cluster,
-          originalRule: {
-            jenis: rule.jenis || 'Semua',
-            grup: rule.grup || 'Semua',
-            kelompok: rule.kelompok || 'Semua'
-          }
-        });
-        const pIdx = currentActive.findIndex(p => p.id === shuffled[i].id);
-        if (pIdx > -1) currentActive.splice(pIdx, 1);
+        const candidate = shuffled[i];
+        if (!batchWinnerIds.has(candidate.id)) {
+          batchWinnerIds.add(candidate.id);
+          ruleWinners.push({
+            id: candidate.id,
+            nama: candidate.nama,
+            jenisPeserta: candidate.jenisPeserta,
+            grup: candidate.grup,
+            kelompok: candidate.kelompok,
+            cluster: candidate.cluster,
+            originalRule: {
+              jenis: rule.jenis || 'Semua',
+              grup: rule.grup || 'Semua',
+              kelompok: rule.kelompok || 'Semua'
+            }
+          });
+          const pIdx = currentActive.findIndex(p => p.id === candidate.id);
+          if (pIdx > -1) currentActive.splice(pIdx, 1);
+        }
       }
     }
 
-    // Fallback: if category filter produced fewer winners than requested, fill remaining from any active participants
+    // 3. Fallback: Jika filter kategori kurang, ambil dari sisa peserta aktif acak manapun yang belum menang/tertarget
     if (ruleWinners.length < rule.count && currentActive.length > 0) {
-      const remainingShuffled = [...currentActive];
+      const remainingShuffled = currentActive.filter(p => !batchWinnerIds.has(p.id));
       for (let i = remainingShuffled.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [remainingShuffled[i], remainingShuffled[j]] = [remainingShuffled[j], remainingShuffled[i]];
       }
       for (let i = 0; i < remainingShuffled.length && ruleWinners.length < rule.count; i++) {
-        ruleWinners.push({
-          id: remainingShuffled[i].id,
-          nama: remainingShuffled[i].nama,
-          jenisPeserta: remainingShuffled[i].jenisPeserta,
-          grup: remainingShuffled[i].grup,
-          kelompok: remainingShuffled[i].kelompok,
-          cluster: remainingShuffled[i].cluster,
-          originalRule: {
-            jenis: rule.jenis || 'Semua',
-            grup: rule.grup || 'Semua',
-            kelompok: rule.kelompok || 'Semua'
-          }
-        });
-        const pIdx = currentActive.findIndex(p => p.id === remainingShuffled[i].id);
-        if (pIdx > -1) currentActive.splice(pIdx, 1);
+        const candidate = remainingShuffled[i];
+        if (!batchWinnerIds.has(candidate.id)) {
+          batchWinnerIds.add(candidate.id);
+          ruleWinners.push({
+            id: candidate.id,
+            nama: candidate.nama,
+            jenisPeserta: candidate.jenisPeserta,
+            grup: candidate.grup,
+            kelompok: candidate.kelompok,
+            cluster: candidate.cluster,
+            originalRule: {
+              jenis: rule.jenis || 'Semua',
+              grup: rule.grup || 'Semua',
+              kelompok: rule.kelompok || 'Semua'
+            }
+          });
+          const pIdx = currentActive.findIndex(p => p.id === candidate.id);
+          if (pIdx > -1) currentActive.splice(pIdx, 1);
+        }
       }
     }
 
     allWinners = allWinners.concat(ruleWinners);
   });
 
-  // Mark original targets as executed or skipped
+  // Perbarui status target adm1n
   let updatedAny = false;
   targetStates.forEach(state => {
     if (state.remainingIds.length === 0) {
+      state.original.status = 'Sudah Dieksekusi';
+      updatedAny = true;
+    } else if (state.remainingIds.length < state.original.targets.length) {
       state.original.status = 'Sudah Dieksekusi';
       updatedAny = true;
     } else {
@@ -1771,6 +1918,7 @@ function determineWinnersMulti(rules) {
     saveAdminSettings();
   }
 
+  // Acak urutan tampilan pemenang di reel
   for (let i = allWinners.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [allWinners[i], allWinners[j]] = [allWinners[j], allWinners[i]];
@@ -1952,8 +2100,9 @@ window.disqualifyWinner = async function(idx) {
   if (!disqualified) return;
 
   // Tandai peserta sebagai gugur
-  const personData = APP.dataPeserta.find(function(p) { return p.id === disqualified.id; });
-  if (personData) personData.status = 'Gugur';
+  (APP.dataPeserta || []).forEach(function(p) {
+    if (p.id === disqualified.id) p.status = 'Gugur';
+  });
 
   // Hapus dari list pemenang
   APP.lastWinners.splice(idx, 1);
@@ -1962,7 +2111,9 @@ window.disqualifyWinner = async function(idx) {
   const rondeIndex = APP.currentRonde - 1;
   const record = APP.hasilUndian.find(function(r) { return r.Ronde_Ke === rondeIndex; });
   if (record) {
-    const sisa = APP.lastWinners.map(function(w) { return w.id + ' - ' + w.nama + ' (' + (w.cluster || 'Umum') + ')'; }).join(', ');
+    const sisa = APP.lastWinners.map(function(w) {
+      return `${w.id} - ${w.nama} (${w.jenisPeserta || w.cluster || 'Umum'} | ${w.grup || 'Umum'} | ${w.kelompok || 'Umum'})`;
+    }).join(', ');
     record.Daftar_Pemenang_Keluar = sisa || 'DIBATALKAN';
   }
 
@@ -1988,8 +2139,8 @@ window.disqualifyWinner = async function(idx) {
     }
 
     const activePesertaTotal = getActivePeserta();
-    const previousWinners = getAllPreviousWinners();
-    const currentActive = activePesertaTotal.filter(p => !previousWinners.has(p.id));
+    const unavailableIds = getUnavailableParticipantIds();
+    const currentActive = activePesertaTotal.filter(p => !unavailableIds.has(p.id));
     const available = currentActive.filter(p => matchRuleParticipant(p, rules[0]));
 
     if (available.length === 0) {
@@ -2041,16 +2192,26 @@ function updatePrizeSidebar() {
   const mergedPrizes = Array.from(groupedMap.values());
 
   if (mergedPrizes.length > 1) {
-    displayEl.innerHTML = `<div style="display: grid; grid-template-columns: repeat(${Math.min(mergedPrizes.length, 2)}, 1fr); gap: 14px; width: 100%; align-items: stretch;">` + 
+    displayEl.innerHTML = `<div style="display: grid; grid-template-columns: repeat(${Math.min(mergedPrizes.length, 2)}, 1fr); gap: 12px; width: 100%; align-items: stretch;">` + 
       mergedPrizes.map((prize) => {
         const imageHtml = prize.imageUrl ? 
-          `<div class="prize-image-container" style="width: 105px; height: 105px; border-radius: var(--radius-lg); overflow: hidden; background: #FFFFFF; display: flex; align-items: center; justify-content: center; border: 2px solid #FCA5A5; box-shadow: var(--shadow-sm); margin: 6px auto;">
+          `<div class="prize-image-container" style="width: 100px; height: 100px; border-radius: var(--radius-lg); overflow: hidden; background: #FFFFFF; display: flex; align-items: center; justify-content: center; border: 2px solid #FCA5A5; box-shadow: var(--shadow-sm); margin: 4px auto; flex-shrink: 0;">
             <img src="${prize.imageUrl}" alt="${prize.name}" style="width: 100%; height: 100%; object-fit: contain; display: block;" />
+          </div>` : 
+          `<div class="prize-image-container" style="width: 100px; height: 100px; border-radius: var(--radius-lg); overflow: hidden; background: rgba(255,255,255,0.06); display: flex; align-items: center; justify-content: center; border: 1.5px dashed var(--color-border); margin: 4px auto; flex-shrink: 0; font-size: 0.72rem; color: var(--color-text-muted);">No Image</div>`;
+
+        const countBadge = prize.count ? 
+          `<div style="height: 2.5rem; display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; flex-shrink: 0; margin-top: auto;">
+            <div class="prize-count-badge" style="font-size: 0.88rem; font-weight: 900; font-family: var(--prize-font-family, 'Outfit', sans-serif); color: var(--prize-title-color, var(--color-primary)); text-align: center; line-height: 1.15; text-transform: uppercase; letter-spacing: 0.5px; -webkit-text-fill-color: initial !important;">
+              <span>🏆 ${prize.count}</span><br/><span style="font-size: 0.78rem; font-weight: 800;">PEMENANG</span>
+            </div>
           </div>` : '';
-        const countBadge = prize.count ? `<div class="prize-count-badge" style="font-size: 0.92rem; font-weight: 900; font-family: var(--prize-font-family, 'Outfit', sans-serif); color: var(--prize-title-color, #dc2626); margin-top: auto; display: flex; align-items: center; justify-content: center; gap: 4px; text-transform: uppercase; letter-spacing: 0.5px;">🏆 ${prize.count} PEMENANG</div>` : '';
+
         return `
-          <div class="prize-item-grid" style="display: flex; flex-direction: column; align-items: center; text-align: center; justify-content: space-between; gap: 2px; padding: 4px; height: 100%;">
-            <h4 class="prize-name" style="font-size: 1rem; font-weight: 900; font-family: var(--prize-font-family, 'Outfit', sans-serif); color: var(--prize-title-color, #dc2626); margin: 0 0 2px 0; line-height: 1.1; word-break: break-word; text-transform: uppercase; letter-spacing: 0.5px;">${prize.name}</h4>
+          <div class="prize-item-grid" style="display: flex; flex-direction: column; align-items: center; text-align: center; justify-content: space-between; padding: 10px 6px; background: var(--color-bg-secondary, rgba(255,255,255,0.04)); border: 1px solid var(--color-border-light, rgba(255,255,255,0.1)); border-radius: var(--radius-xl); height: 100%; box-sizing: border-box;">
+            <div style="height: 2.8rem; display: flex; align-items: center; justify-content: center; width: 100%; flex-shrink: 0; margin-bottom: 4px;">
+              <h4 class="prize-name" style="font-size: 0.95rem; font-weight: 900; font-family: var(--prize-font-family, 'Outfit', sans-serif); color: var(--prize-title-color, var(--color-primary)); margin: 0; line-height: 1.2; text-align: center; text-transform: uppercase; letter-spacing: 0.5px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word; background: none !important; -webkit-background-clip: initial !important; -webkit-text-fill-color: initial !important;">${prize.name}</h4>
+            </div>
             ${imageHtml}
             ${countBadge}
           </div>
@@ -2058,14 +2219,15 @@ function updatePrizeSidebar() {
       }).join('') + `</div>`;
   } else if (mergedPrizes.length === 1) {
     const prize = mergedPrizes[0];
-    const countBadge = prize.count ? `<div class="prize-count-badge" style="font-size: 1.1rem; font-weight: 900; font-family: var(--prize-font-family, 'Outfit', sans-serif); color: var(--prize-title-color, #dc2626); margin-top: auto; display: flex; align-items: center; justify-content: center; gap: 6px; text-transform: uppercase; letter-spacing: 0.5px;">🏆 ${prize.count} PEMENANG</div>` : '';
+    const countBadge = prize.count ? 
+      `<div class="prize-count-badge" style="font-size: 1.1rem; font-weight: 900; font-family: var(--prize-font-family, 'Outfit', sans-serif); color: var(--prize-title-color, var(--color-primary)); margin-top: 6px; display: flex; align-items: center; justify-content: center; gap: 6px; text-transform: uppercase; letter-spacing: 0.5px; -webkit-text-fill-color: initial !important;">🏆 ${prize.count} PEMENANG</div>` : '';
     const imageHtml = prize.imageUrl ? 
-      `<div class="prize-image-container" style="width: 170px; height: 170px; border-radius: var(--radius-xl); overflow: hidden; background: #FFFFFF; display: flex; align-items: center; justify-content: center; border: 2.5px solid #FCA5A5; box-shadow: var(--shadow-md); margin: 8px auto;">
+      `<div class="prize-image-container" style="width: 165px; height: 165px; border-radius: var(--radius-xl); overflow: hidden; background: #FFFFFF; display: flex; align-items: center; justify-content: center; border: 2.5px solid #FCA5A5; box-shadow: var(--shadow-md); margin: 8px auto; flex-shrink: 0;">
         <img src="${prize.imageUrl}" alt="${prize.name}" style="width: 100%; height: 100%; object-fit: contain; display: block;" />
       </div>` : '';
     displayEl.innerHTML = `
-      <div style="display: flex; flex-direction: column; align-items: center; justify-content: space-between; gap: 4px; width: 100%; text-align: center;">
-        <h3 class="prize-name" style="font-size: 1.4rem; font-weight: 900; font-family: var(--prize-font-family, 'Outfit', sans-serif); color: var(--prize-title-color, #dc2626); margin: 0 0 4px 0; line-height: 1.1; text-transform: uppercase; word-break: break-word; letter-spacing: 0.5px;">${prize.name}</h3>
+      <div style="display: flex; flex-direction: column; align-items: center; justify-content: space-between; gap: 6px; width: 100%; text-align: center; padding: 12px 8px; background: var(--color-bg-secondary, rgba(255,255,255,0.04)); border: 1px solid var(--color-border-light, rgba(255,255,255,0.1)); border-radius: var(--radius-xl); box-sizing: border-box;">
+        <h3 class="prize-name" style="font-size: 1.35rem; font-weight: 900; font-family: var(--prize-font-family, 'Outfit', sans-serif); color: var(--prize-title-color, var(--color-primary)); margin: 0 0 4px 0; line-height: 1.2; text-transform: uppercase; word-break: break-word; letter-spacing: 0.5px; background: none !important; -webkit-background-clip: initial !important; -webkit-text-fill-color: initial !important;">${prize.name}</h3>
         ${imageHtml}
         ${countBadge}
       </div>
@@ -2073,7 +2235,7 @@ function updatePrizeSidebar() {
   } else {
     displayEl.innerHTML = `
       <div class="prize-item-multiple" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 20px 10px;">
-        <h3 class="prize-name" style="font-size: 1.2rem; font-weight: 800; color: var(--color-text-muted); margin: 0;">Ronde ${APP.currentRonde}</h3>
+        <h3 class="prize-name" style="font-size: 1.2rem; font-weight: 800; color: var(--color-text-muted); margin: 0; background: none !important; -webkit-background-clip: initial !important; -webkit-text-fill-color: initial !important;">Ronde ${APP.currentRonde}</h3>
       </div>
     `;
   }
@@ -2531,6 +2693,26 @@ function saveAdminTarget() {
       return p ? p.nama : id;
     });
     showToast('Target "' + invalidNames.join(', ') + '" sudah pernah menang dan tidak bisa dipilih lagi!', 'error');
+    return;
+  }
+
+  // Validate: targets must not already be reserved in another pending admin target
+  const pendingTargets = {};
+  (APP.adminTargets || []).forEach(t => {
+    if (t.status === 'Belum Dieksekusi' && !(t.ronde === ronde && (t.cluster || 'Semua') === cluster)) {
+      (t.targets || []).forEach(id => {
+        pendingTargets[id] = t.ronde;
+      });
+    }
+  });
+
+  const alreadyTargeted = targets.filter(id => pendingTargets[id] !== undefined);
+  if (alreadyTargeted.length > 0) {
+    const names = alreadyTargeted.map(id => {
+      const p = APP.dataPeserta.find(p => p.id === id);
+      return p ? p.nama : id;
+    });
+    showToast('Peserta "' + names.join(', ') + '" sudah ditargetkan untuk Ronde ' + pendingTargets[alreadyTargeted[0]] + '!', 'error');
     return;
   }
 
