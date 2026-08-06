@@ -2,6 +2,7 @@ node_modules/
 .env
 data/sessions/
 data/*_state.json
+public/uploads/
 graphify-out/
 *.tmp
 *.xlsx
