@@ -120,9 +120,38 @@ pm2 startup
 Setelah perubahan kode:
 
 ```bash
-pm2 restart doorprize --update-env
-pm2 logs doorprize
+pm2 restart doorprize-satsiber --update-env
+pm2 logs doorprize-satsiber
 ```
+
+## Update & Deploy Otomatis dari Git
+
+Setelah kode di-push ke GitHub, tarik + deploy versi terbaru cukup dengan satu perintah. Script akan menjalankan `git pull` (fast-forward), `npm install` **hanya** bila `package.json` berubah, memvalidasi sintaks, lalu `pm2 reload`.
+
+### Linux / VPS
+
+```bash
+sh update.sh          # atau: npm run update
+sh update.sh --force  # redeploy walau tidak ada commit baru
+```
+
+### Windows
+
+Double-click **`update.bat`**, atau lewat PowerShell:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\update.ps1
+```
+
+### Deploy Otomatis Penuh (cron)
+
+Agar server mengecek update sendiri (mis. tiap 5 menit) dan hanya redeploy bila ada versi baru, tambahkan ke `crontab -e`:
+
+```cron
+*/5 * * * * cd /home/doorprize && sh update.sh >> data/update.log 2>&1
+```
+
+Bila tidak ada commit baru, script langsung berhenti tanpa restart — aman dijalankan berulang.
 
 ## Nginx reverse proxy
 
