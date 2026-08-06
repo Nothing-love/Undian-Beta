@@ -1058,6 +1058,7 @@ function generateTemplate() {
 
 function loadExcelFile(file) {
   const reader = new FileReader();
+  reader.onerror = () => showToast('Gagal membaca file. Pastikan file tidak rusak, lalu coba lagi.', 'error');
   reader.onload = (e) => {
     try {
       const data = new Uint8Array(e.target.result);
@@ -1138,7 +1139,9 @@ function loadExcelFile(file) {
           grup: gVal,
           kelompok: kVal,
           cluster: jVal,
-          status: sVal === 'Sudah Diundi' ? 'Sudah Diundi' : (sVal === 'Gugur' ? 'Gugur' : 'Belum Diundi')
+          status: (String(sVal).trim().toLowerCase() === 'sudah diundi') ? 'Sudah Diundi'
+                : (String(sVal).trim().toLowerCase() === 'gugur') ? 'Gugur'
+                : 'Belum Diundi'
         };
       }).filter(Boolean);
 
@@ -1151,6 +1154,15 @@ function loadExcelFile(file) {
       // roster lama (bukan me-merge), sama seperti Reset Undian. Tanpa ini,
       // mergePeserta server menyisipkan peserta lama ke dalam data upload baru.
       APP.rev = (Number(APP.rev) || 0) + 1;
+
+      // Buang target admin yang menunjuk ID peserta yang tidak ada di roster baru
+      // (target event lama jadi tidak valid setelah upload data baru).
+      if (APP.adminTargets && APP.adminTargets.length) {
+        const newIds = new Set(APP.dataPeserta.map(p => p.id));
+        APP.adminTargets.forEach(t => { t.targets = (t.targets || []).filter(id => newIds.has(id)); });
+        APP.adminTargets = APP.adminTargets.filter(t => (t.targets || []).length > 0);
+        saveAdminSettings();
+      }
 
       computeUniqueCategories();
 
@@ -1213,7 +1225,7 @@ function loadExcelFile(file) {
         } else {
           APP.hasilUndian = rawHistory;
         }
-        APP.currentRonde = APP.hasilUndian.length + 1;
+        APP.currentRonde = APP.hasilUndian.reduce((m, r) => Math.max(m, parseInt(r.Ronde_Ke) || 0), 0) + 1;
       } else {
         APP.hasilUndian = [];
         APP.currentRonde = 1;
