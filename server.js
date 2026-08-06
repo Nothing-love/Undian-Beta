@@ -519,12 +519,10 @@ app.post('/api/state', requireAuth, (req, res) => {
     writeJsonAtomic(STATE_FILES.peserta, mergedPeserta);
   }
 
-  if (req.body.admin && typeof req.body.admin === 'object') {
-    writeJsonAtomic(STATE_FILES.admin, {
-      ...normalizeAdmin(req.body.admin),
-      timestamp
-    });
-  }
+  // Slice `admin` sengaja TIDAK ditulis di sini. Semua perubahan target/password
+  // admin hanya melalui POST /api/admin (satu-satunya pemilik state admin), agar
+  // sinkron peserta dari dashboard tidak menimpa/menghapus target admin aktif
+  // (last-write-wins clobber antar-perangkat).
 
   return res.json({ success: true, timestamp });
 });
