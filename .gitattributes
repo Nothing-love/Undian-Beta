@@ -1,0 +1,7 @@
+# Script shell WAJIB LF agar bisa dieksekusi di server Linux/VPS
+# (CRLF membuat error "bad interpreter: /bin/sh^M").
+*.sh  text eol=lf
+
+# Script Windows tetap CRLF
+*.bat text eol=crlf
+*.ps1 text eol=crlf

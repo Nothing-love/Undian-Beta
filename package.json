@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node server.js",
     "check": "node --check server.js && node --check public/app.js",
-    "slim": "sh slim.sh"
+    "slim": "sh slim.sh",
+    "update": "sh update.sh"
   },
   "repository": {
     "type": "git",
