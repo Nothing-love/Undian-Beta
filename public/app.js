@@ -35,6 +35,7 @@ const APP = {
   dataPeserta: [],
   hasilUndian: [],
   currentRonde: 1,
+  rev: 0,
   currentCluster: 'Semua',
   isSpinning: false,
   lastWinners: [],
@@ -200,7 +201,8 @@ function saveSettings() {
       dataPeserta: APP.dataPeserta || [],
       availableClusters: APP.availableClusters || [],
       hasilUndian: APP.hasilUndian || [],
-      currentRonde: APP.currentRonde || 1
+      currentRonde: APP.currentRonde || 1,
+      rev: APP.rev || 0
     },
     admin: {
       targets: APP.adminTargets || [],
@@ -295,6 +297,12 @@ async function syncStateWithServer() {
 
     // 2. Sync Peserta & Winners
     if (data.peserta) {
+      // GENERASI (rev): rev server lebih tinggi = Reset Undian / state otoritatif →
+      // adopsi penuh (boleh mundur). rev sama = pertahankan guard anti-mundur di bawah.
+      const serverRev = Number(data.peserta.rev) || 0;
+      const isNewerGen = serverRev > (Number(APP.rev) || 0);
+      if (serverRev >= (Number(APP.rev) || 0)) APP.rev = serverRev;
+
       if (data.peserta.dataPeserta && (data.peserta.dataPeserta.length > 0 || (APP.dataPeserta || []).length === 0)) {
         APP.dataPeserta = data.peserta.dataPeserta;
         computeUniqueCategories(false);
@@ -302,18 +310,18 @@ async function syncStateWithServer() {
       if (data.peserta.availableClusters && data.peserta.availableClusters.length > 0) {
         APP.availableClusters = data.peserta.availableClusters;
       }
-      // ANTI-DUPLIKASI RONDE: Hanya terima hasilUndian dari server jika lebih baru/lengkap
+      // ANTI-DUPLIKASI RONDE: terima hasilUndian jika generasi lebih baru (reset) atau lebih lengkap
       if (data.peserta.hasilUndian) {
         const serverLen = data.peserta.hasilUndian.length;
         const localLen = (APP.hasilUndian || []).length;
-        if (serverLen >= localLen) {
+        if (isNewerGen || serverLen >= localLen) {
           APP.hasilUndian = data.peserta.hasilUndian;
         }
       }
-      // ANTI-DUPLIKASI RONDE: Jangan pernah mundurkan currentRonde dari server
+      // ANTI-DUPLIKASI RONDE: jangan mundurkan currentRonde KECUALI generasi lebih baru (reset)
       if (data.peserta.currentRonde !== undefined) {
         const serverRonde = data.peserta.currentRonde;
-        if (serverRonde >= APP.currentRonde) {
+        if (isNewerGen || serverRonde >= APP.currentRonde) {
           APP.currentRonde = serverRonde;
         }
       }
@@ -369,6 +377,7 @@ async function syncFullStateFromRemote() {
     }
 
     if (data.peserta) {
+      if (data.peserta.rev !== undefined) APP.rev = Number(data.peserta.rev) || 0;
       if (data.peserta.dataPeserta) {
         APP.dataPeserta = data.peserta.dataPeserta;
         computeUniqueCategories(false);
@@ -935,7 +944,9 @@ function bindEvents() {
       );
       if (!ok) return;
 
-      // Reset state
+      // Reset state — naikkan generasi (rev) agar reset menjadi otoritatif di server
+      // dan mengalahkan write perangkat lain yang masih memegang state lama.
+      APP.rev = (Number(APP.rev) || 0) + 1;
       APP.hasilUndian = [];
       APP.currentRonde = 1;
       APP.dataPeserta.forEach(p => {
