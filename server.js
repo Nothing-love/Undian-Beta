@@ -47,6 +47,7 @@ const DEFAULT_STATE = {
     availableClusters: [],
     hasilUndian: [],
     currentRonde: 1,
+    rev: 0,
     timestamp: 0
   },
   admin: {
@@ -197,7 +198,64 @@ function normalizePeserta(input) {
     availableClusters: Array.isArray(source.availableClusters) ? source.availableClusters : [],
     hasilUndian: Array.isArray(source.hasilUndian) ? source.hasilUndian : [],
     currentRonde: Number.isFinite(Number(source.currentRonde)) ? Number(source.currentRonde) : 1,
+    rev: Number.isFinite(Number(source.rev)) ? Number(source.rev) : 0,
     timestamp: Number(source.timestamp) || 0
+  };
+}
+
+// Winner-status advancement order: once a peserta leaves 'Belum Diundi' it must
+// never be pulled back (that reversal is the multi-device duplicate-winner bug).
+const STATUS_RANK = { 'Belum Diundi': 0, 'Sudah Diundi': 1, 'Gugur': 2 };
+
+function mergeHasilUndian(stored, incoming) {
+  const byRonde = new Map();
+  for (const rec of Array.isArray(stored) ? stored : []) {
+    if (rec && rec.Ronde_Ke !== undefined) byRonde.set(rec.Ronde_Ke, rec);
+  }
+  for (const rec of Array.isArray(incoming) ? incoming : []) {
+    if (!rec || rec.Ronde_Ke === undefined) continue;
+    const prev = byRonde.get(rec.Ronde_Ke);
+    // Keep whichever record for a round has more winners; ties keep the first stored.
+    if (!prev || (Number(rec.Jumlah_Pemenang) || 0) > (Number(prev.Jumlah_Pemenang) || 0)) {
+      byRonde.set(rec.Ronde_Ke, rec);
+    }
+  }
+  return Array.from(byRonde.values()).sort((x, y) => (Number(x.Ronde_Ke) || 0) - (Number(y.Ronde_Ke) || 0));
+}
+
+// Reconcile an incoming peserta state against what is stored so /api/state is no
+// longer blind last-write-wins. `rev` is a generation counter: a higher rev (a
+// Reset Undian) is authoritative; a lower rev is stale and discarded; the same
+// rev is monotonically merged so a lagging device can never resurrect a winner.
+function mergePeserta(storedRaw, incomingRaw) {
+  const stored = normalizePeserta(storedRaw);
+  const incoming = normalizePeserta(incomingRaw);
+
+  if (incoming.rev > stored.rev) return incoming;   // reset / newer generation wins
+  if (incoming.rev < stored.rev) return stored;     // stale writer — discard its peserta
+
+  const storedById = new Map((stored.dataPeserta || []).map(p => [p.id, p]));
+  const seen = new Set();
+  const dataPeserta = (incoming.dataPeserta || []).map(p => {
+    seen.add(p.id);
+    const prev = storedById.get(p.id);
+    if (!prev) return p;
+    const keepStored = (STATUS_RANK[prev.status] || 0) > (STATUS_RANK[p.status] || 0);
+    return keepStored ? { ...p, status: prev.status } : p;
+  });
+  // Locked participants present only in stored (incoming had a stale/partial roster).
+  for (const p of stored.dataPeserta || []) {
+    if (!seen.has(p.id)) dataPeserta.push(p);
+  }
+
+  return {
+    dataPeserta,
+    availableClusters: (incoming.availableClusters && incoming.availableClusters.length)
+      ? incoming.availableClusters : stored.availableClusters,
+    hasilUndian: mergeHasilUndian(stored.hasilUndian, incoming.hasilUndian),
+    currentRonde: Math.max(stored.currentRonde, incoming.currentRonde),
+    rev: stored.rev,
+    timestamp: incoming.timestamp
   };
 }
 
@@ -410,10 +468,9 @@ app.get('/api/peserta', requireAuth, (req, res) => {
 });
 
 app.post('/api/peserta', requireAuth, (req, res) => {
-  const payload = {
-    ...normalizePeserta(req.body),
-    timestamp: Date.now()
-  };
+  const storedPeserta = readJson(STATE_FILES.peserta, DEFAULT_STATE.peserta);
+  const payload = mergePeserta(storedPeserta, req.body);
+  payload.timestamp = Date.now();
   writeJsonAtomic(STATE_FILES.peserta, payload);
   return res.json({ success: true, timestamp: payload.timestamp });
 });
@@ -456,10 +513,10 @@ app.post('/api/state', requireAuth, (req, res) => {
   }
 
   if (req.body.peserta && typeof req.body.peserta === 'object') {
-    writeJsonAtomic(STATE_FILES.peserta, {
-      ...normalizePeserta(req.body.peserta),
-      timestamp
-    });
+    const storedPeserta = readJson(STATE_FILES.peserta, DEFAULT_STATE.peserta);
+    const mergedPeserta = mergePeserta(storedPeserta, req.body.peserta);
+    mergedPeserta.timestamp = timestamp;
+    writeJsonAtomic(STATE_FILES.peserta, mergedPeserta);
   }
 
   if (req.body.admin && typeof req.body.admin === 'object') {
