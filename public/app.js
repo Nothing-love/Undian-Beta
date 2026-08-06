@@ -1147,6 +1147,11 @@ function loadExcelFile(file) {
         return;
       }
 
+      // UPLOAD = generasi baru & otoritatif. Naikkan rev agar server MENGGANTI
+      // roster lama (bukan me-merge), sama seperti Reset Undian. Tanpa ini,
+      // mergePeserta server menyisipkan peserta lama ke dalam data upload baru.
+      APP.rev = (Number(APP.rev) || 0) + 1;
+
       computeUniqueCategories();
 
       const clusterOptions = [];
