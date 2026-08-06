@@ -321,14 +321,15 @@ app.post('/login', (req, res) => {
     return res.redirect('/login?error=1');
   }
 
+  // Kredensial valid HANYA yang dikonfigurasi (ADMIN_USERNAME/.env, dan password
+  // dari admin_state.json → ADMIN_PASSWORD → default 'admin2026' via
+  // getValidAdminPassword()). Tidak ada lagi backdoor 'admin'/'admin2026' yang
+  // selalu diterima; mengganti password kini benar-benar menonaktifkan yang lama.
   const validUsername = String(process.env.ADMIN_USERNAME || 'admin').trim();
   const validPassword = getValidAdminPassword();
-  const envPassword = String(process.env.ADMIN_PASSWORD || '').trim();
 
-  const isUsernameValid = safeStringEqual(username, validUsername) || safeStringEqual(username, 'admin');
-  const isPasswordValid = safeStringEqual(password, validPassword) ||
-                          safeStringEqual(password, 'admin2026') ||
-                          (envPassword && safeStringEqual(password, envPassword));
+  const isUsernameValid = safeStringEqual(username, validUsername);
+  const isPasswordValid = safeStringEqual(password, validPassword);
 
   if (isUsernameValid && isPasswordValid) {
     return req.session.regenerate((error) => {
