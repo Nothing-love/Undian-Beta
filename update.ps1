@@ -35,8 +35,10 @@ if ($oldHead -ne $remote) {
     Write-Host "🔄 Update ditemukan — fast-forward..." -ForegroundColor Yellow
     git merge --ff-only "origin/$branch"
     if ($LASTEXITCODE -ne 0) {
-        Write-Host "❌ Tidak bisa fast-forward (ada perubahan lokal / divergen)." -ForegroundColor Red
-        Write-Host "   Untuk memaksa ikut remote: git reset --hard origin/$branch" -ForegroundColor Red
+        Write-Host "❌ Tidak bisa fast-forward (ada perubahan lokal pada file terlacak)." -ForegroundColor Red
+        Write-Host "   Jalankan 'git status'. Jika karena data/*_state.json dari clone lama:" -ForegroundColor Red
+        Write-Host "     git rm -r --cached data/*_state.json   lalu jalankan update.ps1 lagi" -ForegroundColor Red
+        Write-Host "   JANGAN 'git reset --hard' di produksi — menghapus data undian & gambar." -ForegroundColor Red
         exit 1
     }
 } else {

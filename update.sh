@@ -44,8 +44,11 @@ fi
 if [ "$OLD_HEAD" != "$REMOTE" ]; then
     echo "🔄 Update ditemukan: $(git rev-parse --short "$OLD_HEAD") -> $(git rev-parse --short "$REMOTE")"
     if ! git merge --ff-only "origin/$BRANCH"; then
-        echo "❌ Tidak bisa fast-forward — ada perubahan lokal / branch divergen."
-        echo "   Periksa 'git status'. Untuk memaksa ikut remote: git reset --hard origin/$BRANCH"
+        echo "❌ Tidak bisa fast-forward — ada perubahan lokal pada file yang dilacak git."
+        echo "   Jalankan 'git status' untuk melihat. Jika penyebabnya file state runtime"
+        echo "   (data/*_state.json) dari clone lama, cukup untrack sekali lalu ulangi:"
+        echo "     git rm -r --cached data/*_state.json && sh update.sh"
+        echo "   ⚠️  JANGAN 'git reset --hard' di server produksi — itu menghapus data undian & gambar."
         exit 1
     fi
 else
