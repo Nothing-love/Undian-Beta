@@ -1662,8 +1662,25 @@ window.handleSpin = function() {
     }
   }
 
-  if (totalCount > activePesertaTotal.length) {
-    showToast(`Total pemenang yang diminta (${totalCount}) melebihi jumlah peserta aktif yang tersisa (${activePesertaTotal.length}).`, 'error');
+  // Peserta yang direservasi sebagai target admin untuk ronde LAIN tidak dapat
+  // ditarik pada ronde ini, sehingga pool undian riil harus mengecualikan mereka.
+  // Tanpa ini, guard bisa lolos padahal determineWinnersMulti menghasilkan pemenang
+  // lebih sedikit dari totalCount → buildSlotReels mengakses winner undefined dan
+  // spin crash (isSpinning tetap true, UI terkunci sampai reload).
+  const reservedForOtherRonde = new Set();
+  (APP.adminTargets || []).forEach(t => {
+    if (t.status === 'Belum Dieksekusi' && t.ronde !== APP.currentRonde) {
+      (t.targets || []).forEach(id => reservedForOtherRonde.add(id));
+    }
+  });
+  const drawablePool = activePesertaTotal.filter(p => !reservedForOtherRonde.has(p.id));
+
+  if (totalCount > drawablePool.length) {
+    const reservedCount = activePesertaTotal.length - drawablePool.length;
+    const reservedNote = reservedCount > 0
+      ? ` (${reservedCount} peserta sedang direservasi sebagai target ronde lain)`
+      : '';
+    showToast(`Total pemenang yang diminta (${totalCount}) melebihi jumlah peserta yang bisa diundi di ronde ini: ${drawablePool.length}${reservedNote}.`, 'error');
     return;
   }
 
@@ -1696,10 +1713,30 @@ function executeSpinMulti(rules, totalCount, isReplacement = false) {
   const winners = determineWinnersMulti(rules);
   APP.currentWinners = winners;
 
-  buildSlotReels(totalCount, winners, isManual);
+  // SAFETY NET: jumlah reel harus mengikuti jumlah pemenang riil yang berhasil
+  // ditentukan. Jika lebih sedikit dari yang diminta (mis. sebagian peserta
+  // direservasi/tidak cocok aturan), JANGAN akses winners[i] yang undefined —
+  // itu membuat spin crash dan mengunci UI (isSpinning tetap true).
+  const actualCount = Math.min(totalCount, winners.length);
+
+  if (actualCount === 0) {
+    APP.isSpinning = false;
+    APP.isReplacementSpin = false;
+    spinBtn.classList.remove('spinning');
+    spinBtn.disabled = false;
+    spinBtn.style.pointerEvents = '';
+    spinBtn.style.opacity = '';
+    spinBtn.style.background = '';
+    spinBtn.innerHTML = '<span class="spin-icon">🏆</span> SPIN';
+    frame.classList.remove('spinning');
+    showToast('Tidak ada peserta yang bisa diundi untuk ronde ini.', 'warning');
+    return;
+  }
+
+  buildSlotReels(actualCount, winners, isManual);
 
   if (!isManual) {
-    const totalDuration = BASE_DURATION + (totalCount - 1) * STAGGER_DELAY + 800;
+    const totalDuration = BASE_DURATION + (actualCount - 1) * STAGGER_DELAY + 800;
     setTimeout(() => {
       finishSpinMulti();
     }, totalDuration);
