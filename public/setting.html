@@ -653,8 +653,32 @@
           </div>
         </section>
 
+        <!-- CARD: Keamanan — Password Login Operator -->
+        <section class="settings-card">
+          <div class="settings-card-header">
+            <h2>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              Keamanan — Password Login
+            </h2>
+          </div>
+          <div class="settings-card-body">
+            <p style="font-size: 0.82rem; color: var(--color-text-muted); margin: 0;">
+              Password ini dipakai untuk masuk ke aplikasi (halaman <strong>Login</strong>). Password panel admin (<strong>adm1n</strong>) berbeda dan hanya diubah di halaman admin oleh dev.
+            </p>
+            <div class="form-group">
+              <label for="currentLoginPassword" style="font-weight: 600; margin-bottom: 6px; display: block; font-size: 0.85rem;">Password Login Saat Ini</label>
+              <input type="password" id="currentLoginPassword" class="form-control" placeholder="Password login sekarang" style="width: 100%; box-sizing: border-box;" />
+            </div>
+            <div class="form-group">
+              <label for="newLoginPassword" style="font-weight: 600; margin-bottom: 6px; display: block; font-size: 0.85rem;">Password Login Baru</label>
+              <input type="password" id="newLoginPassword" class="form-control" placeholder="Minimal 4 karakter" style="width: 100%; box-sizing: border-box;" />
+            </div>
+            <button type="button" class="btn btn-primary" id="changeLoginPasswordBtn" style="width: 100%; justify-content: center; min-height: 44px; font-weight: 700;">Ubah Password Login</button>
+          </div>
+        </section>
+
       </div>
-      
+
     </div>
 
   </div>

@@ -26,6 +26,11 @@ const STATE_FILES = {
   admin: path.join(DATA_DIR, 'admin_state.json')
 };
 
+// Rahasia autentikasi disimpan TERPISAH dari admin_state.json dan TIDAK PERNAH
+// dikirim ke klien mana pun: loginPassword (operator, diubah di Pengaturan) dan
+// adminPassword (khusus dev, diubah di halaman adm1n).
+const AUTH_FILE = path.join(DATA_DIR, 'auth_state.json');
+
 const DEFAULT_STATE = {
   settings: {
     eventTitle: 'DOORPRIZE',
@@ -52,9 +57,16 @@ const DEFAULT_STATE = {
   },
   admin: {
     targets: [],
-    password: 'admin2026',
     timestamp: 0
   }
+};
+
+// Nilai kosong = "belum diset"; getter di bawah akan jatuh ke ENV lalu default.
+// auth_state.json yang asli dibuat saat boot oleh migrateAuthState().
+const DEFAULT_AUTH = {
+  loginPassword: '',
+  adminPassword: '',
+  updatedAt: 0
 };
 
 fs.mkdirSync(PUBLIC_DIR, { recursive: true });
@@ -261,9 +273,10 @@ function mergePeserta(storedRaw, incomingRaw) {
 
 function normalizeAdmin(input) {
   const source = input && typeof input === 'object' ? input : {};
+  // CATATAN KEAMANAN: password sengaja TIDAK lagi disimpan di slice admin maupun
+  // dikembalikan ke klien. Rahasia login/panel ada di auth_state.json (server-only).
   return {
     targets: Array.isArray(source.targets) ? source.targets : [],
-    password: typeof source.password === 'string' && source.password ? source.password.slice(0, 128) : 'admin2026',
     timestamp: Number(source.timestamp) || 0
   };
 }
@@ -285,6 +298,34 @@ function migrateLegacyStateFiles() {
   writeJsonAtomic(STATE_FILES.admin, admin);
 }
 
+function readLegacyAdminPassword() {
+  for (const candidate of [STATE_FILES.admin, path.join(ROOT, 'admin_state.json')]) {
+    try {
+      const parsed = JSON.parse(fs.readFileSync(candidate, 'utf8'));
+      if (parsed && typeof parsed.password === 'string' && parsed.password.trim()) {
+        return parsed.password.trim();
+      }
+    } catch (error) { /* file tidak ada / bukan JSON — lanjut */ }
+  }
+  return '';
+}
+
+// Seed auth_state.json sekali dari password lama (admin_state.json) + ENV agar
+// login lama tetap jalan. WAJIB sebelum migrateLegacyStateFiles() menormalisasi
+// admin_state.json (yang kini membuang field password).
+function migrateAuthState() {
+  if (fs.existsSync(AUTH_FILE)) return;
+  const legacyPass = readLegacyAdminPassword();
+  const envLogin = String(process.env.ADMIN_PASSWORD || '').trim();
+  const envPanel = String(process.env.ADMIN_PANEL_PASSWORD || '').trim();
+  writeJsonAtomic(AUTH_FILE, {
+    loginPassword: legacyPass || envLogin || 'admin2026',
+    adminPassword: envPanel || legacyPass || 'admin2026',
+    updatedAt: Date.now()
+  });
+}
+
+migrateAuthState();
 migrateLegacyStateFiles();
 
 if (IS_PRODUCTION) app.set('trust proxy', 1);
@@ -325,17 +366,51 @@ app.use(session({
   }
 }));
 
-function getValidAdminPassword() {
-  const adminState = readJson(STATE_FILES.admin, DEFAULT_STATE.admin);
-  const statePassword = adminState && typeof adminState.password === 'string' ? adminState.password.trim() : '';
-  const envPassword = String(process.env.ADMIN_PASSWORD || '').trim();
-  return statePassword || envPassword || 'admin2026';
+function readAuthState() {
+  return readJson(AUTH_FILE, DEFAULT_AUTH);
+}
+
+// Password login (luar) — dipakai POST /login. Sumber: auth_state.json →
+// ENV ADMIN_PASSWORD → default. Diubah operator lewat Pengaturan.
+function getLoginPassword() {
+  const auth = readAuthState();
+  const filePass = auth && typeof auth.loginPassword === 'string' ? auth.loginPassword.trim() : '';
+  const envPass = String(process.env.ADMIN_PASSWORD || '').trim();
+  return filePass || envPass || 'admin2026';
+}
+
+// Password panel admin (dalam) — dipakai POST /api/admin/unlock. Sumber:
+// auth_state.json → ENV ADMIN_PANEL_PASSWORD → default. Hanya dev. TIDAK PERNAH
+// dikirim ke klien.
+function getAdminPanelPassword() {
+  const auth = readAuthState();
+  const filePass = auth && typeof auth.adminPassword === 'string' ? auth.adminPassword.trim() : '';
+  const envPass = String(process.env.ADMIN_PANEL_PASSWORD || '').trim();
+  return filePass || envPass || 'admin2026';
+}
+
+function writeAuthPatch(patch) {
+  const current = readAuthState();
+  const next = { ...DEFAULT_AUTH, ...current, ...patch, updatedAt: Date.now() };
+  writeJsonAtomic(AUTH_FILE, next);
+  return next;
+}
+
+function isValidNewPassword(value) {
+  return typeof value === 'string' && value.trim().length >= 4 && value.length <= 128;
 }
 
 function requireAuth(req, res, next) {
   if (req.session && req.session.loggedIn === true) return next();
   if (req.path.startsWith('/api/')) return res.status(401).json({ error: 'Unauthorized' });
   return res.redirect('/login');
+}
+
+// Gate tambahan untuk konfigurasi & rahasia panel admin: butuh sesi login DAN
+// unlock panel admin (POST /api/admin/unlock) yang diverifikasi server-side.
+function requireAdminUnlocked(req, res, next) {
+  if (req.session && req.session.loggedIn === true && req.session.adminUnlocked === true) return next();
+  return res.status(403).json({ error: 'Panel admin terkunci. Masukkan password panel admin.' });
 }
 
 app.use((req, res, next) => {
@@ -379,12 +454,13 @@ app.post('/login', (req, res) => {
     return res.redirect('/login?error=1');
   }
 
-  // Kredensial valid HANYA yang dikonfigurasi (ADMIN_USERNAME/.env, dan password
-  // dari admin_state.json → ADMIN_PASSWORD → default 'admin2026' via
-  // getValidAdminPassword()). Tidak ada lagi backdoor 'admin'/'admin2026' yang
-  // selalu diterima; mengganti password kini benar-benar menonaktifkan yang lama.
+  // Kredensial valid HANYA yang dikonfigurasi: ADMIN_USERNAME (.env) dan password
+  // LOGIN dari auth_state.json → ENV ADMIN_PASSWORD → default 'admin2026' via
+  // getLoginPassword(). Password panel adm1n TERPISAH (getAdminPanelPassword) dan
+  // tak dipakai di sini. Tidak ada backdoor; mengganti password login benar-benar
+  // menonaktifkan yang lama.
   const validUsername = String(process.env.ADMIN_USERNAME || 'admin').trim();
-  const validPassword = getValidAdminPassword();
+  const validPassword = getLoginPassword();
 
   const isUsernameValid = safeStringEqual(username, validUsername);
   const isPasswordValid = safeStringEqual(password, validPassword);
@@ -475,17 +551,104 @@ app.post('/api/peserta', requireAuth, (req, res) => {
   return res.json({ success: true, timestamp: payload.timestamp });
 });
 
-app.get('/api/admin', requireAuth, (req, res) => {
-  return res.json(readJson(STATE_FILES.admin, DEFAULT_STATE.admin));
+// Konfigurasi target = khusus dev (butuh unlock). Kembalikan targets saja.
+app.get('/api/admin', requireAuth, requireAdminUnlocked, (req, res) => {
+  const admin = normalizeAdmin(readJson(STATE_FILES.admin, DEFAULT_STATE.admin));
+  return res.json({ targets: admin.targets });
 });
 
-app.post('/api/admin', requireAuth, (req, res) => {
+// Tulis konfigurasi target penuh (tambah/ubah/hapus) — khusus dev (butuh unlock).
+app.post('/api/admin', requireAuth, requireAdminUnlocked, (req, res) => {
   const payload = {
     ...normalizeAdmin(req.body),
     timestamp: Date.now()
   };
   writeJsonAtomic(STATE_FILES.admin, payload);
   return res.json({ success: true, timestamp: payload.timestamp });
+});
+
+// Update HANYA status (dari layar undian/operator, TANPA unlock). Server hanya
+// menyalin `status` ke target yang SUDAH ada dengan keanggotaan identik; payload
+// tak bisa menambah target atau mengubah siapa yang ditarget → operator tidak
+// bisa merekayasa pemenang lewat endpoint ini.
+app.post('/api/admin/status', requireAuth, (req, res) => {
+  const stored = normalizeAdmin(readJson(STATE_FILES.admin, DEFAULT_STATE.admin));
+  const incoming = Array.isArray(req.body.targets) ? req.body.targets : [];
+  const identity = (t) =>
+    `${t.ronde}|${t.cluster || 'Semua'}|${[...(Array.isArray(t.targets) ? t.targets : [])].sort().join(',')}`;
+
+  const statusByKey = new Map();
+  for (const t of incoming) {
+    if (t && typeof t.status === 'string') statusByKey.set(identity(t), t.status.slice(0, 40));
+  }
+
+  stored.targets = stored.targets.map((t) => {
+    const status = statusByKey.get(identity(t));
+    return typeof status === 'string' ? { ...t, status } : t;
+  });
+  stored.timestamp = Date.now();
+  writeJsonAtomic(STATE_FILES.admin, stored);
+  return res.json({ success: true, timestamp: stored.timestamp });
+});
+
+// Buka kunci panel admin (verifikasi server-side; password tak pernah ke klien).
+// Ada lockout sederhana per-sesi untuk menghambat brute-force.
+app.post('/api/admin/unlock', requireAuth, (req, res) => {
+  const now = Date.now();
+  if (req.session.adminLockUntil && now < req.session.adminLockUntil) {
+    const waitSec = Math.ceil((req.session.adminLockUntil - now) / 1000);
+    return res.status(429).json({ error: `Terlalu banyak percobaan gagal. Coba lagi dalam ${waitSec} detik.` });
+  }
+
+  const password = typeof req.body.password === 'string' ? req.body.password : '';
+  if (password.length > 128) return res.status(400).json({ error: 'Password tidak valid.' });
+
+  if (safeStringEqual(password, getAdminPanelPassword())) {
+    req.session.adminUnlocked = true;
+    req.session.adminFails = 0;
+    req.session.adminLockUntil = 0;
+    return req.session.save(() => res.json({ success: true }));
+  }
+
+  req.session.adminFails = (Number(req.session.adminFails) || 0) + 1;
+  if (req.session.adminFails >= 5) {
+    req.session.adminLockUntil = now + 30 * 1000;
+    req.session.adminFails = 0;
+  }
+  return req.session.save(() => res.status(401).json({ error: 'Password panel admin salah.' }));
+});
+
+app.post('/api/admin/lock', requireAuth, (req, res) => {
+  req.session.adminUnlocked = false;
+  return req.session.save(() => res.json({ success: true }));
+});
+
+// Ganti password panel admin (di halaman adm1n) — butuh unlock + password lama.
+app.post('/api/admin/password', requireAuth, requireAdminUnlocked, (req, res) => {
+  const current = typeof req.body.current === 'string' ? req.body.current : '';
+  const next = typeof req.body.next === 'string' ? req.body.next : '';
+  if (!safeStringEqual(current, getAdminPanelPassword())) {
+    return res.status(401).json({ error: 'Password panel admin saat ini salah.' });
+  }
+  if (!isValidNewPassword(next)) {
+    return res.status(400).json({ error: 'Password baru minimal 4 karakter.' });
+  }
+  writeAuthPatch({ adminPassword: next.trim() });
+  return res.json({ success: true });
+});
+
+// Ganti password login/operator (di Pengaturan) — butuh login + password lama.
+app.post('/api/login-password', requireAuth, (req, res) => {
+  const current = typeof req.body.current === 'string' ? req.body.current : '';
+  const next = typeof req.body.next === 'string' ? req.body.next : '';
+  if (!safeStringEqual(current, getLoginPassword())) {
+    return res.status(401).json({ error: 'Password login saat ini salah.' });
+  }
+  if (!isValidNewPassword(next)) {
+    return res.status(400).json({ error: 'Password baru minimal 4 karakter.' });
+  }
+  writeAuthPatch({ loginPassword: next.trim() });
+  return res.json({ success: true });
 });
 
 app.get('/api/state', requireAuth, (req, res) => {
