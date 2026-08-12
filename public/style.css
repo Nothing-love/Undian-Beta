@@ -418,6 +418,29 @@ h6 {
   height: 100%;
 }
 
+/* ===================== MODE KANVAS BEBAS (Layout Fase 1) =====================
+   Saat ada layout kustom, #stage mendapat kelas .stage-custom. Container di jalur
+   antara item dan #stage dibuat position:static agar setiap [data-stage-item]
+   memakai #stage (1920x1080) sebagai acuan absolut. Koordinat (left/top/width/
+   height/opacity/z/rotate) diisi inline oleh applyLayout(). Tanpa kelas ini,
+   tata letak flex bawaan tetap dipakai (tampilan lama, nol regresi). */
+#stage.stage-custom #mainApp {
+  display: block;
+}
+#stage.stage-custom #mainApp,
+#stage.stage-custom #appHeader,
+#stage.stage-custom .header-center,
+#stage.stage-custom #mainContent,
+#stage.stage-custom #centerArea {
+  position: static;
+}
+#stage.stage-custom [data-stage-item] {
+  position: absolute;
+  margin: 0;
+  box-sizing: border-box;
+  transform-origin: center center;
+}
+
 #mainApp {
   flex-direction: column;
   height: 100vh;
