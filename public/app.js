@@ -206,9 +206,10 @@ function applyLayout(layout) {
   const stage = document.getElementById('stage');
   if (!stage || stage.isDummy) return;
 
-  const clear = (el) => {
-    ['left', 'top', 'width', 'height', 'transform', 'opacity', 'zIndex', 'display'].forEach((p) => { el.style[p] = ''; });
-  };
+  // Properti yang kita kelola per item. removeProperty() menghapus juga deklarasi
+  // ber-!important yang kita set, agar bersih total saat balik ke mode flex.
+  const MANAGED = ['position', 'left', 'top', 'right', 'bottom', 'width', 'height', 'margin', 'opacity', 'z-index', 'transform', 'display'];
+  const clear = (el) => { MANAGED.forEach((p) => el.style.removeProperty(p)); };
 
   const hasItems = layout && layout.items && typeof layout.items === 'object' && Object.keys(layout.items).length > 0;
   if (!hasItems) {
@@ -226,17 +227,27 @@ function applyLayout(layout) {
     if (!el || el.isDummy) return;
     const it = layout.items[id];
     if (!it || it.visible === false) {
-      el.style.display = 'none';
+      el.style.setProperty('display', 'none', 'important');
       return;
     }
-    el.style.display = '';
-    el.style.left = (it.x * 100) + '%';
-    el.style.top = (it.y * 100) + '%';
-    el.style.width = (it.w * 100) + '%';
-    el.style.height = (it.h * 100) + '%';
-    el.style.opacity = (it.opacity != null ? it.opacity : 1);
-    el.style.zIndex = (it.z != null ? it.z : 10);
-    el.style.transform = it.rot ? `rotate(${it.rot}deg)` : '';
+    // Set geometri dengan prioritas 'important' + reset right/bottom. Beberapa item
+    // punya aturan dasar ber-!important (mis. .header-right/stats: position/right/
+    // bottom/top/width !important) yang, tanpa ini, membuat item MENGABAIKAN tata
+    // letak (inline biasa kalah dari CSS !important; inline !important menang).
+    // 'display' dibiarkan (dihapus) agar tiap item pakai display alaminya (flex dll).
+    el.style.removeProperty('display');
+    const set = (p, v) => el.style.setProperty(p, v, 'important');
+    set('position', 'absolute');
+    set('margin', '0');
+    set('left', (it.x * 100) + '%');
+    set('top', (it.y * 100) + '%');
+    set('right', 'auto');
+    set('bottom', 'auto');
+    set('width', (it.w * 100) + '%');
+    set('height', (it.h * 100) + '%');
+    set('opacity', String(it.opacity != null ? it.opacity : 1));
+    set('z-index', String(it.z != null ? it.z : 10));
+    set('transform', it.rot ? `rotate(${it.rot}deg)` : 'none');
   });
 }
 window.applyLayout = applyLayout;
