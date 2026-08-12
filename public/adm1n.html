@@ -321,18 +321,18 @@
     style="max-width: 400px; width: 90%; margin: 60px auto; padding: 24px; background: var(--color-surface); border-radius: var(--radius-xl); border: 1px solid var(--color-border); box-shadow: var(--shadow-xl); text-align: center; display: block; box-sizing: border-box;">
     <h2 style="font-family:'Outfit'; font-weight:700; margin:0 0 10px 0; color:var(--color-text);">🔒 Masuk Panel Admin
     </h2>
-    <p style="font-size:0.85rem; color:var(--color-text-muted); margin-bottom:20px;">Masukkan password otentikasi
-      client-side admin.</p>
+    <p style="font-size:0.85rem; color:var(--color-text-muted); margin-bottom:20px;">Panel ini khusus dev. Masukkan
+      <strong>password panel admin</strong> (berbeda dari password login operator).</p>
 
     <div id="adminLoginError"
       style="color: #EF4444; font-size: 0.85rem; font-weight: 600; margin-bottom: 15px; display: none;">
-      ❌ Password Admin Salah! <br><span style="font-size:0.75rem; color:var(--color-text-muted); font-weight:normal;">Password default: <strong>admin2026</strong></span>
+      ❌ Password panel admin salah.
     </div>
 
     <div class="form-group" style="text-align: left; margin-bottom: 20px;">
       <label for="adminPassword">Password Admin</label>
       <div style="position: relative;">
-        <input type="password" id="adminPassword" class="form-control" placeholder="Default: admin2026"
+        <input type="password" id="adminPassword" class="form-control" placeholder="Password panel admin"
           style="padding-right: 44px;" onkeydown="if(event.key === 'Enter') handleAdminLogin()" />
         <button type="button" onclick="togglePasswordVisibility()" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; font-size: 1.1rem; cursor: pointer; padding: 6px; opacity: 0.8;" title="Lihat/Sembunyikan Password">
           👁️
@@ -410,15 +410,22 @@
           <!-- CARD: Security & Password -->
           <section class="admin-card">
             <div class="admin-card-header">
-              <h2>🔒 Ubah Password Admin</h2>
+              <h2>🔒 Ubah Password Panel Admin (khusus Dev)</h2>
             </div>
             <div class="admin-card-body">
+              <p style="font-size:0.78rem; color:var(--color-text-muted); margin:0 0 6px 0;">
+                Password ini hanya untuk membuka panel admin — berbeda dari password login operator (diatur di Pengaturan).
+              </p>
               <div class="form-group">
-                <label for="newAdminPassword">Password Admin Baru</label>
-                <input type="password" id="newAdminPassword" class="form-control" placeholder="Masukkan password baru..." />
+                <label for="currentAdminPassword">Password Panel Admin Saat Ini</label>
+                <input type="password" id="currentAdminPassword" class="form-control" placeholder="Password panel admin sekarang" />
+              </div>
+              <div class="form-group">
+                <label for="newAdminPassword">Password Panel Admin Baru</label>
+                <input type="password" id="newAdminPassword" class="form-control" placeholder="Minimal 4 karakter" />
               </div>
               <button class="btn btn-outline" id="changePasswordBtn" style="width:100%; justify-content:center; min-height:44px; font-weight:700;">
-                Ubah Password
+                Ubah Password Panel Admin
               </button>
             </div>
           </section>

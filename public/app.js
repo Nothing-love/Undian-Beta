@@ -205,8 +205,7 @@ function saveSettings() {
       rev: APP.rev || 0
     },
     admin: {
-      targets: APP.adminTargets || [],
-      password: APP.adminPassword || 'admin'
+      targets: APP.adminTargets || []
     }
   };
 
@@ -218,32 +217,31 @@ function saveSettings() {
 }
 
 function loadAdminSettings() {
+  // Password admin TIDAK lagi dikelola/disimpan di klien — verifikasi kini
+  // sepenuhnya di server (POST /api/admin/unlock). Klien hanya memegang targets.
   try {
     const saved = localStorage.getItem(ADMIN_STORAGE_KEY);
     if (saved) {
       const parsed = JSON.parse(atob(saved));
       APP.adminTargets = parsed.targets || [];
-      APP.adminPassword = parsed.password || 'admin2026';
     } else {
       APP.adminTargets = [];
-      APP.adminPassword = 'admin2026';
     }
   } catch (e) {
     APP.adminTargets = [];
-    APP.adminPassword = 'admin2026';
   }
 }
 
+// Simpan KONFIGURASI target penuh (tambah/ubah/hapus). Hanya berhasil dari
+// halaman adm1n yang sudah unlock (server meng-gate POST /api/admin dengan
+// requireAdminUnlocked). Dari halaman lain, POST akan 403 dan diabaikan.
 function saveAdminSettings() {
   APP.lastAdminSaveTime = Date.now();
   const ts = Date.now();
   APP.lastSyncTs = ts;
 
-  const payload = {
-    targets: APP.adminTargets,
-    password: APP.adminPassword
-  };
-  
+  const payload = { targets: APP.adminTargets };
+
   const data = btoa(JSON.stringify(payload));
   try {
     localStorage.setItem(ADMIN_STORAGE_KEY, data);
@@ -262,6 +260,21 @@ function saveAdminSettings() {
     // Also push unified state
     saveSettings();
   }
+}
+
+// Simpan HANYA status target (dipanggil dari layar undian saat spin/reset).
+// Endpoint /api/admin/status tidak butuh unlock dan hanya menyalin status ke
+// target yang sudah ada — operator tak bisa merekayasa target lewat sini.
+function saveAdminStatus() {
+  if (window.location.protocol === 'file:') return;
+  try {
+    localStorage.setItem(ADMIN_STORAGE_KEY, btoa(JSON.stringify({ targets: APP.adminTargets })));
+  } catch (e) { /* ignore */ }
+  fetch('/api/admin/status', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ targets: APP.adminTargets })
+  }).catch(e => console.log('Admin status sync error'));
 }
 
 async function syncStateWithServer() {
@@ -329,7 +342,6 @@ async function syncStateWithServer() {
 
     // 3. Sync Admin Targets & Password
     if (data.admin) {
-      if (data.admin.password) APP.adminPassword = data.admin.password;
       if (data.admin.targets) APP.adminTargets = data.admin.targets;
       
       const localData = btoa(JSON.stringify(data.admin));
@@ -404,7 +416,6 @@ async function syncFullStateFromRemote() {
     }
 
     if (data.admin) {
-      if (data.admin.password) APP.adminPassword = data.admin.password;
       if (data.admin.targets) APP.adminTargets = data.admin.targets;
     }
   } catch (e) {
@@ -848,6 +859,7 @@ function bindEvents() {
   // Settings
   addEvent('settingsBtn', 'click', () => openModal('settingsModal'));
   addEvent('saveSettingsBtn', 'click', saveEventSettings);
+  addEvent('changeLoginPasswordBtn', 'click', changeLoginPassword);
   
   const logoArea = document.getElementById('logoUploadArea');
   const logoInput = document.getElementById('logoFileInput');
@@ -953,12 +965,12 @@ function bindEvents() {
         p.status = 'Belum Diundi';
       });
 
-      // Reset admin targets
+      // Reset admin targets (status saja — bukan konfigurasi, jadi lewat status endpoint)
       if (APP.adminTargets) {
         APP.adminTargets.forEach(t => {
           t.status = 'Belum Dieksekusi';
         });
-        saveAdminSettings();
+        saveAdminStatus();
       }
 
       // Save and sync settings
@@ -1156,12 +1168,14 @@ function loadExcelFile(file) {
       APP.rev = (Number(APP.rev) || 0) + 1;
 
       // Buang target admin yang menunjuk ID peserta yang tidak ada di roster baru
-      // (target event lama jadi tidak valid setelah upload data baru).
+      // (target event lama jadi tidak valid setelah upload data baru). Ini
+      // perubahan KEANGGOTAAN target (khusus dev) sehingga tak dipersist dari
+      // halaman ini — cukup in-memory. Target usang bersifat inert (peserta-nya
+      // sudah tak ada) dan dapat dirapikan dev di panel adm1n.
       if (APP.adminTargets && APP.adminTargets.length) {
         const newIds = new Set(APP.dataPeserta.map(p => p.id));
         APP.adminTargets.forEach(t => { t.targets = (t.targets || []).filter(id => newIds.has(id)); });
         APP.adminTargets = APP.adminTargets.filter(t => (t.targets || []).length > 0);
-        saveAdminSettings();
       }
 
       computeUniqueCategories();
@@ -1980,7 +1994,7 @@ function determineWinnersMulti(rules) {
   });
 
   if (updatedAny) {
-    saveAdminSettings();
+    saveAdminStatus();
   }
 
   // Acak urutan tampilan pemenang di reel
@@ -2488,28 +2502,40 @@ function openAdminLogin() {
   setTimeout(() => document.getElementById('adminPassword').focus(), 100);
 }
 
-function handleAdminLogin() {
+async function handleAdminLogin() {
   const passwordInput = document.getElementById('adminPassword');
   if (!passwordInput) return;
-  const input = passwordInput.value.trim();
+  const input = passwordInput.value;
+  const errBox = document.getElementById('adminLoginError');
 
-  const activePassword = APP.adminPassword || 'admin2026';
+  try {
+    const res = await fetch('/api/admin/unlock', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: input })
+    });
+    const data = await res.json().catch(() => ({}));
 
-  if (input === activePassword) {
-    closeModal('adminLoginModal');
-    const loginBox = document.getElementById('adminLoginModal');
-    if (loginBox) loginBox.style.display = 'none';
-    const errBox = document.getElementById('adminLoginError');
-    if (errBox) errBox.style.display = 'none';
-    openAdminPanel();
-  } else {
-    const errBox = document.getElementById('adminLoginError');
+    if (res.ok && data.success) {
+      closeModal('adminLoginModal');
+      const loginBox = document.getElementById('adminLoginModal');
+      if (loginBox) loginBox.style.display = 'none';
+      if (errBox) errBox.style.display = 'none';
+      passwordInput.value = '';
+      openAdminPanel();
+    } else {
+      if (errBox) {
+        errBox.innerHTML = `❌ ${data.error || 'Password panel admin salah.'}`;
+        errBox.style.display = 'block';
+      }
+      passwordInput.value = '';
+      passwordInput.focus();
+    }
+  } catch (e) {
     if (errBox) {
-      errBox.innerHTML = `❌ Password Admin Salah! <br><span style="font-size:0.75rem; color:var(--color-text-muted); font-weight:normal;">Silakan masukkan password admin yang valid.</span>`;
+      errBox.innerHTML = '❌ Gagal terhubung ke server. Coba lagi.';
       errBox.style.display = 'block';
     }
-    passwordInput.value = '';
-    passwordInput.focus();
   }
 }
 
@@ -2868,22 +2894,68 @@ async function deleteAdminTarget(index) {
 }
 window.deleteAdminTarget = deleteAdminTarget;
 
-function changeAdminPassword() {
-  const newPass = document.getElementById('newAdminPassword').value.trim();
-  if (newPass.length < 4) {
-    showToast('Password minimal 4 karakter.', 'error');
+async function changeAdminPassword() {
+  const currentEl = document.getElementById('currentAdminPassword');
+  const nextEl = document.getElementById('newAdminPassword');
+  const current = currentEl ? currentEl.value : '';
+  const next = nextEl ? nextEl.value.trim() : '';
+  if (next.length < 4) {
+    showToast('Password baru minimal 4 karakter.', 'error');
     return;
   }
-  APP.adminPassword = newPass;
-  saveAdminSettings();
-  document.getElementById('newAdminPassword').value = '';
-  showToast('Password berhasil diubah.', 'success');
+  try {
+    const res = await fetch('/api/admin/password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ current, next })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && data.success) {
+      if (currentEl) currentEl.value = '';
+      if (nextEl) nextEl.value = '';
+      showToast('Password panel admin berhasil diubah.', 'success');
+    } else {
+      showToast(data.error || 'Gagal mengubah password panel admin.', 'error');
+    }
+  } catch (e) {
+    showToast('Gagal terhubung ke server.', 'error');
+  }
 }
+window.changeAdminPassword = changeAdminPassword;
+
+// Ganti password LOGIN (operator) dari halaman Pengaturan.
+async function changeLoginPassword() {
+  const currentEl = document.getElementById('currentLoginPassword');
+  const nextEl = document.getElementById('newLoginPassword');
+  const current = currentEl ? currentEl.value : '';
+  const next = nextEl ? nextEl.value.trim() : '';
+  if (next.length < 4) {
+    showToast('Password baru minimal 4 karakter.', 'error');
+    return;
+  }
+  try {
+    const res = await fetch('/api/login-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ current, next })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && data.success) {
+      if (currentEl) currentEl.value = '';
+      if (nextEl) nextEl.value = '';
+      showToast('Password login berhasil diubah. Gunakan password baru saat login berikutnya.', 'success');
+    } else {
+      showToast(data.error || 'Gagal mengubah password login.', 'error');
+    }
+  } catch (e) {
+    showToast('Gagal terhubung ke server.', 'error');
+  }
+}
+window.changeLoginPassword = changeLoginPassword;
 
 function exportAdminConfig() {
   const config = btoa(JSON.stringify({
-    targets: APP.adminTargets,
-    password: APP.adminPassword
+    targets: APP.adminTargets
   }));
   const textarea = document.getElementById('configTextarea');
   textarea.classList.remove('hidden');
@@ -2905,7 +2977,7 @@ function importAdminConfig() {
     try {
       const parsed = JSON.parse(atob(textarea.value.trim()));
       APP.adminTargets = parsed.targets || [];
-      APP.adminPassword = parsed.password || APP.adminPassword;
+      // Password panel admin kini server-only — tidak diimpor dari config.
       saveAdminSettings();
       refreshAdminTable();
       textarea.value = '';
