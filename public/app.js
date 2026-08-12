@@ -127,6 +127,45 @@ function fitStage() {
   stage.style.transform = `translate(-50%, -50%) scale(${scale})`;
 }
 
+// Mode LAYAR PENUH PROYEKTOR (Layout Fase 4). Hanya di dashboard (tombol #fullscreenBtn).
+// Panggung sudah auto-skala via fitStage(); fullscreen membuatnya mengisi layar proyektor
+// tanpa chrome browser. Pintasan 'F' juga tersedia (diabaikan saat mengetik di input).
+function initFullscreenToggle() {
+  const btn = document.getElementById('fullscreenBtn');
+  if (!btn || btn.isDummy) return;
+
+  const isFs = () => !!(document.fullscreenElement || document.webkitFullscreenElement);
+  const enter = () => {
+    const el = document.documentElement;
+    const req = el.requestFullscreen || el.webkitRequestFullscreen;
+    if (req) { try { req.call(el); } catch (e) { /* diblokir browser */ } }
+  };
+  const exit = () => {
+    const ex = document.exitFullscreen || document.webkitExitFullscreen;
+    if (ex) { try { ex.call(document); } catch (e) { /* ignore */ } }
+  };
+  const toggle = () => { isFs() ? exit() : enter(); };
+
+  btn.addEventListener('click', toggle);
+
+  const sync = () => {
+    document.body.classList.toggle('is-fullscreen', isFs());
+    fitStage(); // sebagian browser tak memicu 'resize' saat masuk/keluar fullscreen
+  };
+  document.addEventListener('fullscreenchange', sync);
+  document.addEventListener('webkitfullscreenchange', sync);
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'f' && e.key !== 'F') return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    const tag = (e.target && e.target.tagName) || '';
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (e.target && e.target.isContentEditable)) return;
+    e.preventDefault();
+    toggle();
+  });
+}
+window.initFullscreenToggle = initFullscreenToggle;
+
 // ===================== LAYOUT ENGINE (Layout Fase 1) =====================
 // Item panggung yang bisa ditata + urutan tumpuk (z) default.
 const STAGE_ITEM_IDS = ['logo', 'title', 'subtitle', 'stats', 'prize', 'slot', 'controls', 'footer'];
@@ -236,7 +275,8 @@ function initLayoutEditor() {
       saveSettings();
       if (APP.layoutEditor) APP.layoutEditor.setLayout(null);
       showToast('Tata letak dikembalikan ke bawaan (mode fleksibel).', 'success');
-    }
+    },
+    onNotify: (type, msg) => showToast(msg, type)
   });
 
   // Muat layout tersimpan (null → editor pakai pratinjau bawaannya sebagai titik awal).
@@ -254,6 +294,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Skala panggung ke ukuran layar sekarang, dan setiap kali ukuran berubah.
   fitStage();
   window.addEventListener('resize', fitStage);
+  initFullscreenToggle();
 
   // Ambil state utuh dari server pada saat startup SEBELUM populasi form
   await syncFullStateFromRemote();

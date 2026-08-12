@@ -30,8 +30,44 @@
   var MIN = 0.02;      // ukuran minimum item (fraksi)
   var GRID = 0.005;    // langkah snap grid (0.5%)
 
+  var LAYOUT_VERSION = 2;   // versi skema layout saat ini
+
   function clamp(v, lo, hi) { return Math.min(hi, Math.max(lo, v)); }
   function round1(v) { return Math.round(v * 1000) / 10; } // fraksi -> persen 1 desimal
+  function num(v, d) { var n = parseFloat(v); return isFinite(n) ? n : d; }
+
+  // Migrasi + sanitasi layout dari sumber luar (Import file JSON, atau versi skema
+  // lama). Koordinat ternormalisasi 0..1 stabil lintas versi, jadi v2 = identitas;
+  // blok if(version) di bawah adalah titik-tempel bila skema berubah kelak. Nilai tiap
+  // item diklem agar file hasil edit-tangan yang rusak tak membuat editor kacau
+  // (server tetap mengklem ulang saat "Simpan Tata Letak" — pertahanan berlapis).
+  function migrateLayout(input) {
+    if (!input || typeof input !== 'object' || !input.items || typeof input.items !== 'object') return null;
+    // if (num(input.version, 2) < 2) { /* ...ubah bentuk lama -> v2... */ }
+    var rawItems = input.items;
+    var items = {};
+    IDS.forEach(function (id) {
+      var it = rawItems[id];
+      if (!it || typeof it !== 'object') return; // hilang → setLayout akan isi dari DEFAULT_POS
+      items[id] = {
+        x: clamp(num(it.x, 0), -0.5, 1.5),
+        y: clamp(num(it.y, 0), -0.5, 1.5),
+        w: clamp(num(it.w, 0.1), MIN, 2),
+        h: clamp(num(it.h, 0.1), MIN, 2),
+        rot: clamp(num(it.rot, 0), -180, 180),
+        opacity: clamp(num(it.opacity, 1), 0, 1),
+        z: Math.round(clamp(num(it.z, 10), 0, 9999)),
+        visible: it.visible !== false
+      };
+    });
+    if (!Object.keys(items).length) return null;
+    var stage = input.stage && typeof input.stage === 'object' ? input.stage : {};
+    return {
+      version: LAYOUT_VERSION,
+      stage: { w: Math.round(clamp(num(stage.w, 1920), 320, 8192)), h: Math.round(clamp(num(stage.h, 1080), 320, 8192)) },
+      items: items
+    };
+  }
 
   function defaultLayout() {
     var items = {};
@@ -107,6 +143,7 @@
     this.root = root;
     this.onSave = opts.onSave || function () {};
     this.onUseDefault = opts.onUseDefault || function () {};
+    this.onNotify = opts.onNotify || function () {};
     this.getContent = opts.getContent || function () { return {}; };
     this.snap = true;
     this.lockAspect = false;
@@ -139,6 +176,47 @@
     this.select(null);
   };
 
+  // Export: unduh working copy sebagai file JSON mudah-baca (untuk backup / bagi-pakai
+  // antar acara). Memakai Blob + <a download> bawaan browser — tanpa library/CDN.
+  LayoutEditor.prototype.exportLayout = function () {
+    try {
+      var data = JSON.stringify(this.getLayout(), null, 2);
+      var blob = new Blob([data], { type: 'application/json' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = 'doorprize-layout-' + new Date().toISOString().slice(0, 10) + '.json';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function () { URL.revokeObjectURL(url); }, 0);
+      this.onNotify('success', 'Tata letak diekspor ke file JSON.');
+    } catch (e) {
+      this.onNotify('error', 'Gagal mengekspor tata letak.');
+    }
+  };
+
+  // Import: baca file JSON → migrasi/sanitasi → muat ke WORKING COPY (belum permanen;
+  // operator tekan "Simpan Tata Letak" untuk menerapkan & menyebarkan).
+  LayoutEditor.prototype.importLayoutFile = function (file, onDone) {
+    var self = this;
+    onDone = onDone || function () {};
+    if (!file) { onDone(false, 'Tidak ada file dipilih.'); return; }
+    var reader = new FileReader();
+    reader.onload = function () {
+      var parsed;
+      try { parsed = JSON.parse(String(reader.result)); }
+      catch (e) { onDone(false, 'File JSON rusak / tak bisa dibaca.'); return; }
+      var migrated = migrateLayout(parsed);
+      if (!migrated) { onDone(false, 'File bukan tata letak yang valid.'); return; }
+      self.setLayout(migrated);
+      self.select(null);
+      onDone(true, 'Tata letak diimpor. Tekan "Simpan Tata Letak" untuk menerapkan.');
+    };
+    reader.onerror = function () { onDone(false, 'Gagal membaca file.'); };
+    reader.readAsText(file);
+  };
+
   LayoutEditor.prototype._buildUI = function () {
     var self = this;
     this.root.innerHTML = '';
@@ -156,6 +234,9 @@
         '<option value="panggung_lebar">Panggung Lebar</option>' +
         '<option value="minimalis">Minimalis</option>' +
       '</select></label>' +
+      '<button type="button" class="btn btn-outline btn-small le-export" title="Unduh tata letak sebagai file JSON">Export</button>' +
+      '<button type="button" class="btn btn-outline btn-small le-import" title="Muat tata letak dari file JSON">Import</button>' +
+      '<input type="file" class="le-file" accept="application/json,.json" hidden>' +
       '<div class="le-spacer"></div>' +
       '<button type="button" class="btn btn-outline btn-small le-usedefault">Pakai Bawaan (Flex)</button>' +
       '<button type="button" class="btn btn-outline btn-small le-resetall">Reset Semua</button>' +
@@ -235,6 +316,13 @@
       var key = e.target.value;
       e.target.value = ''; // balikkan ke placeholder agar preset yang sama bisa dipilih ulang
       if (key) self.applyPreset(key);
+    });
+    var fileInput = tb.querySelector('.le-file');
+    tb.querySelector('.le-export').addEventListener('click', function () { self.exportLayout(); });
+    tb.querySelector('.le-import').addEventListener('click', function () { fileInput.value = ''; fileInput.click(); });
+    fileInput.addEventListener('change', function () {
+      var f = fileInput.files && fileInput.files[0];
+      self.importLayoutFile(f, function (ok, msg) { self.onNotify(ok ? 'success' : 'error', msg); });
     });
     tb.querySelector('.le-save').addEventListener('click', function () { self.onSave(self.getLayout()); });
     tb.querySelector('.le-resetall').addEventListener('click', function () { self.setLayout(defaultLayout()); self.select(null); });
@@ -451,4 +539,6 @@
   window.layoutEditorDefault = defaultLayout;
   window.buildLayoutPreset = buildPreset;
   window.layoutPresetKeys = Object.keys(PRESETS);
+  window.migrateLayout = migrateLayout;
+  window.LAYOUT_VERSION = LAYOUT_VERSION;
 })();

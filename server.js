@@ -187,6 +187,10 @@ function migrateDataUrl(value, category) {
 
 // Item panggung yang boleh ditata (whitelist). Id asing dibuang.
 const LAYOUT_ITEM_IDS = ['logo', 'title', 'subtitle', 'stats', 'prize', 'slot', 'controls', 'footer'];
+// Versi skema layout saat ini. normalizeLayout() membangun ulang SETIAP field dari
+// nol & mengklem rentang → apa pun versi input otomatis ternormalisasi ke versi ini
+// (koordinat 0..1 stabil lintas versi). Titik-tempel bila bentuk skema berubah kelak.
+const LAYOUT_VERSION = 2;
 
 function clampNumber(value, min, max, fallback) {
   const n = Number(value);
@@ -219,7 +223,7 @@ function normalizeLayout(input) {
   if (Object.keys(items).length === 0) return null;
 
   return {
-    version: 2,
+    version: LAYOUT_VERSION,
     stage: {
       w: Math.round(clampNumber(input.stage && input.stage.w, 320, 8192, 1920)),
       h: Math.round(clampNumber(input.stage && input.stage.h, 320, 8192, 1080))
