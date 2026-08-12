@@ -7,7 +7,6 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const session = require('express-session');
-const FileStore = require('session-file-store')(session);
 const multer = require('multer');
 const { spawn } = require('child_process');
 
@@ -86,10 +85,24 @@ function readJson(filePath, fallback) {
   }
 }
 
+// Tulis JSON atomik (temp + rename). Di Windows, rename-over kadang gagal
+// EPERM/EBUSY/EACCES (antivirus/indexing/OneDrive mengunci file sesaat) — dalam
+// kasus itu fallback ke tulis langsung agar data (mis. auth_state.json) tetap
+// tersimpan dan ganti-password tidak gagal. Di Linux (produksi) jalur rename
+// atomik normal yang dipakai.
 function writeJsonAtomic(filePath, value) {
-  const tempPath = `${filePath}.${process.pid}.${Date.now()}.tmp`;
-  fs.writeFileSync(tempPath, JSON.stringify(value, null, 2), 'utf8');
-  fs.renameSync(tempPath, filePath);
+  const data = JSON.stringify(value, null, 2);
+  const tempPath = `${filePath}.${process.pid}.${Date.now()}.${crypto.randomBytes(4).toString('hex')}.tmp`;
+  try {
+    fs.writeFileSync(tempPath, data, 'utf8');
+    fs.renameSync(tempPath, filePath);
+  } catch (error) {
+    try {
+      fs.writeFileSync(filePath, data, 'utf8');
+    } finally {
+      try { fs.unlinkSync(tempPath); } catch (cleanupError) { /* ignore */ }
+    }
+  }
 }
 
 function safeStringEqual(left, right) {
@@ -347,14 +360,52 @@ if (!process.env.SESSION_SECRET) {
   console.warn('⚠️ SESSION_SECRET belum diatur di .env. Ganti sebelum produksi.');
 }
 
+// Session store berbasis file yang tahan EPERM Windows: tulis lewat
+// writeJsonAtomic (punya fallback tulis-langsung) dan destroy best-effort (tak
+// pernah error) agar req.session.regenerate saat login tidak gagal ketika file
+// sesi ter-lock antivirus. Tetap persist di disk (aman untuk pm2 reload di prod).
+class RobustFileStore extends session.Store {
+  constructor(dir, ttlSeconds = 24 * 60 * 60) {
+    super();
+    this.dir = dir;
+    this.ttlMs = ttlSeconds * 1000;
+  }
+  _path(sid) {
+    const safe = String(sid).replace(/[^a-zA-Z0-9_-]/g, '');
+    return path.join(this.dir, `${safe}.json`);
+  }
+  get(sid, cb) {
+    fs.readFile(this._path(sid), 'utf8', (err, raw) => {
+      if (err) return cb(err.code === 'ENOENT' ? null : err, null);
+      let parsed;
+      try { parsed = JSON.parse(raw); } catch (parseError) { return cb(null, null); }
+      if (parsed.__expires && Date.now() > parsed.__expires) {
+        return this.destroy(sid, () => cb(null, null));
+      }
+      return cb(null, parsed.sess || null);
+    });
+  }
+  set(sid, sess, cb) {
+    const maxAge = sess && sess.cookie && typeof sess.cookie.maxAge === 'number' ? sess.cookie.maxAge : this.ttlMs;
+    try {
+      writeJsonAtomic(this._path(sid), { __expires: Date.now() + maxAge, sess });
+      return cb && cb(null);
+    } catch (error) {
+      return cb && cb(error);
+    }
+  }
+  touch(sid, sess, cb) {
+    return this.set(sid, sess, cb);
+  }
+  destroy(sid, cb) {
+    // best-effort: JANGAN pernah error agar regenerate/login tak gagal di Windows.
+    fs.unlink(this._path(sid), () => (cb ? cb(null) : undefined));
+  }
+}
+
 app.use(session({
   name: 'doorprize.sid',
-  store: new FileStore({
-    path: SESSION_DIR,
-    ttl: 24 * 60 * 60,
-    retries: 1,
-    logFn: () => {}
-  }),
+  store: new RobustFileStore(SESSION_DIR),
   secret: sessionSecret,
   resave: false,
   saveUninitialized: false,
