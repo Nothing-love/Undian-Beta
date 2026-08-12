@@ -3219,3 +3219,33 @@ body.bg-filter-normal::after {
 @media (max-width: 640px) {
   .le-panel-body { grid-template-columns: 1fr; }
 }
+
+
+/* ===================== MODE LAYAR PENUH PROYEKTOR (Layout Fase 4) =====================
+   Tombol overlay halus di pojok dashboard; redup saat idle, jelas saat hover.
+   z-index di bawah modal (1000+) → tersembunyi otomatis saat popup pemenang tampil. */
+.fullscreen-toggle {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 500;
+  width: 42px;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(15, 23, 42, 0.55);
+  color: #fff;
+  cursor: pointer;
+  opacity: 0.25;
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  transition: opacity var(--transition-fast), background var(--transition-fast), transform var(--transition-fast);
+}
+.fullscreen-toggle:hover { opacity: 1; transform: translateY(-1px); }
+.fullscreen-toggle:focus-visible { opacity: 1; outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.fullscreen-toggle .fs-icon-exit { display: none; }
+body.is-fullscreen .fullscreen-toggle .fs-icon-enter { display: none; }
+body.is-fullscreen .fullscreen-toggle .fs-icon-exit { display: block; }
