@@ -114,13 +114,30 @@ const THEME_PRESETS = {
   }
 };;
 
+// ===================== STAGE SCALER (Layout Fase 0) =====================
+// Dashboard hidup di dalam #stage berukuran desain tetap 1920x1080. Kita hanya
+// men-scale-nya (bukan reflow) agar tampil identik & konsisten di layar apa pun.
+// Hanya berlaku di halaman dashboard; di halaman lain #stage tak ada (no-op).
+const STAGE_W = 1920;
+const STAGE_H = 1080;
+function fitStage() {
+  const stage = document.getElementById('stage');
+  if (!stage || stage.isDummy) return;
+  const scale = Math.min(window.innerWidth / STAGE_W, window.innerHeight / STAGE_H);
+  stage.style.transform = `translate(-50%, -50%) scale(${scale})`;
+}
+
 // ===================== INITIALIZATION =====================
 document.addEventListener('DOMContentLoaded', async () => {
   loadSettings();
   loadAdminSettings();
   checkRemoteAccess();
   bindEvents();
-  
+
+  // Skala panggung ke ukuran layar sekarang, dan setiap kali ukuran berubah.
+  fitStage();
+  window.addEventListener('resize', fitStage);
+
   // Ambil state utuh dari server pada saat startup SEBELUM populasi form
   await syncFullStateFromRemote();
   
