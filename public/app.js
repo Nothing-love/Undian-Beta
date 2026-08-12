@@ -127,6 +127,82 @@ function fitStage() {
   stage.style.transform = `translate(-50%, -50%) scale(${scale})`;
 }
 
+// ===================== LAYOUT ENGINE (Layout Fase 1) =====================
+// Item panggung yang bisa ditata + urutan tumpuk (z) default.
+const STAGE_ITEM_IDS = ['logo', 'title', 'subtitle', 'stats', 'prize', 'slot', 'controls', 'footer'];
+const STAGE_ITEM_Z = { footer: 5, prize: 10, slot: 10, title: 20, subtitle: 20, stats: 25, controls: 25, logo: 30 };
+
+// Snapshot posisi elemen SAAT INI (mode flex) menjadi layout ternormalisasi
+// (fraksi 0..1 terhadap #stage). Karena mengukur DOM nyata, menerapkan hasilnya
+// mereproduksi tampilan sekarang secara persis — jadi titik awal editor (Fase 2).
+function buildDefaultLayout() {
+  const stage = document.getElementById('stage');
+  const items = {};
+  if (stage && !stage.isDummy && typeof stage.getBoundingClientRect === 'function') {
+    const sr = stage.getBoundingClientRect();
+    if (sr.width > 0 && sr.height > 0) {
+      STAGE_ITEM_IDS.forEach((id) => {
+        const el = document.querySelector(`[data-stage-item="${id}"]`);
+        if (!el) return;
+        const r = el.getBoundingClientRect();
+        items[id] = {
+          x: (r.left - sr.left) / sr.width,
+          y: (r.top - sr.top) / sr.height,
+          w: r.width / sr.width,
+          h: r.height / sr.height,
+          rot: 0,
+          opacity: 1,
+          z: STAGE_ITEM_Z[id] || 10,
+          visible: true
+        };
+      });
+    }
+  }
+  return { version: 2, stage: { w: STAGE_W, h: STAGE_H }, items };
+}
+
+// Render layout ke #stage. null/kosong → mode flex bawaan (tampilan lama, nol
+// regresi). Ada items → mode kanvas: tiap item diposisikan absolut (% dari stage).
+function applyLayout(layout) {
+  const stage = document.getElementById('stage');
+  if (!stage || stage.isDummy) return;
+
+  const clear = (el) => {
+    ['left', 'top', 'width', 'height', 'transform', 'opacity', 'zIndex', 'display'].forEach((p) => { el.style[p] = ''; });
+  };
+
+  const hasItems = layout && layout.items && typeof layout.items === 'object' && Object.keys(layout.items).length > 0;
+  if (!hasItems) {
+    stage.classList.remove('stage-custom');
+    STAGE_ITEM_IDS.forEach((id) => {
+      const el = document.querySelector(`[data-stage-item="${id}"]`);
+      if (el && !el.isDummy) clear(el);
+    });
+    return;
+  }
+
+  stage.classList.add('stage-custom');
+  STAGE_ITEM_IDS.forEach((id) => {
+    const el = document.querySelector(`[data-stage-item="${id}"]`);
+    if (!el || el.isDummy) return;
+    const it = layout.items[id];
+    if (!it || it.visible === false) {
+      el.style.display = 'none';
+      return;
+    }
+    el.style.display = '';
+    el.style.left = (it.x * 100) + '%';
+    el.style.top = (it.y * 100) + '%';
+    el.style.width = (it.w * 100) + '%';
+    el.style.height = (it.h * 100) + '%';
+    el.style.opacity = (it.opacity != null ? it.opacity : 1);
+    el.style.zIndex = (it.z != null ? it.z : 10);
+    el.style.transform = it.rot ? `rotate(${it.rot}deg)` : '';
+  });
+}
+window.applyLayout = applyLayout;
+window.buildDefaultLayout = buildDefaultLayout;
+
 // ===================== INITIALIZATION =====================
 document.addEventListener('DOMContentLoaded', async () => {
   loadSettings();
@@ -829,6 +905,10 @@ function applyEventSettings() {
     document.documentElement.style.setProperty('--bg-image', 'none');
     document.body.classList.remove('has-bg');
   }
+
+  // Terapkan tata letak kustom (null → mode flex bawaan). Fase 1: layout selalu
+  // null sampai editor (Fase 2) menghasilkannya, jadi tampilan belum berubah.
+  applyLayout(APP.settings.layout);
 }
 
 // ===================== EVENT BINDINGS =====================

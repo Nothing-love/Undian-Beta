@@ -44,6 +44,7 @@ const DEFAULT_STATE = {
       accent: '#F59E0B'
     },
     prizes: [],
+    layout: null,
     timestamp: 0
   },
   peserta: {
@@ -184,6 +185,49 @@ function migrateDataUrl(value, category) {
   }
 }
 
+// Item panggung yang boleh ditata (whitelist). Id asing dibuang.
+const LAYOUT_ITEM_IDS = ['logo', 'title', 'subtitle', 'stats', 'prize', 'slot', 'controls', 'footer'];
+
+function clampNumber(value, min, max, fallback) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(max, Math.max(min, n));
+}
+
+// Sanitasi objek layout dari klien: paksa tipe angka, klem rentang, whitelist id,
+// buang key asing. Return null bila kosong/invalid → dashboard pakai layout flex.
+function normalizeLayout(input) {
+  if (!input || typeof input !== 'object') return null;
+  const rawItems = input.items && typeof input.items === 'object' ? input.items : null;
+  if (!rawItems) return null;
+
+  const items = {};
+  for (const id of LAYOUT_ITEM_IDS) {
+    const it = rawItems[id];
+    if (!it || typeof it !== 'object') continue;
+    items[id] = {
+      x: clampNumber(it.x, -0.5, 1.5, 0),
+      y: clampNumber(it.y, -0.5, 1.5, 0),
+      w: clampNumber(it.w, 0.01, 2, 0.1),
+      h: clampNumber(it.h, 0.01, 2, 0.1),
+      rot: clampNumber(it.rot, -180, 180, 0),
+      opacity: clampNumber(it.opacity, 0, 1, 1),
+      z: Math.round(clampNumber(it.z, 0, 9999, 10)),
+      visible: it.visible !== false
+    };
+  }
+  if (Object.keys(items).length === 0) return null;
+
+  return {
+    version: 2,
+    stage: {
+      w: Math.round(clampNumber(input.stage && input.stage.w, 320, 8192, 1920)),
+      h: Math.round(clampNumber(input.stage && input.stage.h, 320, 8192, 1080))
+    },
+    items
+  };
+}
+
 function normalizeSettings(input) {
   const source = input && typeof input === 'object' ? { ...input } : {};
 
@@ -211,6 +255,8 @@ function normalizeSettings(input) {
         return cleanPrize;
       }).filter(Boolean)
     : [];
+
+  source.layout = normalizeLayout(source.layout);
 
   return source;
 }
