@@ -203,6 +203,47 @@ function applyLayout(layout) {
 window.applyLayout = applyLayout;
 window.buildDefaultLayout = buildDefaultLayout;
 
+// ===================== LAYOUT EDITOR WIRING (Layout Fase 2) =====================
+// Menyalakan editor drag/resize di halaman Pengaturan. Editor bekerja pada SALINAN
+// KERJA (working copy) sendiri; hasil edit baru masuk ke APP.settings.layout saat
+// operator menekan "Simpan Tata Letak" → saveSettings() → tersinkron ke semua layar.
+// Sinkron 2 detik boleh memperbarui APP.settings di latar tanpa mengganggu editing.
+function getLayoutEditorContent() {
+  const titleInput = document.getElementById('inputEventTitle');
+  const subInput = document.getElementById('inputEventSubtitle');
+  return {
+    logoUrl: APP.settings.logoUrl || null,
+    title: (titleInput && titleInput.value.trim()) || APP.settings.eventTitle || 'JUDUL ACARA',
+    subtitle: (subInput && subInput.value.trim()) || APP.settings.eventSubtitle || 'Sub-judul',
+    footer: APP.settings.footerText || 'Powered by SATSIBER'
+  };
+}
+
+function initLayoutEditor() {
+  const root = document.getElementById('layoutEditorRoot');
+  if (!root || root.isDummy) return;
+  if (APP.layoutEditor || typeof window.LayoutEditor !== 'function') return;
+
+  APP.layoutEditor = new window.LayoutEditor(root, {
+    getContent: getLayoutEditorContent,
+    onSave: (layout) => {
+      APP.settings.layout = layout;
+      saveSettings();
+      showToast('Tata letak panggung disimpan & disinkronkan ke semua layar.', 'success');
+    },
+    onUseDefault: () => {
+      APP.settings.layout = null;
+      saveSettings();
+      if (APP.layoutEditor) APP.layoutEditor.setLayout(null);
+      showToast('Tata letak dikembalikan ke bawaan (mode fleksibel).', 'success');
+    }
+  });
+
+  // Muat layout tersimpan (null → editor pakai pratinjau bawaannya sebagai titik awal).
+  APP.layoutEditor.setLayout(APP.settings.layout || null);
+}
+window.initLayoutEditor = initLayoutEditor;
+
 // ===================== INITIALIZATION =====================
 document.addEventListener('DOMContentLoaded', async () => {
   loadSettings();
@@ -221,6 +262,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const inputTitle = document.getElementById('inputEventTitle');
   if (inputTitle && !inputTitle.isDummy) {
     openSettingsModal();
+    initLayoutEditor();
   }
 
   // Jika ini halaman admin, inisialisasi panel admin
@@ -739,6 +781,9 @@ window.updateBrandingPreview = function() {
 
   document.body.className = document.body.className.replace(/bg-filter-\w+/g, '').trim();
   document.body.classList.add(`bg-filter-${bgStyle}`);
+
+  // Cerminkan perubahan judul/sub-judul/logo ke pratinjau editor tata letak secara langsung.
+  if (APP.layoutEditor) APP.layoutEditor.refreshContent();
 };
 
 window.updateThemePreview = function(themeKey) {
@@ -3427,6 +3472,9 @@ function openSettingsModal() {
     if (document.getElementById('winnerBgUploadText')) document.getElementById('winnerBgUploadText').style.display = 'block';
     if (document.getElementById('removeWinnerBgBtn')) document.getElementById('removeWinnerBgBtn').classList.add('hidden');
   }
+
+  // Segarkan pratinjau isi editor tata letak (aman: tak menyentuh working copy/posisi).
+  if (APP.layoutEditor) APP.layoutEditor.refreshContent();
 
   openModal('settingsModal');
 }
