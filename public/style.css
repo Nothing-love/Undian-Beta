@@ -395,6 +395,52 @@ h6 {
 }
 
 /* ===================== MAIN APP LAYOUT ===================== */
+/* ===================== STAGE (kanvas desain 1920x1080, diskalakan via JS) ===================== */
+/* Konten dashboard hidup di dalam #stage berukuran tetap 1920x1080. fitStage()
+   di app.js men-scale-nya agar pas di layar apa pun → tampil identik (hanya
+   diperkecil/diperbesar seragam) di laptop maupun proyektor. Modal/toast sengaja
+   berada DI LUAR #stage agar tetap overlay layar penuh. */
+#stage {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 1920px;
+  height: 1080px;
+  transform: translate(-50%, -50%) scale(1);
+  transform-origin: center center;
+  overflow: hidden;
+  will-change: transform;
+}
+
+/* Di dalam stage, #mainApp mengisi 1920x1080 (bukan 100vw/100vh viewport). */
+#stage #mainApp {
+  width: 100%;
+  height: 100%;
+}
+
+/* ===================== MODE KANVAS BEBAS (Layout Fase 1) =====================
+   Saat ada layout kustom, #stage mendapat kelas .stage-custom. Container di jalur
+   antara item dan #stage dibuat position:static agar setiap [data-stage-item]
+   memakai #stage (1920x1080) sebagai acuan absolut. Koordinat (left/top/width/
+   height/opacity/z/rotate) diisi inline oleh applyLayout(). Tanpa kelas ini,
+   tata letak flex bawaan tetap dipakai (tampilan lama, nol regresi). */
+#stage.stage-custom #mainApp {
+  display: block;
+}
+#stage.stage-custom #mainApp,
+#stage.stage-custom #appHeader,
+#stage.stage-custom .header-center,
+#stage.stage-custom #mainContent,
+#stage.stage-custom #centerArea {
+  position: static;
+}
+#stage.stage-custom [data-stage-item] {
+  position: absolute;
+  margin: 0;
+  box-sizing: border-box;
+  transform-origin: center center;
+}
+
 #mainApp {
   flex-direction: column;
   height: 100vh;
@@ -729,9 +775,9 @@ h6 {
   transition: all var(--transition-base);
   margin: auto;
   width: fit-content;
-  max-width: 96vw;
+  max-width: 1840px; /* ~96% dari lebar stage 1920 (dulu 96vw) */
   height: fit-content;
-  max-height: calc(100vh - 180px);
+  max-height: calc(1080px - 180px); /* tinggi stage 1080 - header/kontrol (dulu 100vh) */
   overflow-y: auto;
   overflow-x: hidden;
   box-sizing: border-box;
@@ -939,7 +985,7 @@ body.dark-theme .slot-reel .slot-cell.winner-cell {
 
 .slot-machine.massive-reel .slot-reel.single-cell-reel {
   flex: 0 1 750px !important;
-  width: min(750px, 90vw) !important;
+  width: 750px !important; /* dikunci ke desain 1920 (dulu 90vw) */
   min-height: 220px !important;
   padding: 10px 20px !important;
   border-width: 4px !important;
@@ -948,13 +994,13 @@ body.dark-theme .slot-reel .slot-cell.winner-cell {
 }
 
 .slot-machine.massive-reel .slot-cell.is-number {
-  font-size: clamp(6.5rem, 14vw, 14rem) !important;
+  font-size: 14rem !important; /* dikunci ke desain 1920 (dulu 14vw) */
   letter-spacing: -0.04em !important;
   padding: 0 16px !important;
 }
 
 .slot-machine.massive-reel .slot-cell.is-name {
-  font-size: clamp(2.8rem, 6vw, 6rem) !important;
+  font-size: 6rem !important; /* dikunci ke desain 1920 (dulu 6vw) */
   line-height: 1.15 !important;
   white-space: normal !important;
   word-break: break-word !important;
@@ -980,13 +1026,13 @@ body.dark-theme .slot-reel .slot-cell.winner-cell {
 }
 
 .slot-machine.large-reels .slot-cell.is-number {
-  font-size: clamp(3.8rem, 7vw, 8rem) !important;
+  font-size: 8rem !important; /* dikunci ke desain 1920 (dulu 7vw) */
   letter-spacing: -0.04em !important;
   padding: 0 12px !important;
 }
 
 .slot-machine.large-reels .slot-cell.is-name {
-  font-size: clamp(1.8rem, 3.5vw, 3.5rem) !important;
+  font-size: 3.5rem !important; /* dikunci ke desain 1920 (dulu 3.5vw) */
   line-height: 1.15 !important;
   white-space: normal !important;
   word-break: break-word !important;
@@ -1012,13 +1058,13 @@ body.dark-theme .slot-reel .slot-cell.winner-cell {
 }
 
 .slot-machine.compact-reels .slot-cell.is-number {
-  font-size: clamp(3rem, 5.2vw, 5.8rem) !important;
+  font-size: 5.8rem !important; /* dikunci ke desain 1920 (dulu 5.2vw) */
   letter-spacing: -0.04em !important;
   padding: 0 10px !important;
 }
 
 .slot-machine.compact-reels .slot-cell.is-name {
-  font-size: clamp(1.3rem, 2.4vw, 2.4rem) !important;
+  font-size: 2.4rem !important; /* dikunci ke desain 1920 (dulu 2.4vw) */
   line-height: 1.15 !important;
   white-space: normal !important;
   word-break: break-word !important;
@@ -1044,13 +1090,13 @@ body.dark-theme .slot-reel .slot-cell.winner-cell {
 }
 
 .slot-machine.micro-reels .slot-cell.is-number {
-  font-size: clamp(2.2rem, 3.8vw, 4.2rem) !important;
+  font-size: 4.2rem !important; /* dikunci ke desain 1920 (dulu 3.8vw) */
   letter-spacing: -0.04em !important;
   padding: 0 6px !important;
 }
 
 .slot-machine.micro-reels .slot-cell.is-name {
-  font-size: clamp(0.9rem, 1.4vw, 1.35rem) !important;
+  font-size: 1.35rem !important; /* dikunci ke desain 1920 (dulu 1.4vw) */
   line-height: 1.15 !important;
   white-space: normal !important;
   word-break: break-word !important;
@@ -2918,3 +2964,288 @@ body.bg-filter-normal::after {
   color: var(--color-text) !important;
   animation: pop 0.35s cubic-bezier(0.2, 1.4, 0.4, 1) !important;
 }
+
+/* ===================== LAYOUT EDITOR (Layout Fase 2) =====================
+   Editor drag/resize di halaman Pengaturan (kanvas 16:9 mirip dashboard).
+   Menghasilkan settings.layout (koordinat ternormalisasi 0..1 terhadap panggung).
+   Mandiri, tanpa library eksternal → aman offline di venue. */
+.le-root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.le-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.le-toolbar .le-spacer { flex: 1 1 auto; }
+
+.le-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  user-select: none;
+}
+.le-check input { cursor: pointer; }
+
+.le-preset {
+  padding: 5px 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+}
+.le-preset:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.12);
+}
+
+/* Kanvas 16:9 — panggung "gelap" agar item terang mudah dilihat, seperti proyektor. */
+.le-canvas-wrap {
+  position: relative;
+  width: 100%;
+  max-width: 960px;
+  margin: 0 auto;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: linear-gradient(135deg, #111827, #1e293b);
+  box-shadow: inset 0 0 60px rgba(0, 0, 0, 0.45), var(--shadow-md);
+  overflow: hidden;
+  touch-action: none;
+}
+@supports not (aspect-ratio: 16 / 9) {
+  .le-canvas-wrap::after { content: ""; display: block; padding-top: 56.25%; }
+}
+
+.le-canvas {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+/* Kisi halus sebagai bantuan visual perataan. */
+.le-canvas::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+  background-size: 10% 10%;
+}
+
+.le-item {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1px solid rgba(148, 163, 184, 0.55);
+  border-radius: 6px;
+  background: rgba(148, 163, 184, 0.10);
+  color: #f8fafc;
+  cursor: move;
+  user-select: none;
+  touch-action: none;
+  transform-origin: center center;
+  transition: border-color var(--transition-fast), background var(--transition-fast);
+}
+.le-item:hover { border-color: rgba(var(--color-primary-rgb), 0.9); }
+
+.le-item.le-selected {
+  border-color: var(--color-accent);
+  background: rgba(var(--color-accent-rgb), 0.14);
+  box-shadow: 0 0 0 1px var(--color-accent), 0 6px 18px rgba(0, 0, 0, 0.35);
+}
+
+.le-item.le-hidden {
+  border-style: dashed;
+  border-color: rgba(148, 163, 184, 0.6);
+  background: repeating-linear-gradient(45deg, rgba(148, 163, 184, 0.10) 0 6px, transparent 6px 12px);
+}
+
+.le-label {
+  position: absolute;
+  top: 2px;
+  left: 4px;
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: rgba(248, 250, 252, 0.85);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.le-content {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  overflow: hidden;
+  text-align: center;
+  font-size: 0.78rem;
+  line-height: 1.15;
+  font-weight: 700;
+  pointer-events: none;
+}
+.le-content img { max-width: 100%; max-height: 100%; object-fit: contain; }
+
+/* 8 handle resize — tampil hanya saat item terpilih. */
+.le-handle {
+  position: absolute;
+  width: 11px;
+  height: 11px;
+  background: var(--color-accent);
+  border: 2px solid #fff;
+  border-radius: 2px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  transform: translate(-50%, -50%);
+  display: none;
+  touch-action: none;
+  z-index: 3;
+}
+.le-selected .le-handle { display: block; }
+
+.le-h-nw { top: 0;    left: 0;    cursor: nwse-resize; }
+.le-h-n  { top: 0;    left: 50%;  cursor: ns-resize; }
+.le-h-ne { top: 0;    left: 100%; cursor: nesw-resize; }
+.le-h-e  { top: 50%;  left: 100%; cursor: ew-resize; }
+.le-h-se { top: 100%; left: 100%; cursor: nwse-resize; }
+.le-h-s  { top: 100%; left: 50%;  cursor: ns-resize; }
+.le-h-sw { top: 100%; left: 0;    cursor: nesw-resize; }
+.le-h-w  { top: 50%;  left: 0;    cursor: ew-resize; }
+
+/* Handle rotasi — bulat, menonjol di atas item. */
+.le-rot {
+  position: absolute;
+  top: -24px;
+  left: 50%;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  border: 2px solid #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  transform: translateX(-50%);
+  cursor: grab;
+  display: none;
+  touch-action: none;
+  z-index: 3;
+}
+.le-rot::before {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  width: 1px;
+  height: 10px;
+  transform: translateX(-50%);
+  background: rgba(255, 255, 255, 0.7);
+}
+.le-selected .le-rot { display: block; }
+
+/* Garis bantu tengah (X/Y) saat snap. */
+.le-guide { position: absolute; pointer-events: none; z-index: 9999; }
+.le-guide-v { top: 0; left: 50%; width: 0; height: 100%; border-left: 1px dashed var(--color-accent); }
+.le-guide-h { left: 0; top: 50%; height: 0; width: 100%; border-top: 1px dashed var(--color-accent); }
+
+/* Panel properti numerik. */
+.le-panel {
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+}
+.le-panel-head { margin-bottom: 10px; }
+.le-panel-title {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+.le-panel-body {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 16px;
+  transition: opacity var(--transition-fast);
+}
+.le-row { display: flex; align-items: center; gap: 8px; }
+.le-row-label {
+  min-width: 62px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+.le-in {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 8px;
+  font-size: 0.82rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+.le-in:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.12);
+}
+.le-unit { font-size: 0.75rem; color: var(--color-text-muted); min-width: 14px; }
+.le-row-checks {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 2px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--color-border-light);
+}
+
+@media (max-width: 640px) {
+  .le-panel-body { grid-template-columns: 1fr; }
+}
+
+
+/* ===================== MODE LAYAR PENUH PROYEKTOR (Layout Fase 4) =====================
+   Tombol overlay halus di pojok dashboard; redup saat idle, jelas saat hover.
+   z-index di bawah modal (1000+) → tersembunyi otomatis saat popup pemenang tampil. */
+.fullscreen-toggle {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 500;
+  width: 42px;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(15, 23, 42, 0.55);
+  color: #fff;
+  cursor: pointer;
+  opacity: 0.25;
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  transition: opacity var(--transition-fast), background var(--transition-fast), transform var(--transition-fast);
+}
+.fullscreen-toggle:hover { opacity: 1; transform: translateY(-1px); }
+.fullscreen-toggle:focus-visible { opacity: 1; outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.fullscreen-toggle .fs-icon-exit { display: none; }
+body.is-fullscreen .fullscreen-toggle .fs-icon-enter { display: none; }
+body.is-fullscreen .fullscreen-toggle .fs-icon-exit { display: block; }

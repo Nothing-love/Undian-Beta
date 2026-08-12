@@ -26,11 +26,13 @@
 <body>
 
   <!-- ===================== UPLOAD SCREEN ===================== -->
+  <!-- ===================== STAGE: kanvas desain 1920x1080 yang diskalakan agar identik di semua layar (Fase 0) ===================== -->
+  <div id="stage">
   <!-- ===================== MAIN APP ===================== -->
   <div id="mainApp" class="screen active">
     <!-- HEADER -->
     <header id="appHeader">
-      <div class="header-left">
+      <div class="header-left" data-stage-item="logo">
         <div class="header-logo" id="headerLogo">
           <svg width="46" height="46" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
             <defs>
@@ -58,9 +60,9 @@
         <img id="customLogo" class="custom-logo hidden" alt="Logo Acara" style="max-height: 70px; object-fit: contain;" />
       </div>
       <div class="header-center">
-        <h1 id="eventTitle" class="event-title">DOORPRIZE</h1>
-        <p id="eventSubtitle" class="event-subtitle">Aplikasi Undian Digital</p>
-        <div class="header-right">
+        <h1 id="eventTitle" class="event-title" data-stage-item="title">DOORPRIZE</h1>
+        <p id="eventSubtitle" class="event-subtitle" data-stage-item="subtitle">Aplikasi Undian Digital</p>
+        <div class="header-right" data-stage-item="stats">
           <div class="header-stats" id="headerStats">
             <span class="stat-badge" id="pesertaBadge">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -99,7 +101,7 @@
     <!-- MAIN CONTENT -->
     <main id="mainContent">
       <!-- SIDEBAR: Prize -->
-      <aside id="prizeSidebar">
+      <aside id="prizeSidebar" data-stage-item="prize">
         <div class="sidebar-header">
           <h2>
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -126,7 +128,7 @@
       <!-- CENTER: Slot Machine -->
       <section id="centerArea">
         <!-- Slot Machine Frame -->
-        <div id="slotMachineFrame" class="slot-machine-frame">
+        <div id="slotMachineFrame" class="slot-machine-frame" data-stage-item="slot">
           <div class="slot-machine-header">
             <div class="slot-light slot-light-1"></div>
             <div class="slot-light slot-light-2"></div>
@@ -149,7 +151,7 @@
         </div>
 
         <!-- Controls -->
-        <div id="controlsArea" class="controls-area" style="margin-top: 16px;">
+        <div id="controlsArea" class="controls-area" style="margin-top: 16px;" data-stage-item="controls">
           <div class="controls-row" style="flex-direction: column; align-items: center; gap: var(--space-md);">
             <!-- Toggle Manual Stop -->
             <div style="display:flex; align-items:center; justify-content:center; gap: 8px; margin-bottom: -10px;">
@@ -177,11 +179,18 @@
     </main>
 
     <!-- FOOTER -->
-    <footer id="appFooter">
+    <footer id="appFooter" data-stage-item="footer">
       <span id="statusText">Siap — Upload file Excel untuk memulai</span>
       <span class="footer-brand">Powered by SATSIBER</span>
     </footer>
   </div>
+  </div><!-- /#stage -->
+
+  <!-- Tombol Layar Penuh Proyektor (Fase 4) — overlay DI LUAR #stage, tak ikut diskalakan. -->
+  <button type="button" id="fullscreenBtn" class="fullscreen-toggle" title="Layar penuh proyektor (F)" aria-label="Layar penuh">
+    <svg class="fs-icon-enter" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M16 3h3a2 2 0 0 1 2 2v3"/><path d="M8 21H5a2 2 0 0 1-2-2v-3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
+    <svg class="fs-icon-exit" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3v3a2 2 0 0 1-2 2H10"/><path d="M9 21v-3a2 2 0 0 0-2-2H4"/><path d="M21 15h-3a2 2 0 0 0-2 2v3"/><path d="M3 9h3a2 2 0 0 0 2-2V4"/></svg>
+  </button>
 
   <!-- ===================== SETTINGS MODAL ===================== -->
   <!-- ===================== WINNER MODAL ===================== -->
@@ -239,7 +248,7 @@
     </div>
   </div>
 
-  <script src="app.js?v=2026.07.19.2"></script>
+  <script src="app.js?v=2026.08.12.2"></script>
 </body>
 
 </html>

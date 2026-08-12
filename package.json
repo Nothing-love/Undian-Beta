@@ -1,11 +1,11 @@
 {
   "name": "DOORPRIZE",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Aplikasi undian digital dengan sinkronisasi server dan upload gambar.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "check": "node --check server.js && node --check public/app.js",
+    "check": "node --check server.js && node --check public/app.js && node --check public/stage-layout.js",
     "slim": "sh slim.sh",
     "update": "sh update.sh"
   },

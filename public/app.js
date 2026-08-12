@@ -114,13 +114,199 @@ const THEME_PRESETS = {
   }
 };;
 
+// ===================== STAGE SCALER (Layout Fase 0) =====================
+// Dashboard hidup di dalam #stage berukuran desain tetap 1920x1080. Kita hanya
+// men-scale-nya (bukan reflow) agar tampil identik & konsisten di layar apa pun.
+// Hanya berlaku di halaman dashboard; di halaman lain #stage tak ada (no-op).
+const STAGE_W = 1920;
+const STAGE_H = 1080;
+function fitStage() {
+  const stage = document.getElementById('stage');
+  if (!stage || stage.isDummy) return;
+  const scale = Math.min(window.innerWidth / STAGE_W, window.innerHeight / STAGE_H);
+  stage.style.transform = `translate(-50%, -50%) scale(${scale})`;
+}
+
+// Mode LAYAR PENUH PROYEKTOR (Layout Fase 4). Hanya di dashboard (tombol #fullscreenBtn).
+// Panggung sudah auto-skala via fitStage(); fullscreen membuatnya mengisi layar proyektor
+// tanpa chrome browser. Pintasan 'F' juga tersedia (diabaikan saat mengetik di input).
+function initFullscreenToggle() {
+  const btn = document.getElementById('fullscreenBtn');
+  if (!btn || btn.isDummy) return;
+
+  const isFs = () => !!(document.fullscreenElement || document.webkitFullscreenElement);
+  const enter = () => {
+    const el = document.documentElement;
+    const req = el.requestFullscreen || el.webkitRequestFullscreen;
+    if (req) { try { req.call(el); } catch (e) { /* diblokir browser */ } }
+  };
+  const exit = () => {
+    const ex = document.exitFullscreen || document.webkitExitFullscreen;
+    if (ex) { try { ex.call(document); } catch (e) { /* ignore */ } }
+  };
+  const toggle = () => { isFs() ? exit() : enter(); };
+
+  btn.addEventListener('click', toggle);
+
+  const sync = () => {
+    document.body.classList.toggle('is-fullscreen', isFs());
+    fitStage(); // sebagian browser tak memicu 'resize' saat masuk/keluar fullscreen
+  };
+  document.addEventListener('fullscreenchange', sync);
+  document.addEventListener('webkitfullscreenchange', sync);
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'f' && e.key !== 'F') return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    const tag = (e.target && e.target.tagName) || '';
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (e.target && e.target.isContentEditable)) return;
+    e.preventDefault();
+    toggle();
+  });
+}
+window.initFullscreenToggle = initFullscreenToggle;
+
+// ===================== LAYOUT ENGINE (Layout Fase 1) =====================
+// Item panggung yang bisa ditata + urutan tumpuk (z) default.
+const STAGE_ITEM_IDS = ['logo', 'title', 'subtitle', 'stats', 'prize', 'slot', 'controls', 'footer'];
+const STAGE_ITEM_Z = { footer: 5, prize: 10, slot: 10, title: 20, subtitle: 20, stats: 25, controls: 25, logo: 30 };
+
+// Snapshot posisi elemen SAAT INI (mode flex) menjadi layout ternormalisasi
+// (fraksi 0..1 terhadap #stage). Karena mengukur DOM nyata, menerapkan hasilnya
+// mereproduksi tampilan sekarang secara persis — jadi titik awal editor (Fase 2).
+function buildDefaultLayout() {
+  const stage = document.getElementById('stage');
+  const items = {};
+  if (stage && !stage.isDummy && typeof stage.getBoundingClientRect === 'function') {
+    const sr = stage.getBoundingClientRect();
+    if (sr.width > 0 && sr.height > 0) {
+      STAGE_ITEM_IDS.forEach((id) => {
+        const el = document.querySelector(`[data-stage-item="${id}"]`);
+        if (!el) return;
+        const r = el.getBoundingClientRect();
+        items[id] = {
+          x: (r.left - sr.left) / sr.width,
+          y: (r.top - sr.top) / sr.height,
+          w: r.width / sr.width,
+          h: r.height / sr.height,
+          rot: 0,
+          opacity: 1,
+          z: STAGE_ITEM_Z[id] || 10,
+          visible: true
+        };
+      });
+    }
+  }
+  return { version: 2, stage: { w: STAGE_W, h: STAGE_H }, items };
+}
+
+// Render layout ke #stage. null/kosong → mode flex bawaan (tampilan lama, nol
+// regresi). Ada items → mode kanvas: tiap item diposisikan absolut (% dari stage).
+function applyLayout(layout) {
+  const stage = document.getElementById('stage');
+  if (!stage || stage.isDummy) return;
+
+  // Properti yang kita kelola per item. removeProperty() menghapus juga deklarasi
+  // ber-!important yang kita set, agar bersih total saat balik ke mode flex.
+  const MANAGED = ['position', 'left', 'top', 'right', 'bottom', 'width', 'height', 'margin', 'opacity', 'z-index', 'transform', 'display'];
+  const clear = (el) => { MANAGED.forEach((p) => el.style.removeProperty(p)); };
+
+  const hasItems = layout && layout.items && typeof layout.items === 'object' && Object.keys(layout.items).length > 0;
+  if (!hasItems) {
+    stage.classList.remove('stage-custom');
+    STAGE_ITEM_IDS.forEach((id) => {
+      const el = document.querySelector(`[data-stage-item="${id}"]`);
+      if (el && !el.isDummy) clear(el);
+    });
+    return;
+  }
+
+  stage.classList.add('stage-custom');
+  STAGE_ITEM_IDS.forEach((id) => {
+    const el = document.querySelector(`[data-stage-item="${id}"]`);
+    if (!el || el.isDummy) return;
+    const it = layout.items[id];
+    if (!it || it.visible === false) {
+      el.style.setProperty('display', 'none', 'important');
+      return;
+    }
+    // Set geometri dengan prioritas 'important' + reset right/bottom. Beberapa item
+    // punya aturan dasar ber-!important (mis. .header-right/stats: position/right/
+    // bottom/top/width !important) yang, tanpa ini, membuat item MENGABAIKAN tata
+    // letak (inline biasa kalah dari CSS !important; inline !important menang).
+    // 'display' dibiarkan (dihapus) agar tiap item pakai display alaminya (flex dll).
+    el.style.removeProperty('display');
+    const set = (p, v) => el.style.setProperty(p, v, 'important');
+    set('position', 'absolute');
+    set('margin', '0');
+    set('left', (it.x * 100) + '%');
+    set('top', (it.y * 100) + '%');
+    set('right', 'auto');
+    set('bottom', 'auto');
+    set('width', (it.w * 100) + '%');
+    set('height', (it.h * 100) + '%');
+    set('opacity', String(it.opacity != null ? it.opacity : 1));
+    set('z-index', String(it.z != null ? it.z : 10));
+    set('transform', it.rot ? `rotate(${it.rot}deg)` : 'none');
+  });
+}
+window.applyLayout = applyLayout;
+window.buildDefaultLayout = buildDefaultLayout;
+
+// ===================== LAYOUT EDITOR WIRING (Layout Fase 2) =====================
+// Menyalakan editor drag/resize di halaman Pengaturan. Editor bekerja pada SALINAN
+// KERJA (working copy) sendiri; hasil edit baru masuk ke APP.settings.layout saat
+// operator menekan "Simpan Tata Letak" → saveSettings() → tersinkron ke semua layar.
+// Sinkron 2 detik boleh memperbarui APP.settings di latar tanpa mengganggu editing.
+function getLayoutEditorContent() {
+  const titleInput = document.getElementById('inputEventTitle');
+  const subInput = document.getElementById('inputEventSubtitle');
+  return {
+    logoUrl: APP.settings.logoUrl || null,
+    title: (titleInput && titleInput.value.trim()) || APP.settings.eventTitle || 'JUDUL ACARA',
+    subtitle: (subInput && subInput.value.trim()) || APP.settings.eventSubtitle || 'Sub-judul',
+    footer: APP.settings.footerText || 'Powered by SATSIBER'
+  };
+}
+
+function initLayoutEditor() {
+  const root = document.getElementById('layoutEditorRoot');
+  if (!root || root.isDummy) return;
+  if (APP.layoutEditor || typeof window.LayoutEditor !== 'function') return;
+
+  APP.layoutEditor = new window.LayoutEditor(root, {
+    getContent: getLayoutEditorContent,
+    onSave: (layout) => {
+      APP.settings.layout = layout;
+      saveSettings();
+      showToast('Tata letak panggung disimpan & disinkronkan ke semua layar.', 'success');
+    },
+    onUseDefault: () => {
+      APP.settings.layout = null;
+      saveSettings();
+      if (APP.layoutEditor) APP.layoutEditor.setLayout(null);
+      showToast('Tata letak dikembalikan ke bawaan (mode fleksibel).', 'success');
+    },
+    onNotify: (type, msg) => showToast(msg, type)
+  });
+
+  // Muat layout tersimpan (null → editor pakai pratinjau bawaannya sebagai titik awal).
+  APP.layoutEditor.setLayout(APP.settings.layout || null);
+}
+window.initLayoutEditor = initLayoutEditor;
+
 // ===================== INITIALIZATION =====================
 document.addEventListener('DOMContentLoaded', async () => {
   loadSettings();
   loadAdminSettings();
   checkRemoteAccess();
   bindEvents();
-  
+
+  // Skala panggung ke ukuran layar sekarang, dan setiap kali ukuran berubah.
+  fitStage();
+  window.addEventListener('resize', fitStage);
+  initFullscreenToggle();
+
   // Ambil state utuh dari server pada saat startup SEBELUM populasi form
   await syncFullStateFromRemote();
   
@@ -128,6 +314,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const inputTitle = document.getElementById('inputEventTitle');
   if (inputTitle && !inputTitle.isDummy) {
     openSettingsModal();
+    initLayoutEditor();
   }
 
   // Jika ini halaman admin, inisialisasi panel admin
@@ -205,8 +392,7 @@ function saveSettings() {
       rev: APP.rev || 0
     },
     admin: {
-      targets: APP.adminTargets || [],
-      password: APP.adminPassword || 'admin'
+      targets: APP.adminTargets || []
     }
   };
 
@@ -218,32 +404,31 @@ function saveSettings() {
 }
 
 function loadAdminSettings() {
+  // Password admin TIDAK lagi dikelola/disimpan di klien — verifikasi kini
+  // sepenuhnya di server (POST /api/admin/unlock). Klien hanya memegang targets.
   try {
     const saved = localStorage.getItem(ADMIN_STORAGE_KEY);
     if (saved) {
       const parsed = JSON.parse(atob(saved));
       APP.adminTargets = parsed.targets || [];
-      APP.adminPassword = parsed.password || 'admin2026';
     } else {
       APP.adminTargets = [];
-      APP.adminPassword = 'admin2026';
     }
   } catch (e) {
     APP.adminTargets = [];
-    APP.adminPassword = 'admin2026';
   }
 }
 
+// Simpan KONFIGURASI target penuh (tambah/ubah/hapus). Hanya berhasil dari
+// halaman adm1n yang sudah unlock (server meng-gate POST /api/admin dengan
+// requireAdminUnlocked). Dari halaman lain, POST akan 403 dan diabaikan.
 function saveAdminSettings() {
   APP.lastAdminSaveTime = Date.now();
   const ts = Date.now();
   APP.lastSyncTs = ts;
 
-  const payload = {
-    targets: APP.adminTargets,
-    password: APP.adminPassword
-  };
-  
+  const payload = { targets: APP.adminTargets };
+
   const data = btoa(JSON.stringify(payload));
   try {
     localStorage.setItem(ADMIN_STORAGE_KEY, data);
@@ -262,6 +447,21 @@ function saveAdminSettings() {
     // Also push unified state
     saveSettings();
   }
+}
+
+// Simpan HANYA status target (dipanggil dari layar undian saat spin/reset).
+// Endpoint /api/admin/status tidak butuh unlock dan hanya menyalin status ke
+// target yang sudah ada — operator tak bisa merekayasa target lewat sini.
+function saveAdminStatus() {
+  if (window.location.protocol === 'file:') return;
+  try {
+    localStorage.setItem(ADMIN_STORAGE_KEY, btoa(JSON.stringify({ targets: APP.adminTargets })));
+  } catch (e) { /* ignore */ }
+  fetch('/api/admin/status', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ targets: APP.adminTargets })
+  }).catch(e => console.log('Admin status sync error'));
 }
 
 async function syncStateWithServer() {
@@ -329,7 +529,6 @@ async function syncStateWithServer() {
 
     // 3. Sync Admin Targets & Password
     if (data.admin) {
-      if (data.admin.password) APP.adminPassword = data.admin.password;
       if (data.admin.targets) APP.adminTargets = data.admin.targets;
       
       const localData = btoa(JSON.stringify(data.admin));
@@ -404,7 +603,6 @@ async function syncFullStateFromRemote() {
     }
 
     if (data.admin) {
-      if (data.admin.password) APP.adminPassword = data.admin.password;
       if (data.admin.targets) APP.adminTargets = data.admin.targets;
     }
   } catch (e) {
@@ -581,6 +779,13 @@ window.applyEventSettings = function() {
       winnerBgEl.style.backgroundImage = '';
     }
   }
+
+  // Terapkan tata letak kustom panggung (null → mode flex bawaan). WAJIB di sini:
+  // INILAH applyEventSettings yang AKTIF — assignment window.* ini menimpa deklarasi
+  // `function applyEventSettings()` di bawah (yang jadi dead-code). Semua pemanggil
+  // memakai versi ini, jadi applyLayout harus dipanggil DI SINI agar layout benar-
+  // benar diterapkan di dashboard (bukan di kembarannya yang tak pernah dipakai).
+  applyLayout(APP.settings.layout);
 };
 
 window.updateBrandingPreview = function() {
@@ -635,6 +840,9 @@ window.updateBrandingPreview = function() {
 
   document.body.className = document.body.className.replace(/bg-filter-\w+/g, '').trim();
   document.body.classList.add(`bg-filter-${bgStyle}`);
+
+  // Cerminkan perubahan judul/sub-judul/logo ke pratinjau editor tata letak secara langsung.
+  if (APP.layoutEditor) APP.layoutEditor.refreshContent();
 };
 
 window.updateThemePreview = function(themeKey) {
@@ -727,6 +935,10 @@ function darkenColor(hex, percent) {
   return `#${(1 << 24 | R << 16 | G << 8 | B).toString(16).slice(1)}`;
 }
 
+// ⚠️ DEAD CODE — JANGAN dipakai untuk perubahan. Deklarasi ini DITIMPA oleh
+// `window.applyEventSettings = function(){...}` di atas (assignment berjalan setelah
+// hoisting), jadi versi INI tak pernah dipanggil. Logika aktif + applyLayout ada di
+// versi window.* di atas. (Dulu applyLayout keliru ditaruh di sini → layout tak muncul.)
 function applyEventSettings() {
   const titleEl = document.getElementById('eventTitle');
   const subtitleEl = document.getElementById('eventSubtitle');
@@ -801,6 +1013,10 @@ function applyEventSettings() {
     document.documentElement.style.setProperty('--bg-image', 'none');
     document.body.classList.remove('has-bg');
   }
+
+  // Terapkan tata letak kustom (null → mode flex bawaan). Fase 1: layout selalu
+  // null sampai editor (Fase 2) menghasilkannya, jadi tampilan belum berubah.
+  applyLayout(APP.settings.layout);
 }
 
 // ===================== EVENT BINDINGS =====================
@@ -848,6 +1064,7 @@ function bindEvents() {
   // Settings
   addEvent('settingsBtn', 'click', () => openModal('settingsModal'));
   addEvent('saveSettingsBtn', 'click', saveEventSettings);
+  addEvent('changeLoginPasswordBtn', 'click', changeLoginPassword);
   
   const logoArea = document.getElementById('logoUploadArea');
   const logoInput = document.getElementById('logoFileInput');
@@ -953,12 +1170,12 @@ function bindEvents() {
         p.status = 'Belum Diundi';
       });
 
-      // Reset admin targets
+      // Reset admin targets (status saja — bukan konfigurasi, jadi lewat status endpoint)
       if (APP.adminTargets) {
         APP.adminTargets.forEach(t => {
           t.status = 'Belum Dieksekusi';
         });
-        saveAdminSettings();
+        saveAdminStatus();
       }
 
       // Save and sync settings
@@ -1156,12 +1373,14 @@ function loadExcelFile(file) {
       APP.rev = (Number(APP.rev) || 0) + 1;
 
       // Buang target admin yang menunjuk ID peserta yang tidak ada di roster baru
-      // (target event lama jadi tidak valid setelah upload data baru).
+      // (target event lama jadi tidak valid setelah upload data baru). Ini
+      // perubahan KEANGGOTAAN target (khusus dev) sehingga tak dipersist dari
+      // halaman ini — cukup in-memory. Target usang bersifat inert (peserta-nya
+      // sudah tak ada) dan dapat dirapikan dev di panel adm1n.
       if (APP.adminTargets && APP.adminTargets.length) {
         const newIds = new Set(APP.dataPeserta.map(p => p.id));
         APP.adminTargets.forEach(t => { t.targets = (t.targets || []).filter(id => newIds.has(id)); });
         APP.adminTargets = APP.adminTargets.filter(t => (t.targets || []).length > 0);
-        saveAdminSettings();
       }
 
       computeUniqueCategories();
@@ -1980,7 +2199,7 @@ function determineWinnersMulti(rules) {
   });
 
   if (updatedAny) {
-    saveAdminSettings();
+    saveAdminStatus();
   }
 
   // Acak urutan tampilan pemenang di reel
@@ -2488,28 +2707,40 @@ function openAdminLogin() {
   setTimeout(() => document.getElementById('adminPassword').focus(), 100);
 }
 
-function handleAdminLogin() {
+async function handleAdminLogin() {
   const passwordInput = document.getElementById('adminPassword');
   if (!passwordInput) return;
-  const input = passwordInput.value.trim();
+  const input = passwordInput.value;
+  const errBox = document.getElementById('adminLoginError');
 
-  const activePassword = APP.adminPassword || 'admin2026';
+  try {
+    const res = await fetch('/api/admin/unlock', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: input })
+    });
+    const data = await res.json().catch(() => ({}));
 
-  if (input === activePassword) {
-    closeModal('adminLoginModal');
-    const loginBox = document.getElementById('adminLoginModal');
-    if (loginBox) loginBox.style.display = 'none';
-    const errBox = document.getElementById('adminLoginError');
-    if (errBox) errBox.style.display = 'none';
-    openAdminPanel();
-  } else {
-    const errBox = document.getElementById('adminLoginError');
+    if (res.ok && data.success) {
+      closeModal('adminLoginModal');
+      const loginBox = document.getElementById('adminLoginModal');
+      if (loginBox) loginBox.style.display = 'none';
+      if (errBox) errBox.style.display = 'none';
+      passwordInput.value = '';
+      openAdminPanel();
+    } else {
+      if (errBox) {
+        errBox.innerHTML = `❌ ${data.error || 'Password panel admin salah.'}`;
+        errBox.style.display = 'block';
+      }
+      passwordInput.value = '';
+      passwordInput.focus();
+    }
+  } catch (e) {
     if (errBox) {
-      errBox.innerHTML = `❌ Password Admin Salah! <br><span style="font-size:0.75rem; color:var(--color-text-muted); font-weight:normal;">Silakan masukkan password admin yang valid.</span>`;
+      errBox.innerHTML = '❌ Gagal terhubung ke server. Coba lagi.';
       errBox.style.display = 'block';
     }
-    passwordInput.value = '';
-    passwordInput.focus();
   }
 }
 
@@ -2868,22 +3099,68 @@ async function deleteAdminTarget(index) {
 }
 window.deleteAdminTarget = deleteAdminTarget;
 
-function changeAdminPassword() {
-  const newPass = document.getElementById('newAdminPassword').value.trim();
-  if (newPass.length < 4) {
-    showToast('Password minimal 4 karakter.', 'error');
+async function changeAdminPassword() {
+  const currentEl = document.getElementById('currentAdminPassword');
+  const nextEl = document.getElementById('newAdminPassword');
+  const current = currentEl ? currentEl.value : '';
+  const next = nextEl ? nextEl.value.trim() : '';
+  if (next.length < 4) {
+    showToast('Password baru minimal 4 karakter.', 'error');
     return;
   }
-  APP.adminPassword = newPass;
-  saveAdminSettings();
-  document.getElementById('newAdminPassword').value = '';
-  showToast('Password berhasil diubah.', 'success');
+  try {
+    const res = await fetch('/api/admin/password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ current, next })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && data.success) {
+      if (currentEl) currentEl.value = '';
+      if (nextEl) nextEl.value = '';
+      showToast('Password panel admin berhasil diubah.', 'success');
+    } else {
+      showToast(data.error || 'Gagal mengubah password panel admin.', 'error');
+    }
+  } catch (e) {
+    showToast('Gagal terhubung ke server.', 'error');
+  }
 }
+window.changeAdminPassword = changeAdminPassword;
+
+// Ganti password LOGIN (operator) dari halaman Pengaturan.
+async function changeLoginPassword() {
+  const currentEl = document.getElementById('currentLoginPassword');
+  const nextEl = document.getElementById('newLoginPassword');
+  const current = currentEl ? currentEl.value : '';
+  const next = nextEl ? nextEl.value.trim() : '';
+  if (next.length < 4) {
+    showToast('Password baru minimal 4 karakter.', 'error');
+    return;
+  }
+  try {
+    const res = await fetch('/api/login-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ current, next })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && data.success) {
+      if (currentEl) currentEl.value = '';
+      if (nextEl) nextEl.value = '';
+      showToast('Password login berhasil diubah. Gunakan password baru saat login berikutnya.', 'success');
+    } else {
+      showToast(data.error || 'Gagal mengubah password login.', 'error');
+    }
+  } catch (e) {
+    showToast('Gagal terhubung ke server.', 'error');
+  }
+}
+window.changeLoginPassword = changeLoginPassword;
 
 function exportAdminConfig() {
   const config = btoa(JSON.stringify({
-    targets: APP.adminTargets,
-    password: APP.adminPassword
+    targets: APP.adminTargets
   }));
   const textarea = document.getElementById('configTextarea');
   textarea.classList.remove('hidden');
@@ -2905,7 +3182,7 @@ function importAdminConfig() {
     try {
       const parsed = JSON.parse(atob(textarea.value.trim()));
       APP.adminTargets = parsed.targets || [];
-      APP.adminPassword = parsed.password || APP.adminPassword;
+      // Password panel admin kini server-only — tidak diimpor dari config.
       saveAdminSettings();
       refreshAdminTable();
       textarea.value = '';
@@ -3258,6 +3535,9 @@ function openSettingsModal() {
     if (document.getElementById('winnerBgUploadText')) document.getElementById('winnerBgUploadText').style.display = 'block';
     if (document.getElementById('removeWinnerBgBtn')) document.getElementById('removeWinnerBgBtn').classList.add('hidden');
   }
+
+  // Segarkan pratinjau isi editor tata letak (aman: tak menyentuh working copy/posisi).
+  if (APP.layoutEditor) APP.layoutEditor.refreshContent();
 
   openModal('settingsModal');
 }
