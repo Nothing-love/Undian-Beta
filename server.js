@@ -14,7 +14,11 @@ const app = express();
 const ROOT = __dirname;
 const PUBLIC_DIR = path.join(ROOT, 'public');
 const UPLOAD_DIR = path.join(PUBLIC_DIR, 'uploads');
-const DATA_DIR = path.join(ROOT, 'data');
+// DATA_DIR default = <root>/data. Bisa dioverride via env DORPRIZE_DATA_DIR
+// (mis. volume terpasang, atau instance staging/uji terisolasi). Backward-compatible.
+const DATA_DIR = process.env.DORPRIZE_DATA_DIR
+  ? path.resolve(process.env.DORPRIZE_DATA_DIR)
+  : path.join(ROOT, 'data');
 const SESSION_DIR = path.join(DATA_DIR, 'sessions');
 const PORT = Number.parseInt(process.env.PORT || '8082', 10);
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
