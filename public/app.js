@@ -779,6 +779,13 @@ window.applyEventSettings = function() {
       winnerBgEl.style.backgroundImage = '';
     }
   }
+
+  // Terapkan tata letak kustom panggung (null → mode flex bawaan). WAJIB di sini:
+  // INILAH applyEventSettings yang AKTIF — assignment window.* ini menimpa deklarasi
+  // `function applyEventSettings()` di bawah (yang jadi dead-code). Semua pemanggil
+  // memakai versi ini, jadi applyLayout harus dipanggil DI SINI agar layout benar-
+  // benar diterapkan di dashboard (bukan di kembarannya yang tak pernah dipakai).
+  applyLayout(APP.settings.layout);
 };
 
 window.updateBrandingPreview = function() {
@@ -928,6 +935,10 @@ function darkenColor(hex, percent) {
   return `#${(1 << 24 | R << 16 | G << 8 | B).toString(16).slice(1)}`;
 }
 
+// ⚠️ DEAD CODE — JANGAN dipakai untuk perubahan. Deklarasi ini DITIMPA oleh
+// `window.applyEventSettings = function(){...}` di atas (assignment berjalan setelah
+// hoisting), jadi versi INI tak pernah dipanggil. Logika aktif + applyLayout ada di
+// versi window.* di atas. (Dulu applyLayout keliru ditaruh di sini → layout tak muncul.)
 function applyEventSettings() {
   const titleEl = document.getElementById('eventTitle');
   const subtitleEl = document.getElementById('eventSubtitle');
