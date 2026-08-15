@@ -10,9 +10,9 @@
   /* Dynamic Typography & Branding */
   --font-event: 'Outfit', sans-serif;
   --text-transform-event: uppercase;
-  --title-color-event: #FFFFFF;
+  --title-color-event: #2563EB;
   --title-size-event: 2.2rem;
-  --subtitle-color-event: #FFE042;
+  --subtitle-color-event: #F59E0B;
   --subtitle-size-event: 1.0rem;
 
   /* Theme Colors (updated dynamically by JS) */
@@ -126,6 +126,27 @@ body::before {
   opacity: var(--bg-opacity, 0.15);
   z-index: -1;
   pointer-events: none;
+}
+
+/* Scrim keterbacaan: hanya saat ada background. Menggelapkan tipis pita ATAS
+   (judul/subjudul) & BAWAH (kontrol/footer) agar teks UI menang atas "teks
+   bawaan" poster, sementara bagian TENGAH dibiarkan jernih agar poster tetap
+   terlihat. Halus & mudah disetel/di-nonaktifkan (hapus blok ini). */
+body.has-bg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    rgba(2, 6, 23, 0.55) 0%,
+    rgba(2, 6, 23, 0.12) 13%,
+    rgba(2, 6, 23, 0) 28%,
+    rgba(2, 6, 23, 0) 66%,
+    rgba(2, 6, 23, 0.20) 83%,
+    rgba(2, 6, 23, 0.50) 100%
+  );
 }
 
 /* ===================== CUSTOM SCROLLBAR ===================== */
@@ -441,6 +462,70 @@ h6 {
   transform-origin: center center;
 }
 
+/* ===================== ISI ITEM DIPUSATKAN (WYSIWYG editor) =====================
+   applyLayout() menetapkan KOTAK tiap item; aturan di bawah menata ISI di dalam
+   kotak agar terpusat seperti pratinjau editor — bukan rata kiri-atas / meluap yang
+   membuat judul menimpa sub-judul dan logo/mesin slot tampak mepet kiri. Koordinat
+   kotak tetap PERSIS seperti yang diatur operator. Panel berstruktur (sidebar hadiah
+   & footer status selebar panggung) sengaja TIDAK dipaksa center agar tak rusak. */
+
+/* Teks tunggal (judul & sub-judul): pusatkan dua arah + POTONG luapan agar tak
+   menimpa elemen tetangga — sama seperti editor yang meng-clip pratinjaunya. */
+#stage.stage-custom #eventTitle,
+#stage.stage-custom #eventSubtitle {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+  overflow: hidden !important;
+}
+
+/* Logo & statistik (baris flex yang semula rata kiri) → pusatkan mendatar. */
+#stage.stage-custom .header-left,
+#stage.stage-custom .header-right {
+  justify-content: center !important;
+}
+
+/* Logo MENGISI kotaknya (tak lagi dibatasi 70px) → besar/kecil ikut ukuran kotak
+   yang diatur operator; rasio dijaga lewat object-fit/preserveAspectRatio. */
+#stage.stage-custom .header-left {
+  padding: 0 !important;
+  gap: 0 !important;
+}
+#stage.stage-custom .header-left .header-logo,
+#stage.stage-custom .header-left #customLogo {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  object-fit: contain !important;
+}
+#stage.stage-custom .header-left .header-logo svg {
+  width: 100% !important;
+  height: 100% !important;
+}
+/* Logo kustom (gambar unggahan): lebar MENGIKUTI rasio gambar (tinggi mengisi
+   kotak) — BUKAN dipaksa selebar kotak. Efeknya bingkai (border/glow di shape)
+   MEMBUNGKUS logo dengan pas, bukan kotak lebar → hilang celah kosong kiri/kanan.
+   Robust untuk logo rasio apa pun. Logo dirapatkan ke kiri (pojok). */
+#stage.stage-custom .header-left {
+  justify-content: flex-start !important;
+}
+#stage.stage-custom .header-left img#customLogo {
+  width: auto !important;
+  max-width: 100% !important;
+}
+
+/* Mesin slot & area kontrol → pusatkan isi di dalam kotaknya (semula rata atas-kiri). */
+#stage.stage-custom #slotMachineFrame,
+#stage.stage-custom #controlsArea {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;        /* fallback mesin lawas */
+  justify-content: safe center !important;   /* kalau isi > kotak: rata-atas, agar tak terpotong & tetap ter-scroll */
+}
+
 #mainApp {
   flex-direction: column;
   height: 100vh;
@@ -513,7 +598,7 @@ h6 {
 .event-title {
   font-size: 2.4rem !important;
   font-weight: 900 !important;
-  color: #2563EB !important;
+  color: var(--title-color-event, #2563EB) !important;
   background: transparent !important;
   background-color: transparent !important;
   letter-spacing: 1px !important;
@@ -525,7 +610,7 @@ h6 {
 
 .event-subtitle {
   font-size: 1.15rem !important;
-  color: #F59E0B !important;
+  color: var(--subtitle-color-event, #F59E0B) !important;
   background: transparent !important;
   background-color: transparent !important;
   font-weight: 900 !important;
@@ -1996,6 +2081,88 @@ select.input-modern {
   border-radius: 4px;
 }
 
+/* ===================== MODAL PEMENANG ADAPTIF (anti-scroll utk banyak pemenang) =====================
+   Lebar modal, jumlah kolom, & ukuran kartu MENYESUAIKAN jumlah pemenang. Kelas
+   wn-sm/md/lg/xl dipasang di #winnerModal oleh showWinnerModal(). Untuk banyak
+   pemenang (lg/xl): baris berbagi tinggi (grid-auto-rows:1fr) + overflow hidden →
+   20+ pemenang MUAT TANPA SCROLL; teks & padding mengecil otomatis. */
+#winnerModal.wn-md .modal-winner { max-width: 1120px; }
+#winnerModal.wn-lg .modal-winner { max-width: 1440px; max-height: 92vh; }
+#winnerModal.wn-xl .modal-winner { width: 94%; max-width: min(94vw, 1720px); max-height: 92vh; }
+
+/* Jumlah kolom per jumlah pemenang (dioptimalkan utk layar lebar/proyektor).
+   Baris dikompres 1fr (lihat bawah) → berapa pun jumlahnya MUAT tanpa scroll. */
+#winnerModal.wn-sm .winner-cards { grid-template-columns: repeat(2, 1fr); }
+#winnerModal.wn-md .winner-cards { grid-template-columns: repeat(3, 1fr); }
+#winnerModal.wn-lg .winner-cards { grid-template-columns: repeat(4, 1fr); }
+#winnerModal.wn-xl .winner-cards { grid-template-columns: repeat(5, 1fr); }
+/* Di layar sempit (mis. laptop < 1200px), kurangi kolom agar kartu tak terlalu
+   sempit & nama tetap terbaca (tetap tanpa scroll berkat kompresi baris 1fr). */
+@media (max-width: 1200px) {
+  #winnerModal.wn-lg .winner-cards { grid-template-columns: repeat(3, 1fr); }
+  #winnerModal.wn-xl .winner-cards { grid-template-columns: repeat(4, 1fr); }
+}
+@media (max-width: 900px) {
+  #winnerModal.wn-xl .winner-cards { grid-template-columns: repeat(3, 1fr); }
+}
+
+/* Sedang (md): 3 kolom, kartu sedang */
+#winnerModal.wn-md .winner-card { min-height: 74px !important; }
+#winnerModal.wn-md .winner-card-name { font-size: 1.55rem !important; }
+
+/* Banyak (lg/xl): rapatkan agar TANPA scroll — baris berbagi tinggi, kartu menyusut */
+#winnerModal.wn-lg .winner-cards,
+#winnerModal.wn-xl .winner-cards {
+  grid-auto-rows: minmax(70px, 1fr);
+  align-content: stretch;
+  overflow-y: auto;
+  gap: 6px;
+  padding: 8px 18px;
+}
+/* Header dikompakkan saat banyak pemenang → ruang grid bertambah (lebih banyak muat
+   tanpa scroll, terutama layar kecil). */
+#winnerModal.wn-lg .winner-header-area,
+#winnerModal.wn-xl .winner-header-area { padding: 8px 20px 2px !important; }
+#winnerModal.wn-lg .winner-title,
+#winnerModal.wn-xl .winner-title { font-size: 1.6rem !important; margin: 0 !important; }
+#winnerModal.wn-lg .winner-subtitle,
+#winnerModal.wn-xl .winner-subtitle { font-size: 0.82rem !important; margin-bottom: 2px !important; }
+#winnerModal.wn-lg .winner-badge-container,
+#winnerModal.wn-xl .winner-badge-container { width: 46px !important; height: 46px !important; margin-bottom: 2px !important; }
+#winnerModal.wn-lg .winner-badge,
+#winnerModal.wn-xl .winner-badge { font-size: 1.7rem !important; }
+#winnerModal.wn-lg .winner-actions,
+#winnerModal.wn-xl .winner-actions { padding: 8px 24px 12px !important; }
+#winnerModal.wn-lg .winner-card,
+#winnerModal.wn-xl .winner-card {
+  min-height: 0 !important;
+  padding: 8px 12px !important;
+  justify-content: center;
+}
+#winnerModal.wn-lg .winner-card-header,
+#winnerModal.wn-xl .winner-card-header {
+  margin-bottom: 2px !important;
+  padding-right: 15px !important;
+}
+#winnerModal.wn-lg .winner-card-cluster,
+#winnerModal.wn-xl .winner-card-cluster { display: none !important; }
+#winnerModal.wn-lg .winner-card-name { font-size: 1.08rem !important; margin: 0 !important; }
+#winnerModal.wn-xl .winner-card-name { font-size: 1.0rem !important; margin: 0 !important; }
+/* Nama panjang: BOLEH membungkus 2 baris (bukan dipotong "…") agar nama utuh
+   terbaca. Berlaku di semua mode; tinggi baris grid dijamin cukup untuk 2 baris. */
+#winnerModal .winner-card-name {
+  white-space: normal !important;
+  display: -webkit-box !important;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: clip;
+  line-height: 1.16 !important;
+}
+#winnerModal.wn-xl .winner-card { padding: 6px 9px !important; }
+#winnerModal.wn-xl .winner-card-number { font-size: 0.62rem !important; padding: 1px 6px !important; }
+#winnerModal.wn-xl .btn-disqualify { width: 15px; height: 15px; top: 4px; right: 4px; font-size: 0.75rem; }
+
 .winner-actions {
   position: relative;
   z-index: 5;
@@ -2602,6 +2769,31 @@ body.dark-theme.has-bg .slot-reel {
   background: color-mix(in srgb, var(--color-surface) 75%, transparent) !important;
 }
 
+/* ---- Plat kembar judul & subjudul (mode panggung bebas + ada background) ----
+   Di mode stage-custom, bar putih full-width #appHeader terasa tak selaras
+   (judul duduk di atas bar, subjudul jatuh di bawahnya tanpa latar). Solusi:
+   matikan bar itu, lalu beri JUDUL & SUBJUDUL masing-masing "plat kaca" putih
+   senada panel lain. Lebar kotak keduanya disamakan lewat data layout → plat
+   tampak KEMBAR & seukuran (lebar). background/blur/radius/shadow TIDAK termasuk
+   properti yang dikelola applyLayout dan tak memengaruhi fit-teks (hanya
+   padding/lebar/tinggi kotak yang berpengaruh) → ukuran teks tetap. */
+body.has-bg #stage.stage-custom #appHeader {
+  background: transparent !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+body.has-bg #stage.stage-custom #eventTitle,
+body.has-bg #stage.stage-custom #eventSubtitle {
+  background: color-mix(in srgb, var(--color-surface) 62%, transparent) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  backdrop-filter: blur(12px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.28) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22) !important;
+}
+
 /* ===================== SINGLE CELL REEL OVERRIDES ===================== */
 .single-cell-reel {
   height: auto !important;
@@ -2727,6 +2919,181 @@ body.dark-theme .single-cell-reel {
 .prize-name.small-text {
   font-size: 1.3rem;
   margin-top: 5px;
+}
+
+/* ===================== HADIAH ADAPTIF (jumlah hadiah fleksibel) =====================
+   Selalu MENGISI kolom sidebar apa pun jumlah hadiah, tanpa ruang kosong:
+   tiap kartu flex:1 (tinggi terbagi rata). 1–3 hadiah = kartu vertikal (foto
+   besar); ≥4 hadiah = baris ringkas (thumbnail + teks) dengan scroll bila perlu.
+   Aksen mengikuti --prize-title-color / --color-accent (bukan warna hardcode). */
+.prize-display.prize-adaptive {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: stretch;
+  gap: 10px;
+  padding: 14px 12px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.prize-adaptive .prize-card {
+  flex: 1 1 0;
+  min-height: 60px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 10px;
+  box-sizing: border-box;
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--color-surface) 72%, transparent);
+  border: 1px solid color-mix(in srgb, var(--prize-title-color, var(--color-primary)) 28%, transparent);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.16);
+  overflow: hidden;
+}
+.prize-adaptive .prize-card-img {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #FFFFFF;
+  border: 2px solid color-mix(in srgb, var(--prize-title-color, var(--color-primary)) 55%, transparent);
+}
+.prize-adaptive .prize-card-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+.prize-adaptive .prize-card-img--empty {
+  font-size: 2rem;
+  background: color-mix(in srgb, var(--color-surface) 45%, transparent);
+  border-style: dashed;
+}
+.prize-adaptive .prize-card-body {
+  flex: 0 0 auto;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.prize-adaptive .prize-card-name {
+  font-family: var(--prize-font-family, 'Outfit', sans-serif);
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  line-height: 1.12;
+  color: var(--prize-title-color, var(--color-primary));
+  text-align: center;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+  font-size: 1.25rem;
+}
+.prize-adaptive .prize-card-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-family: var(--prize-font-family, 'Outfit', sans-serif);
+  font-weight: 900;
+  font-size: 0.85rem;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--prize-title-color, var(--color-primary));
+  background: color-mix(in srgb, var(--color-accent, #f59e0b) 24%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-accent, #f59e0b) 45%, transparent);
+}
+.prize-adaptive .prize-card-count .pc-trophy { font-size: 0.95em; }
+/* Mode RINGKAS (≥4 hadiah): baris horizontal thumbnail + teks */
+.prize-adaptive.prize-rows .prize-card {
+  flex-direction: row;
+  justify-content: flex-start;
+  gap: 12px;
+  padding: 8px 10px;
+}
+.prize-adaptive.prize-rows .prize-card-img {
+  flex: 0 0 auto;
+  width: 56px;
+  height: 56px;
+}
+.prize-adaptive.prize-rows .prize-card-body {
+  align-items: flex-start;
+  text-align: left;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.prize-adaptive.prize-rows .prize-card-name {
+  font-size: 0.98rem;
+  text-align: left;
+}
+.prize-adaptive.prize-rows .prize-card-count {
+  font-size: 0.76rem;
+  padding: 2px 9px;
+}
+.prize-empty {
+  margin: auto;
+  text-align: center;
+  color: var(--color-text-muted);
+}
+.prize-empty-ronde { font-size: 1.2rem; font-weight: 900; letter-spacing: 0.5px; }
+.prize-empty-sub { font-size: 0.85rem; margin-top: 4px; }
+
+/* ---- Poles Hadiah: sudut panel membulat, header lebih hidup, foto 1-hadiah proporsional ---- */
+/* (1) Panel latar hadiah: sudut membulat + bayangan lembut → tak lagi "lancip"/kaku. */
+#stage.stage-custom #prizeSidebar {
+  border-radius: 22px;
+  overflow: hidden;
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.20);
+}
+/* (2) Header "HADIAH RONDE X": gradien tipis bertema + nomor ronde jadi pil beraksen. */
+#stage.stage-custom .sidebar-header {
+  background: linear-gradient(135deg,
+    color-mix(in srgb, var(--prize-title-color, var(--color-primary)) 16%, transparent) 0%,
+    color-mix(in srgb, var(--color-accent, #f59e0b) 12%, transparent) 100%);
+  border-bottom: 1px solid color-mix(in srgb, var(--prize-title-color, var(--color-primary)) 22%, transparent);
+}
+.sidebar-header h2 svg {
+  color: var(--prize-title-color, var(--color-primary));
+}
+#prizeRondeNumber {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.7em;
+  height: 1.7em;
+  padding: 0 0.45em;
+  margin-left: 6px;
+  border-radius: 999px;
+  background: var(--prize-title-color, var(--color-primary));
+  color: #fff;
+  font-weight: 900;
+  line-height: 1;
+  box-shadow: 0 3px 10px color-mix(in srgb, var(--prize-title-color, var(--color-primary)) 45%, transparent);
+}
+/* (3) Foto mode kartu (1–3 hadiah): kotak PERSEGI + konten di tengah →
+   hilangkan letterbox putih berlebih terutama saat 1 hadiah. */
+.prize-adaptive.prize-cards .prize-card {
+  justify-content: center;
+}
+/* Khusus 1 hadiah (hero): foto PERSEGI selebar kartu (tidak diregangkan tinggi),
+   konten di tengah → foto besar & proporsional, tanpa letterbox putih memanjang.
+   2–3 hadiah tetap memakai isian tinggi bawaan (sudah pas). */
+.prize-adaptive.prize-single .prize-card-img {
+  flex: 0 0 auto;
+  width: 100%;
+  aspect-ratio: 4 / 5;
 }
 
 /* Toggle Switch */

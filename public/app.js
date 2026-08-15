@@ -729,9 +729,9 @@ window.applyEventSettings = function() {
   
   const font = APP.settings.fontFamily || 'Outfit, sans-serif';
   const transform = APP.settings.textTransform || 'uppercase';
-  const titleColor = APP.settings.titleColor || '#FFFFFF';
+  const titleColor = APP.settings.titleColor || '#2563EB';
   const titleSize = (APP.settings.titleSize || 2.2) + 'rem';
-  const subColor = APP.settings.subtitleColor || '#FFE042';
+  const subColor = APP.settings.subtitleColor || '#F59E0B';
   const subSize = (APP.settings.subtitleSize || 1.0) + 'rem';
   const logoShape = APP.settings.logoShape || 'rounded';
   const bgStyle = APP.settings.bgStyle || 'glass';
@@ -2397,6 +2397,11 @@ function showWinnerModal(winners) {
     modalEl.className = modalEl.className.replace(/\bwinner-preset-\S+/g, '').trim();
     modalEl.classList.add('modal-overlay', 'active', `winner-preset-${preset}`);
 
+    // Kelas JUMLAH pemenang → lebar modal, jumlah kolom, & ukuran kartu menyesuaikan
+    // (lihat style.css blok "MODAL PEMENANG ADAPTIF") agar 20+ pemenang MUAT tanpa scroll.
+    const wn = winners.length;
+    modalEl.classList.add(wn <= 1 ? 'wn-hero' : wn <= 6 ? 'wn-sm' : wn <= 12 ? 'wn-md' : wn <= 24 ? 'wn-lg' : 'wn-xl');
+
     if (preset === 'custom' && APP.settings.winnerBgUrl) {
       bgEl.style.backgroundImage = `url("${APP.settings.winnerBgUrl}")`;
     } else {
@@ -2527,54 +2532,43 @@ function updatePrizeSidebar() {
 
   const mergedPrizes = Array.from(groupedMap.values());
 
-  if (mergedPrizes.length > 1) {
-    displayEl.innerHTML = `<div style="display: grid; grid-template-columns: repeat(${Math.min(mergedPrizes.length, 2)}, 1fr); gap: 12px; width: 100%; align-items: stretch;">` + 
-      mergedPrizes.map((prize) => {
-        const imageHtml = prize.imageUrl ? 
-          `<div class="prize-image-container" style="width: 100px; height: 100px; border-radius: var(--radius-lg); overflow: hidden; background: #FFFFFF; display: flex; align-items: center; justify-content: center; border: 2px solid #FCA5A5; box-shadow: var(--shadow-sm); margin: 4px auto; flex-shrink: 0;">
-            <img src="${prize.imageUrl}" alt="${prize.name}" style="width: 100%; height: 100%; object-fit: contain; display: block;" />
-          </div>` : 
-          `<div class="prize-image-container" style="width: 100px; height: 100px; border-radius: var(--radius-lg); overflow: hidden; background: rgba(255,255,255,0.06); display: flex; align-items: center; justify-content: center; border: 1.5px dashed var(--color-border); margin: 4px auto; flex-shrink: 0; font-size: 0.72rem; color: var(--color-text-muted);">No Image</div>`;
+  const n = mergedPrizes.length;
 
-        const countBadge = prize.count ? 
-          `<div style="height: 2.5rem; display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; flex-shrink: 0; margin-top: auto;">
-            <div class="prize-count-badge" style="font-size: 0.88rem; font-weight: 900; font-family: var(--prize-font-family, 'Outfit', sans-serif); color: var(--prize-title-color, var(--color-primary)); text-align: center; line-height: 1.15; text-transform: uppercase; letter-spacing: 0.5px; -webkit-text-fill-color: initial !important;">
-              <span>🏆 ${prize.count}</span><br/><span style="font-size: 0.78rem; font-weight: 800;">PEMENANG</span>
-            </div>
-          </div>` : '';
-
-        return `
-          <div class="prize-item-grid" style="display: flex; flex-direction: column; align-items: center; text-align: center; justify-content: space-between; padding: 10px 6px; background: var(--color-bg-secondary, rgba(255,255,255,0.04)); border: 1px solid var(--color-border-light, rgba(255,255,255,0.1)); border-radius: var(--radius-xl); height: 100%; box-sizing: border-box;">
-            <div style="height: 2.8rem; display: flex; align-items: center; justify-content: center; width: 100%; flex-shrink: 0; margin-bottom: 4px;">
-              <h4 class="prize-name" style="font-size: 0.95rem; font-weight: 900; font-family: var(--prize-font-family, 'Outfit', sans-serif); color: var(--prize-title-color, var(--color-primary)); margin: 0; line-height: 1.2; text-align: center; text-transform: uppercase; letter-spacing: 0.5px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word; background: none !important; -webkit-background-clip: initial !important; -webkit-text-fill-color: initial !important;">${prize.name}</h4>
-            </div>
-            ${imageHtml}
-            ${countBadge}
-          </div>
-        `;
-      }).join('') + `</div>`;
-  } else if (mergedPrizes.length === 1) {
-    const prize = mergedPrizes[0];
-    const countBadge = prize.count ? 
-      `<div class="prize-count-badge" style="font-size: 1.1rem; font-weight: 900; font-family: var(--prize-font-family, 'Outfit', sans-serif); color: var(--prize-title-color, var(--color-primary)); margin-top: 6px; display: flex; align-items: center; justify-content: center; gap: 6px; text-transform: uppercase; letter-spacing: 0.5px; -webkit-text-fill-color: initial !important;">🏆 ${prize.count} PEMENANG</div>` : '';
-    const imageHtml = prize.imageUrl ? 
-      `<div class="prize-image-container" style="width: 165px; height: 165px; border-radius: var(--radius-xl); overflow: hidden; background: #FFFFFF; display: flex; align-items: center; justify-content: center; border: 2.5px solid #FCA5A5; box-shadow: var(--shadow-md); margin: 8px auto; flex-shrink: 0;">
-        <img src="${prize.imageUrl}" alt="${prize.name}" style="width: 100%; height: 100%; object-fit: contain; display: block;" />
-      </div>` : '';
+  if (n === 0) {
+    displayEl.className = 'prize-display';
     displayEl.innerHTML = `
-      <div style="display: flex; flex-direction: column; align-items: center; justify-content: space-between; gap: 6px; width: 100%; text-align: center; padding: 12px 8px; background: var(--color-bg-secondary, rgba(255,255,255,0.04)); border: 1px solid var(--color-border-light, rgba(255,255,255,0.1)); border-radius: var(--radius-xl); box-sizing: border-box;">
-        <h3 class="prize-name" style="font-size: 1.35rem; font-weight: 900; font-family: var(--prize-font-family, 'Outfit', sans-serif); color: var(--prize-title-color, var(--color-primary)); margin: 0 0 4px 0; line-height: 1.2; text-transform: uppercase; word-break: break-word; letter-spacing: 0.5px; background: none !important; -webkit-background-clip: initial !important; -webkit-text-fill-color: initial !important;">${prize.name}</h3>
-        ${imageHtml}
-        ${countBadge}
-      </div>
-    `;
-  } else {
-    displayEl.innerHTML = `
-      <div class="prize-item-multiple" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 20px 10px;">
-        <h3 class="prize-name" style="font-size: 1.2rem; font-weight: 800; color: var(--color-text-muted); margin: 0; background: none !important; -webkit-background-clip: initial !important; -webkit-text-fill-color: initial !important;">Ronde ${APP.currentRonde}</h3>
-      </div>
-    `;
+      <div class="prize-empty">
+        <div class="prize-empty-ronde">RONDE ${APP.currentRonde}</div>
+        <div class="prize-empty-sub">Belum ada hadiah untuk ronde ini</div>
+      </div>`;
+    return;
   }
+
+  // Layout ADAPTIF hadiah: SATU jalur kode untuk BERAPA PUN jumlah hadiah, selalu
+  // MENGISI kolom (tanpa ruang kosong). Tiap kartu flex:1 → tinggi terbagi rata.
+  //  • 1–3 hadiah → kartu vertikal (foto besar di atas, nama + jumlah di bawah).
+  //  • ≥4 hadiah  → baris ringkas (thumbnail kiri, nama + jumlah kanan); scroll
+  //    otomatis bila terlalu banyak. Warna/aksen IKUT tema (bukan pink hardcode).
+  const compact = n >= 4;
+  const mode = compact ? ' prize-rows' : (n === 1 ? ' prize-cards prize-single' : ' prize-cards');
+  displayEl.className = 'prize-display prize-adaptive' + mode;
+
+  displayEl.innerHTML = mergedPrizes.map((prize) => {
+    const imageHtml = prize.imageUrl
+      ? `<div class="prize-card-img"><img src="${prize.imageUrl}" alt="${prize.name}" /></div>`
+      : `<div class="prize-card-img prize-card-img--empty">🎁</div>`;
+    const countHtml = prize.count
+      ? `<div class="prize-card-count"><span class="pc-trophy">🏆</span> ${prize.count} <span class="pc-label">PEMENANG</span></div>`
+      : '';
+    return `
+      <div class="prize-card">
+        ${imageHtml}
+        <div class="prize-card-body">
+          <div class="prize-card-name" title="${prize.name}">${prize.name}</div>
+          ${countHtml}
+        </div>
+      </div>`;
+  }).join('');
 }
 
 function renderPrizeSettings() {
