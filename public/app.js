@@ -200,6 +200,36 @@ function buildDefaultLayout() {
   return { version: 2, stage: { w: STAGE_W, h: STAGE_H }, items };
 }
 
+// Skalakan font sebuah elemen teks agar MENGISI kotaknya di mode kanvas. Metode:
+// ukur lebar/tinggi teks 1 baris pada font ACUAN (100px) lalu skala linear ke kotak
+// → ukuran = min(muat-lebar, muat-tinggi). Pengukuran dilakukan di konteks BLOK
+// netral (display:block; white-space:nowrap; overflow:visible) karena scrollWidth/
+// Height pada elemen flex + overflow:hidden TAK ANDAL (itu bikin versi lama menciut
+// jadi tak terlihat). Semua diukur di koordinat stage 1920x1080 → konsisten lintas
+// layar. Font di-set inline !important (menang atas CSS dasar); applyLayout() akan
+// menghapus font-size/line-height lagi (MANAGED) saat balik ke mode flex.
+function fitTextToBox(el) {
+  if (!el || el.isDummy) return;
+  const boxW = el.clientWidth, boxH = el.clientHeight;
+  if (boxW < 6 || boxH < 6) { el.style.removeProperty('font-size'); el.style.removeProperty('line-height'); return; }
+  const REF = 100;
+  el.style.setProperty('line-height', '1.05', 'important');
+  el.style.setProperty('display', 'block', 'important');
+  el.style.setProperty('white-space', 'nowrap', 'important');
+  el.style.setProperty('overflow', 'visible', 'important');
+  el.style.setProperty('font-size', REF + 'px', 'important');
+  const textW = el.scrollWidth, textH = el.scrollHeight;
+  // Kembalikan properti tata letak yang dikelola CSS (flex + clip).
+  el.style.removeProperty('display');
+  el.style.removeProperty('white-space');
+  el.style.removeProperty('overflow');
+  if (!(textW > 0) || !(textH > 0)) { el.style.removeProperty('font-size'); return; }
+  let size = 0.96 * Math.min(REF * boxW / textW, REF * boxH / textH);
+  if (!isFinite(size)) { el.style.removeProperty('font-size'); return; }
+  size = Math.max(8, Math.min(size, boxH));
+  el.style.setProperty('font-size', size + 'px', 'important');
+}
+
 // Render layout ke #stage. null/kosong → mode flex bawaan (tampilan lama, nol
 // regresi). Ada items → mode kanvas: tiap item diposisikan absolut (% dari stage).
 function applyLayout(layout) {
@@ -208,7 +238,11 @@ function applyLayout(layout) {
 
   // Properti yang kita kelola per item. removeProperty() menghapus juga deklarasi
   // ber-!important yang kita set, agar bersih total saat balik ke mode flex.
-  const MANAGED = ['position', 'left', 'top', 'right', 'bottom', 'width', 'height', 'margin', 'opacity', 'z-index', 'transform', 'display'];
+  // min/max-width/height ikut dikelola: beberapa item punya batas ukuran di CSS
+  // dasar (mis. .slot-machine-frame: max-width:1840/max-height:900) yang, tanpa
+  // dinetralkan, MENGKLEM width/height tata letak (max-* selalu membatasi ukuran
+  // terpakai, tak peduli !important) → kotak jadi lebih kecil/geser dari yang diatur.
+  const MANAGED = ['position', 'left', 'top', 'right', 'bottom', 'width', 'height', 'min-width', 'min-height', 'max-width', 'max-height', 'margin', 'opacity', 'z-index', 'transform', 'display', 'font-size', 'line-height'];
   const clear = (el) => { MANAGED.forEach((p) => el.style.removeProperty(p)); };
 
   const hasItems = layout && layout.items && typeof layout.items === 'object' && Object.keys(layout.items).length > 0;
@@ -222,6 +256,15 @@ function applyLayout(layout) {
   }
 
   stage.classList.add('stage-custom');
+  // Geometri dipasang dalam PIKSEL pada ruang koordinat stage tetap (SW x SH),
+  // yang kemudian di-skala via transform pada .stage-custom. TIDAK boleh pakai %:
+  // untuk item ber-position:absolute, height:% hanya resolve bila containing block
+  // punya tinggi eksplisit. Item di dalam <header> (logo/title/subtitle/stats)
+  // containing block-nya = header (mis. 95px), bukan stage → height:% & top:% ciut
+  // → judul/subjudul/logo tampak super kecil (fitTextToBox lalu jatuh ke font 8px).
+  // Piksel dalam ruang stage tak bergantung tinggi parent → konsisten utk semua item.
+  const SW = (layout.stage && layout.stage.w) || STAGE_W;
+  const SH = (layout.stage && layout.stage.h) || STAGE_H;
   STAGE_ITEM_IDS.forEach((id) => {
     const el = document.querySelector(`[data-stage-item="${id}"]`);
     if (!el || el.isDummy) return;
@@ -239,15 +282,24 @@ function applyLayout(layout) {
     const set = (p, v) => el.style.setProperty(p, v, 'important');
     set('position', 'absolute');
     set('margin', '0');
-    set('left', (it.x * 100) + '%');
-    set('top', (it.y * 100) + '%');
+    set('left', (it.x * SW) + 'px');
+    set('top', (it.y * SH) + 'px');
     set('right', 'auto');
     set('bottom', 'auto');
-    set('width', (it.w * 100) + '%');
-    set('height', (it.h * 100) + '%');
+    set('width', (it.w * SW) + 'px');
+    set('height', (it.h * SH) + 'px');
+    // Netralkan batas ukuran CSS dasar agar kotak PERSIS seukuran yang diatur
+    // (kalau tidak, max-width/height mengklem & item tampak lebih kecil/meleset).
+    set('min-width', '0');
+    set('min-height', '0');
+    set('max-width', 'none');
+    set('max-height', 'none');
     set('opacity', String(it.opacity != null ? it.opacity : 1));
     set('z-index', String(it.z != null ? it.z : 10));
     set('transform', it.rot ? `rotate(${it.rot}deg)` : 'none');
+    // Judul & sub-judul: skalakan teks agar MENGISI kotak (ukuran kotak = ukuran
+    // teks). Tanpa ini, font tetap (2.4rem/1.15rem) tampak kecil di kotak besar.
+    if (id === 'title' || id === 'subtitle') fitTextToBox(el);
   });
 }
 window.applyLayout = applyLayout;
