@@ -1240,12 +1240,9 @@ function bindEvents() {
         slotMachine.style.gridTemplateColumns = '';
         slotMachine.style.gridTemplateRows = '';
         slotMachine.innerHTML = `
-          <div class="slot-placeholder">
-            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" opacity="0.3">
-              <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
-            </svg>
-            <p>Siap untuk mengundi</p>
-            <p class="small">Pilih jumlah pemenang lalu tekan SPIN</p>
+          <div class="slot-placeholder slot-idle">
+            <div class="idle-title">SIAP MENGUNDI</div>
+            <div class="idle-sub">Tekan <strong>SPIN UNDIAN</strong> untuk memulai</div>
           </div>
         `;
       }
@@ -2009,7 +2006,7 @@ function executeSpinMulti(rules, totalCount, isReplacement = false) {
 
   const isManual = document.getElementById('manualStopToggle') && document.getElementById('manualStopToggle').checked;
   if (isManual) {
-    spinBtn.textContent = '🛑 STOP';
+    spinBtn.textContent = 'STOP';
     spinBtn.disabled = false;
     spinBtn.style.pointerEvents = 'auto';
     spinBtn.style.opacity = '1';
@@ -2037,7 +2034,7 @@ function executeSpinMulti(rules, totalCount, isReplacement = false) {
     spinBtn.style.pointerEvents = '';
     spinBtn.style.opacity = '';
     spinBtn.style.background = '';
-    spinBtn.innerHTML = '<span class="spin-icon">🏆</span> SPIN';
+    spinBtn.innerHTML = 'SPIN UNDIAN';
     frame.classList.remove('spinning');
     showToast('Tidak ada peserta yang bisa diundi untuk ronde ini.', 'warning');
     return;
@@ -2068,7 +2065,7 @@ window.finishSpinMulti = function() {
   spinBtn.style.pointerEvents = '';
   spinBtn.style.opacity = '';
   spinBtn.style.background = '';
-  spinBtn.innerHTML = '<span class="spin-icon">🏆</span> SPIN';
+  spinBtn.innerHTML = 'SPIN UNDIAN';
   frame.classList.remove('spinning');
 
   highlightWinners();
