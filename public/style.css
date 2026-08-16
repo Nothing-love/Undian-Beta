@@ -749,20 +749,33 @@ h6 {
 }
 
 .sidebar-header h2 {
-  font-size: 1.35rem;
+  font-size: 1.4rem;
   font-weight: 900;
-  color: var(--color-text);
   display: flex;
   align-items: center;
-  gap: var(--space-sm);
-  letter-spacing: -0.015em;
+  gap: 10px;
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
 }
 
-.sidebar-header h2 svg {
-  color: var(--color-primary);
-  width: 24px;
-  height: 24px;
+/* Accent bar emas (pengganti ikon kotak hadiah) */
+.prize-title-bar {
+  width: 5px;
+  align-self: stretch;
+  min-height: 1.35em;
+  border-radius: 3px;
   flex-shrink: 0;
+  background: linear-gradient(180deg, var(--color-accent, #f59e0b), var(--prize-title-color, var(--color-primary)));
+  box-shadow: 0 0 10px color-mix(in srgb, var(--color-accent, #f59e0b) 55%, transparent);
+}
+
+/* Teks "Hadiah Ronde" gradient bertema → lebih menarik */
+.prize-title-txt {
+  background: linear-gradient(135deg, var(--prize-title-color, var(--color-primary)), var(--color-accent, #f59e0b));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .history-list {
