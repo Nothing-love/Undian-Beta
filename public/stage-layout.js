@@ -482,7 +482,7 @@
       case 'stats': return '👥 120 · Ronde 1';
       case 'prize': return '🎁 HADIAH';
       case 'slot': return '777 - PST-001';
-      case 'controls': return '🏆 SPIN';
+      case 'controls': return 'SPIN UNDIAN';
       case 'footer': return (c.footer || 'Powered by SATSIBER');
     }
     return '';
