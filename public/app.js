@@ -1237,6 +1237,8 @@ function bindEvents() {
       const slotMachine = document.getElementById('slotMachine');
       if (slotMachine) {
         slotMachine.className = 'slot-machine';
+        slotMachine.style.gridTemplateColumns = '';
+        slotMachine.style.gridTemplateRows = '';
         slotMachine.innerHTML = `
           <div class="slot-placeholder">
             <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" opacity="0.3">
@@ -2302,6 +2304,41 @@ function revealWinnerCell(cell, text) {
   } else {
     cell.classList.add('is-name'); cell.classList.remove('is-number');
   }
+  fitReelCell(cell);
+}
+
+// Perbesar font pemenang SEBESAR MUNGKIN yang masih MUAT PENUH di sel (sel kini
+// berukuran pasti dari grid). Angka → satu baris; nama → membungkus per KATA
+// (tak pecah tengah kata) & tak terpotong. Skala otomatis ikut ukuran sel.
+function fitReelCell(cell) {
+  if (!cell) return;
+  const isNum = cell.classList.contains('is-number');
+  cell.style.setProperty('line-height', isNum ? '1' : '1.05', 'important');
+  cell.style.setProperty('white-space', isNum ? 'nowrap' : 'normal', 'important');
+  cell.style.setProperty('overflow-wrap', 'normal', 'important'); // jangan pecah tengah kata
+  cell.style.setProperty('word-break', 'normal', 'important');
+  const w = cell.clientWidth, h = cell.clientHeight;   // dimensi sel = akurat (dari grid)
+  if (w < 10 || h < 10) return;
+  const txt = (cell.textContent || '').trim();
+  let fs;
+  if (isNum) {
+    // Angka: satu baris. Muat LEBAR (digit×~0.62) & TINGGI sel.
+    const byW = (w * 0.90) / Math.max(1, txt.length * 0.62);
+    const byH = h * 0.66;
+    fs = Math.min(byW, byH);
+  } else {
+    // Nama (huruf besar, tebal → ~0.72). Font agar: (a) kata TERPANJANG muat
+    // selebar sel (tak pecah/terpotong), (b) seluruh teks muat luas sel, (c) tak
+    // melebihi ~0.42 tinggi (sisakan ruang beberapa baris). Konservatif → tak terpotong.
+    const words = txt.split(/\s+/).filter(Boolean);
+    const longest = words.reduce((m, x) => Math.max(m, x.length), 1);
+    const byWord = (w * 0.90) / (longest * 0.72);
+    const byArea = Math.sqrt((w * h * 0.58) / (Math.max(1, txt.length) * 0.72));
+    const byH = h * 0.42;
+    fs = Math.min(byWord, byArea, byH);
+  }
+  fs = Math.max(8, Math.min(fs, 440));
+  cell.style.setProperty('font-size', fs + 'px', 'important');
 }
 
 function buildSlotReels(count, winners, isManual = false) {
@@ -2318,6 +2355,17 @@ function buildSlotReels(count, winners, isManual = false) {
   } else {
     slotMachine.classList.add('micro-reels');
   }
+
+  // GRID MENGISI LAYAR: kolom & baris dihitung otomatis dari jumlah pemenang +
+  // rasio kotak mesin → SEDIKIT pemenang = sel BESAR (teks besar), BANYAK pemenang
+  // = sel mengecil otomatis. Reel & teks mengisi tiap sel (lihat CSS cqmin/cqh).
+  const frameEl = document.getElementById('slotMachineFrame');
+  const aspect = (frameEl && frameEl.clientHeight > 0) ? (frameEl.clientWidth / frameEl.clientHeight) : 2.2;
+  let cols = Math.max(1, Math.min(count, Math.round(Math.sqrt(count * aspect))));
+  let rows = Math.ceil(count / cols);
+  cols = Math.ceil(count / rows);
+  slotMachine.style.gridTemplateColumns = 'repeat(' + cols + ', 1fr)';
+  slotMachine.style.gridTemplateRows = 'repeat(' + rows + ', 1fr)';
 
   const activeNames = getActivePeserta().map(p => p.nama);
   if (activeNames.length < 3) {
