@@ -2283,14 +2283,24 @@ function getAdminTarget(ronde, clusterName) {
   );
 }
 
+// Fase MENGACAK: pakai ukuran SERAGAM (kelas is-shuffle) — TIDAK menukar
+// is-number/is-name tiap frame — agar campuran nama & angka tak melompat besar-kecil.
+// Sel tetap penuh & putaran enak dilihat.
 function updateCellText(cell, text) {
   cell.textContent = text;
-  if (/^\d+$/.test(text.trim())) {
-    cell.classList.add('is-number');
-    cell.classList.remove('is-name');
+  cell.classList.add('is-shuffle');
+  cell.classList.remove('is-number', 'is-name');
+}
+
+// Fase BERHENTI (pemenang): tampilkan pemenang & pakai gaya besar per-mode
+// (is-number/is-name) — angka tampil BESAR, nama memakai gaya nama (membungkus).
+function revealWinnerCell(cell, text) {
+  cell.textContent = text;
+  cell.classList.remove('is-shuffle');
+  if (/^\d+$/.test(String(text).trim())) {
+    cell.classList.add('is-number'); cell.classList.remove('is-name');
   } else {
-    cell.classList.add('is-name');
-    cell.classList.remove('is-number');
+    cell.classList.add('is-name'); cell.classList.remove('is-number');
   }
 }
 
@@ -2336,7 +2346,7 @@ function animateRandomizer(cell, winnerName, activeNames, columnIndex, isManual 
 
   const stopAction = () => {
     clearInterval(interval);
-    updateCellText(cell, winnerName);
+    revealWinnerCell(cell, winnerName);
     cell.dataset.winner = 'true';
     cell.style.transform = 'scale(1.1)';
     setTimeout(() => cell.style.transform = 'scale(1)', 150);

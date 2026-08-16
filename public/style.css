@@ -1188,6 +1188,21 @@ body.dark-theme .slot-reel .slot-cell.winner-cell {
   letter-spacing: 0px;
 }
 
+/* ===== FASE MENGACAK (is-shuffle): ukuran SERAGAM & stabil untuk peserta campuran
+   nama+angka → teks tak melompat besar-kecil, selalu 1 baris & mengisi sel (enak
+   dilihat). Ukuran final pemenang diatur auto-fit (fitReelCell) saat berhenti. ===== */
+.slot-reel.single-cell-reel .slot-cell.is-shuffle {
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: clip !important;
+  word-break: normal !important;
+  line-height: 1 !important;
+}
+.slot-machine.massive-reel .slot-cell.is-shuffle { font-size: 8.5rem !important; letter-spacing: -0.02em !important; }
+.slot-machine.large-reels .slot-cell.is-shuffle { font-size: 5rem !important; }
+.slot-machine.compact-reels .slot-cell.is-shuffle { font-size: 3.4rem !important; }
+.slot-machine.micro-reels .slot-cell.is-shuffle { font-size: 2rem !important; }
+
 border-color: var(--color-accent);
 background: rgba(var(--color-accent-rgb), 0.08);
 box-shadow: 0 0 20px rgba(var(--color-accent-rgb), 0.2);
