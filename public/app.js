@@ -2373,6 +2373,8 @@ function fitWinnerName(el, minPx, maxPx) {
   el.style.setProperty('display', 'block', 'important');
   el.style.setProperty('-webkit-line-clamp', 'unset', 'important');
   el.style.setProperty('overflow', 'hidden', 'important');
+  // Angka (tanpa spasi) TETAP satu baris & diperbesar mengikuti lebar; nama pecah di spasi.
+  el.style.setProperty('overflow-wrap', 'normal', 'important');
   el.style.setProperty('flex', '0 0 auto', 'important');
   el.style.setProperty('line-height', '1.13', 'important');
   // Ukur ruang tersedia dgn font minimum dulu (agar tinggi kartu = tinggi baris grid,
@@ -2384,13 +2386,30 @@ function fitWinnerName(el, minPx, maxPx) {
   const headerH = header ? header.offsetHeight : 0;
   let avail = cardH - headerH - padV - 6;
   if (avail < minPx * 1.2) avail = minPx * 1.2;
-  // Naikkan font selama nama utuh masih muat di ruang tersedia.
+  // Naikkan font sebesar mungkin selama teks utuh masih muat TINGGI dan LEBAR kartu.
+  // → angka/nama PENDEK tampil BESAR & jelas; teks panjang mengecil/membungkus otomatis.
   let fs = minPx;
   let guard = 0;
-  while (fs < maxPx && guard++ < 200) {
+  while (fs < maxPx && guard++ < 400) {
     el.style.setProperty('font-size', (fs + 1) + 'px', 'important');
-    if (el.scrollHeight > avail) { el.style.setProperty('font-size', fs + 'px', 'important'); break; }
+    if (el.scrollHeight > avail || el.scrollWidth > el.clientWidth + 1) {
+      el.style.setProperty('font-size', fs + 'px', 'important');
+      break;
+    }
     fs++;
+  }
+  // Fallback ekstrem: satu token sangat panjang (mis. angka 20+ digit) tetap melebihi
+  // lebar di font minimum → izinkan pecah baris agar tak terpotong.
+  if (el.scrollWidth > el.clientWidth + 1) {
+    el.style.setProperty('overflow-wrap', 'anywhere', 'important');
+  }
+  // Koreksi anti-terpotong: turunkan sedikit bila masih ada sisa overflow tinggi/lebar
+  // (akibat pembulatan line-box atau re-wrap) → jaminan teks TIDAK terpotong.
+  let safety = 0;
+  while (fs > minPx && safety++ < 16 &&
+         (el.scrollHeight > el.clientHeight + 1 || el.scrollWidth > el.clientWidth + 1)) {
+    fs -= 1;
+    el.style.setProperty('font-size', fs + 'px', 'important');
   }
 }
 
@@ -2462,9 +2481,10 @@ function showWinnerModal(winners) {
   // kelas wn-* (lebar modal & kolom) sudah diterapkan saat tinggi teks diukur.
   (function(){
     const wn = winners.length;
-    // Rentang font per mode (hero besar → xl kompak). Nama panjang otomatis mengecil
-    // dalam rentang ini agar selalu utuh; nama pendek memakai batas atas (besar).
-    const range = wn <= 1 ? [22, 52] : (wn <= 6 ? [15, 34] : (wn <= 12 ? [13, 25] : (wn <= 24 ? [11, 18] : [10, 16])));
+    // Rentang font per mode [min, MAKS]. MAKS dibuat besar agar teks PENDEK (mis. nomor
+    // undian 1-4 digit) tampil BESAR & jelas; teks panjang otomatis mengecil/membungkus
+    // dalam rentang ini agar selalu utuh (dibatasi tinggi & lebar kartu oleh fitWinnerName).
+    const range = wn <= 1 ? [22, 120] : (wn <= 6 ? [15, 76] : (wn <= 12 ? [13, 52] : (wn <= 24 ? [11, 40] : [10, 30])));
     requestAnimationFrame(() => requestAnimationFrame(() => {
       document.querySelectorAll('#winnerCards .winner-card-name').forEach(el => fitWinnerName(el, range[0], range[1]));
     }));
