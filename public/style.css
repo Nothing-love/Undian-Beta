@@ -1007,10 +1007,11 @@ h6 {
 .idle-sub {
   font-family: var(--font-event, 'Outfit', sans-serif);
   font-size: clamp(0.85rem, 1.5vw, 1.2rem);
-  font-weight: 700;
+  font-weight: 800;
   letter-spacing: 2px;
   text-transform: uppercase;
-  color: var(--color-text-muted);
+  /* teks utama tema (gelap di latar terang, terang di latar gelap) → selalu terbaca */
+  color: var(--color-text);
   display: inline-flex;
   align-items: center;
   justify-content: center;
