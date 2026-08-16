@@ -1,9 +1,10 @@
 node_modules/
 .env
-data/sessions/
-data/*_state.json
+data/
 public/uploads/
 graphify-out/
+.claude/
+PANDUAN.md
 *.tmp
 *.xlsx
 ~$*.xlsx
