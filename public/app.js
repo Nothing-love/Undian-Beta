@@ -2358,7 +2358,10 @@ function buildSlotReels(count, winners, isManual = false) {
   // = sel mengecil otomatis. Reel & teks mengisi tiap sel (lihat CSS cqmin/cqh).
   const frameEl = document.getElementById('slotMachineFrame');
   const aspect = (frameEl && frameEl.clientHeight > 0) ? (frameEl.clientWidth / frameEl.clientHeight) : 2.2;
-  let cols = Math.max(1, Math.min(count, Math.round(Math.sqrt(count * aspect))));
+  // Target rasio SEL = LANDSCAPE (persegi panjang) ~2.5:1 → nama panjang cukup ~2 baris.
+  // Kolom dihitung agar sel melebar (lebih sedikit kolom, lebih banyak baris).
+  const CELL_ASPECT = 2.5;
+  let cols = Math.max(1, Math.min(count, Math.round(Math.sqrt(count * aspect / CELL_ASPECT))));
   let rows = Math.ceil(count / cols);
   cols = Math.ceil(count / rows);
   slotMachine.style.gridTemplateColumns = 'repeat(' + cols + ', 1fr)';
