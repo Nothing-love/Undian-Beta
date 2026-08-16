@@ -1703,23 +1703,25 @@ select.input-modern {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 clamp(16px, 3vw, 44px);
-  height: 36px;
-  background: color-mix(in srgb, var(--color-surface, #ffffff) 92%, transparent);
+  padding: 0 clamp(14px, 3vw, 40px);
+  height: 30px;
+  background: color-mix(in srgb, var(--color-surface, #ffffff) 88%, transparent);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
-  border-top: 1px solid color-mix(in srgb, var(--color-text) 14%, transparent);
-  font-size: 0.82rem;
-  color: var(--color-text);
-  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.22);
+  border-top: 1px solid color-mix(in srgb, var(--color-text) 10%, transparent);
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.6px;
+  color: color-mix(in srgb, var(--color-text) 62%, transparent); /* muted tapi tetap terbaca, tak mencolok */
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.14);
 }
 
 .footer-brand {
-  font-family: var(--font-event, 'Outfit', sans-serif);
-  font-weight: 800;
-  letter-spacing: 0.5px;
-  color: var(--color-text);
-  opacity: 0.92;
+  font-weight: 500;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: inherit;
+  opacity: 0.85;
 }
 
 /* ===================== MODALS ===================== */
