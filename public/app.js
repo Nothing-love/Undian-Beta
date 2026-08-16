@@ -2358,6 +2358,42 @@ function highlightWinners() {
 }
 
 // ===================== WINNER MODAL & CONFETTI =====================
+// Sesuaikan font nama pemenang agar nama LENGKAP muat di ruang kartu yang tersedia
+// (tinggi kartu − header kategori). Font dinaikkan sebesar mungkin selama nama utuh
+// masih muat → nama pendek tampil besar, nama panjang mengecil & membungkus otomatis,
+// TIDAK ada huruf terpotong berapa pun panjang nama/kategori/grup.
+function fitWinnerName(el, minPx, maxPx) {
+  if (!el) return;
+  minPx = minPx || 12;
+  maxPx = maxPx || 34;
+  const card = el.closest('.winner-card');
+  const header = card ? card.querySelector('.winner-card-header') : null;
+  // Bungkus penuh (tanpa clamp) + jangan menyusut oleh flex, agar tinggi teks jujur.
+  el.style.setProperty('white-space', 'normal', 'important');
+  el.style.setProperty('display', 'block', 'important');
+  el.style.setProperty('-webkit-line-clamp', 'unset', 'important');
+  el.style.setProperty('overflow', 'hidden', 'important');
+  el.style.setProperty('flex', '0 0 auto', 'important');
+  el.style.setProperty('line-height', '1.13', 'important');
+  // Ukur ruang tersedia dgn font minimum dulu (agar tinggi kartu = tinggi baris grid,
+  // stabil & tak dipengaruhi tinggi nama itu sendiri).
+  el.style.setProperty('font-size', minPx + 'px', 'important');
+  const cardH = card ? card.clientHeight : el.clientHeight;
+  const cs = card ? getComputedStyle(card) : null;
+  const padV = cs ? (parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom)) : 0;
+  const headerH = header ? header.offsetHeight : 0;
+  let avail = cardH - headerH - padV - 6;
+  if (avail < minPx * 1.2) avail = minPx * 1.2;
+  // Naikkan font selama nama utuh masih muat di ruang tersedia.
+  let fs = minPx;
+  let guard = 0;
+  while (fs < maxPx && guard++ < 200) {
+    el.style.setProperty('font-size', (fs + 1) + 'px', 'important');
+    if (el.scrollHeight > avail) { el.style.setProperty('font-size', fs + 'px', 'important'); break; }
+    fs++;
+  }
+}
+
 function showWinnerModal(winners) {
   const rondeSpan = document.getElementById('winnerRonde');
   if (rondeSpan) rondeSpan.textContent = APP.currentRonde - 1;
@@ -2422,6 +2458,17 @@ function showWinnerModal(winners) {
   }
 
   openModal('winnerModal');
+  // Auto-fit nama pemenang agar nama panjang TIDAK terpotong. Ditunda 2x rAF agar
+  // kelas wn-* (lebar modal & kolom) sudah diterapkan saat tinggi teks diukur.
+  (function(){
+    const wn = winners.length;
+    // Rentang font per mode (hero besar → xl kompak). Nama panjang otomatis mengecil
+    // dalam rentang ini agar selalu utuh; nama pendek memakai batas atas (besar).
+    const range = wn <= 1 ? [22, 52] : (wn <= 6 ? [15, 34] : (wn <= 12 ? [13, 25] : (wn <= 24 ? [11, 18] : [10, 16])));
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      document.querySelectorAll('#winnerCards .winner-card-name').forEach(el => fitWinnerName(el, range[0], range[1]));
+    }));
+  })();
   fireConfetti();
 }
 

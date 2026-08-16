@@ -2096,6 +2096,25 @@ select.input-modern {
 #winnerModal.wn-md .winner-cards { grid-template-columns: repeat(3, 1fr); }
 #winnerModal.wn-lg .winner-cards { grid-template-columns: repeat(4, 1fr); }
 #winnerModal.wn-xl .winner-cards { grid-template-columns: repeat(5, 1fr); }
+/* Baris kartu MENGISI tinggi kontainer secara merata (minmax(0,1fr) → tak pernah
+   melebihi kontainer/scroll). Nama di-autofit oleh fitWinnerName di app.js agar
+   muat utuh di ruang kartu. */
+#winnerModal.wn-sm .winner-cards,
+#winnerModal.wn-md .winner-cards { grid-auto-rows: minmax(0, 1fr); }
+/* Header modal (trofi/judul) dikompakkan utk sm/md agar kartu dapat ruang lebih →
+   nama panjang tampil lebih besar tanpa terpotong. */
+#winnerModal.wn-sm .winner-header-area,
+#winnerModal.wn-md .winner-header-area { padding: 10px 20px 4px !important; }
+#winnerModal.wn-sm .winner-title,
+#winnerModal.wn-md .winner-title { font-size: 2.0rem !important; margin: 0 0 2px !important; }
+#winnerModal.wn-sm .winner-subtitle,
+#winnerModal.wn-md .winner-subtitle { font-size: 0.9rem !important; margin-bottom: 4px !important; }
+#winnerModal.wn-sm .winner-badge-container,
+#winnerModal.wn-md .winner-badge-container { width: 58px !important; height: 58px !important; margin-bottom: 4px !important; }
+#winnerModal.wn-sm .winner-badge,
+#winnerModal.wn-md .winner-badge { font-size: 2.3rem !important; }
+/* Nama TIDAK boleh menyusut oleh flex agar bisa membungkus beberapa baris penuh. */
+#winnerModal .winner-card-name { flex: 0 0 auto !important; }
 /* Di layar sempit (mis. laptop < 1200px), kurangi kolom agar kartu tak terlalu
    sempit & nama tetap terbaca (tetap tanpa scroll berkat kompresi baris 1fr). */
 @media (max-width: 1200px) {
@@ -2209,15 +2228,18 @@ select.input-modern {
 
 .winner-card.single-winner-card {
   width: 100% !important;
-  max-width: 540px !important;
-  padding: 24px 30px !important;
+  max-width: 620px !important;
+  padding: 24px 34px !important;
   text-align: center !important;
   align-items: center !important;
+  justify-content: center !important;
   background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.98)) !important;
   border: 2.5px solid #F59E0B !important;
   box-shadow: 0 12px 35px rgba(245, 158, 11, 0.4), 0 6px 20px rgba(0, 0, 0, 0.6) !important;
   border-radius: 20px !important;
-  min-height: auto !important;
+  /* Ruang tetap & lega → nama panjang di-autofit tampil BESAR (bukan mengecil
+     karena kartu ikut menyusut ke konten). */
+  min-height: 220px !important;
   margin: 0 auto !important;
 }
 
