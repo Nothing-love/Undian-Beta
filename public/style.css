@@ -1006,13 +1006,32 @@ h6 {
 }
 .idle-sub {
   font-family: var(--font-event, 'Outfit', sans-serif);
-  font-size: clamp(0.9rem, 1.6vw, 1.25rem);
-  font-weight: 600;
+  font-size: clamp(0.85rem, 1.5vw, 1.2rem);
+  font-weight: 700;
   letter-spacing: 2px;
   text-transform: uppercase;
   color: var(--color-text-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
 }
-.idle-sub strong { color: var(--color-primary, #dc2626); font-weight: 900; }
+/* "SPIN UNDIAN" jadi chip gradien bertema yang berdenyut → menarik & menuntun mata */
+.idle-sub strong {
+  color: #fff;
+  font-weight: 900;
+  letter-spacing: 2.5px;
+  padding: 5px 16px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--color-primary, #dc2626), var(--color-accent, #f59e0b));
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--color-primary, #dc2626) 40%, transparent);
+  animation: idlePulse 2s ease-in-out infinite;
+}
+@keyframes idlePulse {
+  0%, 100% { transform: scale(1);    box-shadow: 0 4px 14px color-mix(in srgb, var(--color-primary, #dc2626) 40%, transparent); }
+  50%      { transform: scale(1.06); box-shadow: 0 7px 24px color-mix(in srgb, var(--color-accent, #f59e0b) 55%, transparent); }
+}
 
 .slot-machine-footer {
   display: flex;
