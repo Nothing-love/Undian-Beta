@@ -2695,7 +2695,7 @@ function updatePrizeSidebar() {
       ? `<div class="prize-card-img"><img src="${prize.imageUrl}" alt="${prize.name}" /></div>`
       : `<div class="prize-card-img prize-card-img--empty">🎁</div>`;
     const countHtml = prize.count
-      ? `<div class="prize-card-count"><span class="pc-trophy">🏆</span> ${prize.count} <span class="pc-label">PEMENANG</span></div>`
+      ? `<div class="prize-card-count"><span class="pc-num">${prize.count}</span><span class="pc-label">Pemenang</span></div>`
       : '';
     return `
       <div class="prize-card">
