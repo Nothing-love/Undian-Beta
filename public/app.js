@@ -317,7 +317,7 @@ function getLayoutEditorContent() {
     logoUrl: APP.settings.logoUrl || null,
     title: (titleInput && titleInput.value.trim()) || APP.settings.eventTitle || 'JUDUL ACARA',
     subtitle: (subInput && subInput.value.trim()) || APP.settings.eventSubtitle || 'Sub-judul',
-    footer: APP.settings.footerText || 'Powered by SATSIBER'
+    footer: APP.settings.footerText || 'Powered by Satsiber Kopassus'
   };
 }
 
