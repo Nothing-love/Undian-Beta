@@ -166,13 +166,15 @@
       </section>
     </main>
 
-    <!-- FOOTER -->
-    <footer id="appFooter" data-stage-item="footer">
-      <span id="statusText">Siap — Upload file Excel untuk memulai</span>
-      <span class="footer-brand">Powered by SATSIBER</span>
-    </footer>
   </div>
   </div><!-- /#stage -->
+
+  <!-- FOOTER: bar TETAP di dasar viewport (DI LUAR #stage) → selalu penuh ke bawah,
+       tak menggantung di atas bar letterbox saat fullscreen. -->
+  <footer id="appFooter">
+    <span id="statusText">Siap — Upload file Excel untuk memulai</span>
+    <span class="footer-brand">Powered by Satsiber Kopassus</span>
+  </footer>
 
   <!-- Tombol Layar Penuh Proyektor (Fase 4) — overlay DI LUAR #stage, tak ikut diskalakan. -->
   <button type="button" id="fullscreenBtn" class="fullscreen-toggle" title="Layar penuh proyektor (F)" aria-label="Layar penuh">

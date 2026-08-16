@@ -1692,22 +1692,34 @@ select.input-modern {
   padding: 0 2px;
 }
 
+/* Footer: bar TETAP di dasar viewport (di luar #stage) → selalu penuh ke bawah,
+   tak menggantung di atas letterbox saat fullscreen. Warna ikut tema (surface/text). */
 #appFooter {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 490;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 var(--space-xl);
+  padding: 0 clamp(16px, 3vw, 44px);
   height: 36px;
-  background: var(--color-surface);
-  border-top: 1px solid var(--color-border-light);
-  font-size: 0.78rem;
-  color: var(--color-text-muted);
-  flex-shrink: 0;
+  background: color-mix(in srgb, var(--color-surface, #ffffff) 92%, transparent);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border-top: 1px solid color-mix(in srgb, var(--color-text) 14%, transparent);
+  font-size: 0.82rem;
+  color: var(--color-text);
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.22);
 }
 
 .footer-brand {
-  font-weight: 600;
-  opacity: 0.6;
+  font-family: var(--font-event, 'Outfit', sans-serif);
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: var(--color-text);
+  opacity: 0.92;
 }
 
 /* ===================== MODALS ===================== */
@@ -3868,7 +3880,7 @@ body.bg-filter-normal::after {
 .fullscreen-toggle {
   position: fixed;
   right: 16px;
-  bottom: 16px;
+  bottom: 46px;
   z-index: 500;
   width: 42px;
   height: 42px;
