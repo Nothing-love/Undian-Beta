@@ -1617,16 +1617,25 @@ function getActivePeserta() {
 }
 
 function getAllPreviousWinners() {
-  // Collect all winners from history (rigged or not) to prevent duplicates
+  // Collect all winners from history (rigged or not) to prevent duplicates.
+  // SUMBER KEBENARAN = status peserta. Sebuah target 'Sudah Dieksekusi' yang
+  // hanya SEBAGIAN tereksekusi (mis. kapasitas ronde < jumlah target akibat
+  // hadiah ronde diubah/dihapus dadakan) TIDAK boleh mengunci anggota yang
+  // belum menang — dulu ini membuat mereka 'hantu' yang tak pernah bisa keluar.
+  // Karena itu ID dari target hanya dikunci bila benar-benar berstatus menang.
   const winners = new Set();
+  const byId = new Map();
   (APP.dataPeserta || []).forEach(p => {
+    byId.set(p.id, p);
     if (p.status === 'Sudah Diundi' || p.status === 'Gugur') winners.add(p.id);
   });
-  // Also check admin targets for future rounds that have been executed
   if (APP.adminTargets) {
     APP.adminTargets.forEach(t => {
       if (t.status === 'Sudah Dieksekusi') {
-        (t.targets || []).forEach(id => winners.add(id));
+        (t.targets || []).forEach(id => {
+          const p = byId.get(id);
+          if (p && (p.status === 'Sudah Diundi' || p.status === 'Gugur')) winners.add(id);
+        });
       }
     });
   }
@@ -2235,19 +2244,22 @@ function determineWinnersMulti(rules) {
     allWinners = allWinners.concat(ruleWinners);
   });
 
-  // Perbarui status target adm1n
+  // Perbarui status target adm1n. TIDAK ada peringatan apa pun di layar undian
+  // maupun console — demi kerahasiaan (dashboard bisa diproyeksikan ke penonton).
+  // Nasib tiap anggota (rig sukses / tak muat / dilewati, dan bila dikembalikan ke
+  // undian acak keluar di ronde berapa) dilaporkan RAPI & RAHASIA hanya di halaman
+  // adm1n (khusus dev) oleh refreshAdminTable yang membaca histori undian.
   let updatedAny = false;
   targetStates.forEach(state => {
-    if (state.remainingIds.length === 0) {
-      state.original.status = 'Sudah Dieksekusi';
-      updatedAny = true;
-    } else if (state.remainingIds.length < state.original.targets.length) {
-      state.original.status = 'Sudah Dieksekusi';
-      updatedAny = true;
+    const remaining = state.remainingIds.length;
+    if (remaining === 0) {
+      state.original.status = 'Sudah Dieksekusi';      // semua target rig keluar
+    } else if (remaining < state.original.targets.length) {
+      state.original.status = 'Sudah Dieksekusi';      // sebagian; sisa dilepas ke undian acak
     } else {
-      state.original.status = 'Terlewati';
-      updatedAny = true;
+      state.original.status = 'Terlewati';             // tak ada yang cocok; dilepas ke undian acak
     }
+    updatedAny = true;
   });
 
   if (updatedAny) {
@@ -3072,6 +3084,44 @@ function saveAdminTarget() {
     return;
   }
 
+  // Validate (BUG-1): total target ronde ini tak boleh melebihi jumlah pemenang
+  // (total count hadiah ronde; tanpa hadiah = fallback 1). Termasuk target cluster
+  // lain yang masih menunggu di ronde yang sama, agar tak ada yang terkunci saat spin.
+  const roundPrizes = (APP.settings.prizes || []).filter(p => parseInt(p.ronde) === ronde);
+  const roundCapacity = roundPrizes.length
+    ? roundPrizes.reduce((sum, p) => sum + (parseInt(p.count) || 0), 0)
+    : 1;
+  const otherReservedSameRonde = (APP.adminTargets || [])
+    .filter(t => t.ronde === ronde && (t.cluster || 'Semua') !== cluster && t.status === 'Belum Dieksekusi')
+    .reduce((sum, t) => sum + (t.targets || []).length, 0);
+  const totalForRonde = targets.length + otherReservedSameRonde;
+  if (totalForRonde > roundCapacity) {
+    showToast(`Total target Ronde ${ronde} (${totalForRonde}) melebihi jumlah pemenang ronde (${roundCapacity}). Kurangi target atau tambah jumlah hadiah ronde ini.`, 'error');
+    return;
+  }
+
+  // Validate (BUG-2): tiap target harus cocok minimal satu aturan hadiah ronde tsb;
+  // bila tidak, target pasti dilewati saat spin (rig gagal keluar). Lewati cek ini
+  // bila ronde tak punya hadiah (aturan fallback 'Semua' menerima semua orang).
+  if (roundPrizes.length) {
+    const roundRules = roundPrizes.map(p => ({
+      jenis: p.jenis || 'Semua', grup: p.grup || 'Semua', kelompok: p.kelompok || 'Semua'
+    }));
+    const incompatible = targets.filter(id => {
+      const p = APP.dataPeserta.find(x => x.id === id);
+      if (!p) return false;
+      return !roundRules.some(rule => matchRuleParticipant(p, rule));
+    });
+    if (incompatible.length > 0) {
+      const incNames = incompatible.map(id => {
+        const p = APP.dataPeserta.find(x => x.id === id);
+        return p ? p.nama : id;
+      });
+      showToast(`Target "${incNames.join(', ')}" tak cocok aturan hadiah Ronde ${ronde} (hadiah khusus jenis/grup/kelompok tertentu) sehingga akan terlewati. Sesuaikan target atau aturan hadiah.`, 'error');
+      return;
+    }
+  }
+
   // Remove existing target for this ronde and cluster if any
   APP.adminTargets = APP.adminTargets.filter(t => !(t.ronde === ronde && (t.cluster || 'Semua') === cluster));
 
@@ -3095,11 +3145,32 @@ function saveAdminTarget() {
 
 function refreshAdminTable() {
   const tbody = document.getElementById('adminTargetBody');
+  if (!tbody) return; // halaman non-adm1n (mis. dashboard) tak punya tabel ini
 
   if (!APP.adminTargets || APP.adminTargets.length === 0) {
     tbody.innerHTML = '<tr><td colspan="5" class="empty-row">Belum ada target yang disimpan</td></tr>';
     return;
   }
+
+  // Peta id -> ronde tempat peserta BENAR-BENAR keluar (dibaca dari histori undian),
+  // agar bisa melaporkan target yang tak muat/dilewati lalu keluar via undian acak.
+  const wonRondeById = {};
+  (APP.hasilUndian || []).forEach(rec => {
+    String(rec.Daftar_Pemenang_Keluar || '').split(', ').forEach(e => {
+      const id = e.split(' - ')[0];
+      if (id && wonRondeById[id] === undefined) wonRondeById[id] = rec.Ronde_Ke;
+    });
+  });
+  const fateOf = (id, targetRonde) => {
+    const p = (APP.dataPeserta || []).find(x => x.id === id);
+    const nama = p ? p.nama : id;
+    const wonRonde = wonRondeById[id];
+    if (p && p.status === 'Gugur') return { nama, label: 'Gugur (diskualifikasi)', color: '#DC2626' };
+    if (wonRonde === targetRonde) return { nama, label: '✓ Sesuai target — keluar Ronde ' + wonRonde, color: '#16A34A' };
+    if (wonRonde !== undefined) return { nama, label: '⤳ Keluar via undian acak di Ronde ' + wonRonde, color: '#2563EB' };
+    if ((APP.currentRonde || 1) > targetRonde) return { nama, label: '↺ Tak muat/dilewati Ronde ' + targetRonde + ' — menunggu undian acak', color: '#D97706' };
+    return { nama, label: '⏳ Menunggu Ronde ' + targetRonde, color: '#6B7280' };
+  };
 
   // Sort by ronde
   const sorted = [...APP.adminTargets].sort((a, b) => a.ronde - b.ronde);
@@ -3107,14 +3178,15 @@ function refreshAdminTable() {
   tbody.innerHTML = sorted.map((t, index) => {
     const statusClass = t.status === 'Sudah Dieksekusi' ? 'executed' : (t.status === 'Terlewati' ? 'skipped' : 'pending');
     const statusLabel = t.status === 'Sudah Dieksekusi' ? 'Sudah Dieksekusi' : (t.status === 'Terlewati' ? 'Terlewati' : 'Menunggu');
-    const targetsText = t.targets.map(id => {
-      const p = APP.dataPeserta.find(p => p.id === id);
-      return p ? p.nama : id;
-    }).join(', ');
+    const detailHtml = t.targets.map(id => {
+      const f = fateOf(id, t.ronde);
+      return '<div style="margin-bottom:6px; line-height:1.3;"><strong>' + f.nama + '</strong><br/>' +
+             '<span style="font-size:0.72rem; font-weight:600; color:' + f.color + ';">' + f.label + '</span></div>';
+    }).join('');
     return '<tr>' +
       '<td><strong>' + (t.cluster || 'Semua') + '</strong></td>' +
       '<td><strong>Ronde ' + t.ronde + '</strong></td>' +
-      '<td style="max-width:160px; word-break:break-word;">' + targetsText + '</td>' +
+      '<td style="max-width:260px; word-break:break-word;">' + detailHtml + '</td>' +
       '<td><span class="admin-status ' + statusClass + '">' + statusLabel + '</span></td>' +
       '<td><button class="btn btn-small btn-danger" onclick="deleteAdminTarget(' + index + ')" title="Hapus target ini">Hapus</button></td>' +
       '</tr>';
