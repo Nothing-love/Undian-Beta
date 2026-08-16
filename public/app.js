@@ -1664,6 +1664,19 @@ function updatePesertaStatus(winners) {
   syncPesertaDataToServer();
 }
 
+// Data pemenang TERSTRUKTUR (dipakai untuk export Excel yang rapi). Menyimpan objek
+// (bukan hanya string gabungan) → nama yang mengandung koma/tanda kurung TIDAK pecah
+// saat diekspor.
+function structWinners(winners) {
+  return (winners || []).map(w => ({
+    id: w.id || '',
+    nama: w.nama || '',
+    jenisPeserta: w.jenisPeserta || w.cluster || '',
+    grup: w.grup || '',
+    kelompok: w.kelompok || ''
+  }));
+}
+
 function appendHasilUndian(ronde, winners) {
   const now = new Date();
   const waktu = now.toLocaleString('id-ID', {
@@ -1676,6 +1689,7 @@ function appendHasilUndian(ronde, winners) {
   const prizeNames = currentPrizes.map(p => p.name).filter(name => name).join(', ') || 'Hadiah Spesial';
 
   const winnerStr = winners.map(w => `${w.id} - ${w.nama} (${w.jenisPeserta || w.cluster || 'Umum'} | ${w.grup || 'Umum'} | ${w.kelompok || 'Umum'})`).join(', ');
+  const pemenang = structWinners(winners); // andal utk export (tahan koma di nama)
 
   // ANTI-DUPLIKASI: Cek apakah ronde ini sudah ada di histori
   const existingIdx = APP.hasilUndian.findIndex(r => r.Ronde_Ke === ronde);
@@ -1683,6 +1697,7 @@ function appendHasilUndian(ronde, winners) {
     // Ronde sudah ada — update record yang ada, jangan push duplikat
     const existing = APP.hasilUndian[existingIdx];
     existing.Daftar_Pemenang_Keluar = winnerStr;
+    existing.pemenang = pemenang;
     existing.Jumlah_Pemenang = winners.length;
     existing.Waktu_Pengundian = waktu;
     existing.Hadiah = prizeNames;
@@ -1695,6 +1710,7 @@ function appendHasilUndian(ronde, winners) {
     Cluster_Diundi: APP.currentCluster,
     Jumlah_Pemenang: winners.length,
     Daftar_Pemenang_Keluar: winnerStr,
+    pemenang: pemenang,
     Hadiah: prizeNames
   };
 
@@ -1709,33 +1725,42 @@ function downloadUpdatedExcel() {
 
   const wb = XLSX.utils.book_new();
 
-  // Helper to parse hierarchy from winners list string
+  // Ambil pemenang untuk export. Utamakan data TERSTRUKTUR (record.pemenang) → paling
+  // rapi. Untuk record lama (hanya string), parse dengan pemisah ")," agar nama yang
+  // mengandung KOMA (mis. "Kolonel Inf Subandi, S.E., M.I.P.") tidak pecah.
   function parseWinnersList(daftar) {
     if (!daftar || daftar === 'DIBATALKAN') return [];
-    return daftar.split(', ').map(entry => {
-      const parts = entry.split(' - ');
-      let id = parts[0] || '';
-      let nama = parts[1] || parts[0] || '';
-      let jenisPeserta = 'Umum';
-      let grup = 'Umum';
-      let kelompok = 'Umum';
-      const match = nama.match(/^(.*?)\s*\((.*?)\)$/);
-      if (match) {
-        nama = match[1];
-        const hierarchyStr = match[2];
-        const hierarchyParts = hierarchyStr.split(' | ');
-        jenisPeserta = (hierarchyParts[0] || 'Umum').trim();
-        grup = (hierarchyParts[1] || 'Umum').trim();
-        kelompok = (hierarchyParts[2] || 'Umum').trim();
+    const entries = daftar.split(/\)\s*,\s*/).map((e, i, a) => (i < a.length - 1 ? e + ')' : e));
+    return entries.map(entry => {
+      entry = String(entry).trim();
+      let id = '', nama = entry, jenisPeserta = 'Umum', grup = 'Umum', kelompok = 'Umum';
+      const m = entry.match(/^([\s\S]*)\(([^()]*)\)\s*$/); // (...) di akhir = hierarki
+      let head = entry;
+      if (m) {
+        head = m[1].trim();
+        const h = m[2].split('|').map(s => s.trim());
+        jenisPeserta = h[0] || 'Umum'; grup = h[1] || 'Umum'; kelompok = h[2] || 'Umum';
       }
+      const dash = head.indexOf(' - '); // id sebelum ' - ' pertama
+      if (dash > -1) { id = head.slice(0, dash).trim(); nama = head.slice(dash + 3).trim(); }
+      else { nama = head; }
       return { id, nama, jenisPeserta, grup, kelompok };
     });
+  }
+  function getWinners(record) {
+    if (Array.isArray(record.pemenang) && record.pemenang.length) {
+      return record.pemenang.map(w => ({
+        id: w.id || '', nama: w.nama || '',
+        jenisPeserta: w.jenisPeserta || 'Umum', grup: w.grup || 'Umum', kelompok: w.kelompok || 'Umum'
+      }));
+    }
+    return parseWinnersList(record.Daftar_Pemenang_Keluar);
   }
 
   // 1. Sheet Master: Semua Ronde
   const masterRows = [];
   APP.hasilUndian.forEach(record => {
-    const winners = parseWinnersList(record.Daftar_Pemenang_Keluar);
+    const winners = getWinners(record);
     const prizes = APP.settings.prizes || [];
     const currentPrizes = prizes.filter(p => parseInt(p.ronde) === record.Ronde_Ke);
     const prizeName = record.Hadiah || currentPrizes.map(p => p.name).filter(n => n).join(', ') || 'Hadiah Spesial';
@@ -1761,7 +1786,7 @@ function downloadUpdatedExcel() {
 
   // 2. Sheet per Ronde (Ronde 1, Ronde 2, etc.)
   APP.hasilUndian.forEach(record => {
-    const winners = parseWinnersList(record.Daftar_Pemenang_Keluar);
+    const winners = getWinners(record);
     const prizes = APP.settings.prizes || [];
     const currentPrizes = prizes.filter(p => parseInt(p.ronde) === record.Ronde_Ke);
     const prizeName = record.Hadiah || currentPrizes.map(p => p.name).filter(n => n).join(', ') || 'Hadiah Spesial';
@@ -2085,6 +2110,7 @@ window.finishSpinMulti = function() {
     const record = APP.hasilUndian.find(r => r.Ronde_Ke === rondeIndex);
     if (record) {
       record.Daftar_Pemenang_Keluar = APP.lastWinners.map(w => `${w.id} - ${w.nama} (${w.jenisPeserta || w.cluster || 'Umum'} | ${w.grup || 'Umum'} | ${w.kelompok || 'Umum'})`).join(', ');
+      record.pemenang = structWinners(APP.lastWinners);
       record.Jumlah_Pemenang = APP.lastWinners.length;
     }
   } else {
@@ -2593,6 +2619,8 @@ window.disqualifyWinner = async function(idx) {
       return `${w.id} - ${w.nama} (${w.jenisPeserta || w.cluster || 'Umum'} | ${w.grup || 'Umum'} | ${w.kelompok || 'Umum'})`;
     }).join(', ');
     record.Daftar_Pemenang_Keluar = sisa || 'DIBATALKAN';
+    record.pemenang = structWinners(APP.lastWinners);
+    record.Jumlah_Pemenang = APP.lastWinners.length;
   }
 
   saveSettings();
