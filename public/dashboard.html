@@ -142,26 +142,25 @@
 
         <!-- Controls -->
         <div id="controlsArea" class="controls-area" style="margin-top: 16px;" data-stage-item="controls">
-          <div class="controls-row" style="flex-direction: column; align-items: center; gap: var(--space-md);">
-            <!-- Toggle Manual Stop -->
-            <div style="display:flex; align-items:center; justify-content:center; gap: 8px; margin-bottom: -10px;">
-              <label class="switch">
-                <input type="checkbox" id="manualStopToggle">
-                <span class="slider round"></span>
-              </label>
-              <span style="font-size: 0.9rem; font-weight: 600; color: var(--color-text-muted);">Mode Stop Manual</span>
-            </div>
+          <div class="controls-row" style="flex-direction: column; align-items: center; gap: 12px;">
             <!-- Huge Spin Button -->
             <button id="spinBtn" class="spin-button" onclick="handleSpin()"
-              style="width: 280px; height: 70px; font-size: 1.7rem; border-radius: 20px; font-weight: 900; letter-spacing: 3px;">
+              style="width: 380px; height: 90px; font-size: 2.3rem; border-radius: 24px; font-weight: 900; letter-spacing: 5px;">
               SPIN UNDIAN
             </button>
-          </div>
-          <div class="controls-row controls-secondary">
-            <button class="btn btn-secondary" id="downloadExcelBtn" onclick="downloadUpdatedExcel()" style="display: flex; align-items: center; justify-content: center; gap: 8px; padding: 0 22px; height: 38px; border-radius: 12px; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.4); color: #10B981; font-weight: 700; font-size: 0.9rem; cursor: pointer; transition: all 0.2s ease;">
-              <span style="font-size: 1.1rem;">📥</span>
-              EXPORT EXCEL
-            </button>
+            <!-- Secondary controls: toggle + export dalam satu baris ringkas -->
+            <div class="controls-secondary" style="display:flex; align-items:center; justify-content:center; gap:14px; flex-wrap:wrap;">
+              <label class="manual-toggle">
+                <span class="switch">
+                  <input type="checkbox" id="manualStopToggle">
+                  <span class="slider round"></span>
+                </span>
+                <span class="manual-toggle-text">Mode Stop Manual</span>
+              </label>
+              <button class="export-excel-btn" id="downloadExcelBtn" onclick="downloadUpdatedExcel()">
+                <span class="ex-icon">📥</span> Export Excel
+              </button>
+            </div>
           </div>
         </div>
       </section>
