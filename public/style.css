@@ -2099,25 +2099,63 @@ select.input-modern {
   }
 }
 
+/* Judul dibungkus garis hias emas kiri & kanan (pengganti ikon piala). */
+.winner-title-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+}
+.winner-title-wrap::before,
+.winner-title-wrap::after {
+  content: "";
+  height: 3px;
+  width: 70px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, transparent, #F59E0B);
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
+}
+.winner-title-wrap::after { background: linear-gradient(90deg, #F59E0B, transparent); }
+
 .winner-title {
   font-family: var(--font-event, 'Outfit', sans-serif);
-  font-size: 2.4rem;
+  font-size: 3rem;
   font-weight: 900;
-  letter-spacing: 3px;
-  background: linear-gradient(135deg, #FFF59D, #F59E0B, #EF4444);
+  letter-spacing: 5px;
+  text-transform: uppercase;
+  margin: 0;
+  background: linear-gradient(100deg, #FFF3C4 0%, #FDE047 20%, #F59E0B 45%, #EF4444 65%, #F59E0B 85%, #FDE047 100%);
+  background-size: 220% auto;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  margin: 0 0 2px 0;
-  text-shadow: 0 4px 20px rgba(245, 158, 11, 0.3);
+  text-shadow: 0 6px 30px rgba(245, 158, 11, 0.35);
+  animation: winnerTitleIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both,
+             winnerShimmer 4.5s linear infinite;
+}
+@keyframes winnerShimmer { to { background-position: 220% center; } }
+@keyframes winnerTitleIn {
+  from { opacity: 0; transform: translateY(-14px) scale(0.9); }
+  to   { opacity: 1; transform: none; }
 }
 
+/* Sub-judul jadi PILL emas yang elegan. */
 .winner-subtitle {
-  font-size: 1.0rem;
-  font-weight: 700;
-  color: #F8FAFC;
-  margin-bottom: 6px;
+  display: inline-block;
+  margin: 12px auto 4px;
+  padding: 5px 22px;
+  border-radius: 999px;
+  font-family: var(--font-event, 'Outfit', sans-serif);
+  font-size: 0.92rem;
+  font-weight: 800;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #2a1c05;
+  background: linear-gradient(135deg, #FDE68A, #F59E0B);
+  box-shadow: 0 4px 16px rgba(245, 158, 11, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.55);
+  animation: winnerTitleIn 0.6s ease 0.1s both;
 }
+.winner-subtitle #winnerRonde { font-weight: 900; }
 
 .winner-cards {
   position: relative;
