@@ -1203,6 +1203,57 @@ body.dark-theme .slot-reel .slot-cell.winner-cell {
 .slot-machine.compact-reels .slot-cell.is-shuffle { font-size: 3.4rem !important; }
 .slot-machine.micro-reels .slot-cell.is-shuffle { font-size: 2rem !important; }
 
+/* ============================================================
+   MESIN UNDIAN MENGISI LAYAR + FONT SKALA OTOMATIS (container query units)
+   slot-machine mengisi ruang frame sebagai GRID (kolom/baris diatur JS
+   buildSlotReels dari jumlah pemenang). Reel mengisi tiap sel; font memakai
+   satuan container (cqmin/cqh/cqw) → SEDIKIT pemenang = sel & teks BESAR,
+   BANYAK pemenang = mengecil otomatis, tanpa ruang kosong. Aturan ini lebih
+   spesifik (0,4,0) sehingga menang atas ukuran rem per-mode di atas. */
+#slotMachine.slot-machine {
+  flex: 1 1 auto !important;
+  width: 100% !important;
+  height: auto !important;
+  min-height: 0 !important;
+  display: grid !important;
+  grid-auto-rows: 1fr;
+  gap: 8px !important;
+  padding: 6px !important;
+  place-content: stretch !important;
+  place-items: stretch !important;
+}
+#slotMachine .slot-reel.single-cell-reel {
+  width: auto !important;
+  height: auto !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  min-height: 0 !important;
+  justify-self: stretch !important;
+  align-self: stretch !important;
+  flex: none !important;
+  padding: 4px 10px !important;
+  container-type: size;
+  overflow: hidden;
+}
+#slotMachine .slot-reel.single-cell-reel .slot-cell {
+  width: 100% !important;
+  height: 100% !important;
+}
+/* Teks skala mengikuti UKURAN sel (cq* = persen dari ukuran reel) */
+#slotMachine .slot-reel.single-cell-reel .slot-cell.is-shuffle {
+  font-size: 30cqmin !important;
+  white-space: nowrap !important; overflow: hidden !important; text-overflow: clip !important;
+}
+#slotMachine .slot-reel.single-cell-reel .slot-cell.is-number {
+  font-size: min(72cqh, 30cqw) !important;
+  white-space: nowrap !important; letter-spacing: -0.02em !important;
+}
+#slotMachine .slot-reel.single-cell-reel .slot-cell.is-name {
+  font-size: 20cqh !important;
+  white-space: normal !important; overflow-wrap: anywhere !important; word-break: break-word !important;
+  line-height: 1.05 !important;
+}
+
 border-color: var(--color-accent);
 background: rgba(var(--color-accent-rgb), 0.08);
 box-shadow: 0 0 20px rgba(var(--color-accent-rgb), 0.2);
