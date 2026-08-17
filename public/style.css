@@ -2474,8 +2474,8 @@ select.input-modern {
 }
 
 .winner-card.single-winner-card .winner-card-cluster {
-  font-size: 0.9rem !important;
-  padding: 4px 12px !important;
+  font-size: 0.86rem !important;
+  padding: 2px 0 !important;
 }
 
 .winner-card.single-winner-card .winner-card-name {
@@ -2526,13 +2526,21 @@ select.input-modern {
 }
 
 .winner-card-cluster {
-  font-size: 0.72rem !important;
-  color: #94A3B8 !important;
-  background: rgba(15, 23, 42, 0.6) !important;
-  padding: 2px 8px !important;
-  border-radius: 6px !important;
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
-  line-height: 1.2 !important;
+  /* Desain LEGA: golongan/grup tampil sebagai KETERANGAN teks — TANPA kotak &
+     TANPA garis pinggir emas — agar kartu tak terasa penuh (kotak-dalam-kotak).
+     Warna tetap mengikuti nama pemenang, dibuat sedikit lebih lembut sebagai
+     teks sekunder. */
+  font-size: 0.7rem !important;
+  color: color-mix(in srgb, var(--winner-number-color, #FBBF24) 88%, #ffffff) !important;
+  background: transparent !important;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.04em !important;
+  text-transform: uppercase !important;
+  opacity: 0.9;
+  line-height: 1.25 !important;
 }
 
 .winner-card-name {
@@ -2578,6 +2586,25 @@ select.input-modern {
   background: #dc3545;
   border-color: #dc3545;
   color: white;
+}
+
+/* Kartu yang DITANDAI untuk digugurkan (multi-select sebelum undi ulang serentak) */
+.winner-card.marked-disqualify {
+  opacity: 0.6;
+  outline: 2px solid #dc3545;
+  outline-offset: -2px;
+}
+
+.winner-card.marked-disqualify .winner-card-name {
+  text-decoration: line-through;
+  text-decoration-color: #dc3545;
+}
+
+.winner-card.marked-disqualify .btn-disqualify {
+  background: #dc3545 !important;
+  border-color: #dc3545 !important;
+  color: #fff !important;
+  transform: scale(1.05);
 }
 
 .winner-actions {

@@ -2594,13 +2594,14 @@ function showWinnerModal(winners) {
       const card = document.createElement('div');
       card.className = isSingleWinner ? 'winner-card single-winner-card' : 'winner-card';
       card.style.animationDelay = (idx * 0.12) + 's';
+      card.setAttribute('data-widx', idx);
 
       // Build category breadcrumb from non-empty properties
       const categoryParts = [];
       if (winner.jenisPeserta && winner.jenisPeserta.trim()) categoryParts.push(winner.jenisPeserta.trim());
       if (winner.grup && winner.grup.trim()) categoryParts.push(winner.grup.trim());
       if (winner.kelompok && winner.kelompok.trim()) categoryParts.push(winner.kelompok.trim());
-      const categoryText = categoryParts.join(' | ');
+      const categoryText = categoryParts.join('  ·  ');
       const categoryBadge = categoryText ? `<span class="winner-card-cluster">${categoryText}</span>` : '';
 
       card.innerHTML =
@@ -2609,12 +2610,15 @@ function showWinnerModal(winners) {
           categoryBadge +
         '</div>' +
         '<div class="winner-card-name" title="' + winner.nama + '">' + winner.nama + '</div>' +
-        '<button class="btn-disqualify" title="Gugurkan peserta ini" onclick="disqualifyWinner(' + idx + ')">&times;</button>';
+        '<button class="btn-disqualify" title="Tandai untuk digugurkan" onclick="toggleDisqualifyMark(' + idx + ')">&times;</button>';
       cardsContainer.appendChild(card);
     });
 
     cardsContainer.scrollTop = 0;
   }
+
+  // Reset tombol undi-ulang (kartu baru = belum ada yang ditandai gugur).
+  updateRespinButton();
 
   // Apply background preset / custom image to Winner Modal
   const modalEl = document.getElementById('winnerModal');
@@ -2674,28 +2678,73 @@ function fireConfetti() {
 }
 
 // ===================== DISQUALIFY & REPLACEMENT SPIN =====================
-window.disqualifyWinner = async function(idx) {
-  const ok = await showCustomConfirm('Gugurkan Pemenang', 'Yakin gugurkan pemenang ini? Sistem akan otomatis mengundi pengganti.');
+// Alur baru: tombol × pada kartu MENANDAI pemenang untuk digugurkan (multi-pilih).
+// Setelah 1 ATAU LEBIH ditandai, tombol "Gugurkan & Undi Ulang (N)" mengundi semua
+// pengganti SEKALIGUS dalam satu putaran (N reel berputar bersamaan).
+
+// Aturan pengganti untuk satu pemenang gugur: utamakan aturan hadiah aslinya
+// (originalRule) agar pengganti tetap sesuai kategori hadiah; jika tak ada, bebas.
+function replacementRuleFromWinner(w) {
+  if (w && w.originalRule) {
+    return {
+      jenis: w.originalRule.jenis || 'Semua',
+      grup: w.originalRule.grup || 'Semua',
+      kelompok: w.originalRule.kelompok || 'Semua',
+      count: 1
+    };
+  }
+  return { jenis: 'Semua', grup: 'Semua', kelompok: 'Semua', count: 1 };
+}
+
+// Segarkan tombol undi-ulang sesuai jumlah kartu yang ditandai gugur.
+function updateRespinButton() {
+  const n = document.querySelectorAll('#winnerCards .winner-card.marked-disqualify').length;
+  const btn = document.getElementById('winnerRespinBtn');
+  const countEl = document.getElementById('winnerRespinCount');
+  if (countEl) countEl.textContent = n;
+  if (btn && btn.style) btn.style.display = n > 0 ? '' : 'none';
+}
+window.updateRespinButton = updateRespinButton;
+
+// Tandai / batalkan-tanda satu kartu pemenang untuk digugurkan.
+window.toggleDisqualifyMark = function(idx) {
+  const card = document.querySelector('#winnerCards .winner-card[data-widx="' + idx + '"]');
+  if (!card) return;
+  const marked = card.classList.toggle('marked-disqualify');
+  const btn = card.querySelector('.btn-disqualify');
+  if (btn) btn.title = marked ? 'Batalkan tanda gugur' : 'Tandai untuk digugurkan';
+  updateRespinButton();
+};
+
+// Gugurkan SEMUA pemenang yang ditandai lalu undi penggantinya SEKALIGUS (serentak).
+window.executeBatchDisqualify = async function() {
+  const marked = Array.from(document.querySelectorAll('#winnerCards .winner-card.marked-disqualify'));
+  const indices = marked.map(c => parseInt(c.getAttribute('data-widx'), 10)).filter(i => !isNaN(i));
+  const victims = indices.map(i => APP.lastWinners[i]).filter(Boolean);
+  if (victims.length === 0) return;
+
+  const namesList = victims.map(v => v.nama).join(', ');
+  const ok = await showCustomConfirm(
+    'Gugurkan ' + victims.length + ' Pemenang',
+    'Gugurkan ' + victims.length + ' pemenang (' + namesList + ') dan undi ' + victims.length + ' pengganti sekaligus?'
+  );
   if (!ok) return;
 
-  const disqualified = APP.lastWinners[idx];
-  if (!disqualified) return;
+  // 1) Tandai gugur di data peserta.
+  const victimIds = new Set(victims.map(v => v.id));
+  (APP.dataPeserta || []).forEach(p => { if (victimIds.has(p.id)) p.status = 'Gugur'; });
 
-  // Tandai peserta sebagai gugur
-  (APP.dataPeserta || []).forEach(function(p) {
-    if (p.id === disqualified.id) p.status = 'Gugur';
-  });
+  // 2) Buang dari daftar pemenang (berdasarkan identitas → aman terhadap index geser).
+  const victimKeys = new Set(victims.map(v => v.id || v.nama));
+  APP.lastWinners = (APP.lastWinners || []).filter(w => !victimKeys.has(w.id || w.nama));
 
-  // Hapus dari list pemenang
-  APP.lastWinners.splice(idx, 1);
-
-  // Update histori
+  // 3) Perbarui histori ronde.
   const rondeIndex = APP.currentRonde - 1;
-  const record = APP.hasilUndian.find(function(r) { return r.Ronde_Ke === rondeIndex; });
+  const record = APP.hasilUndian.find(r => r.Ronde_Ke === rondeIndex);
   if (record) {
-    const sisa = APP.lastWinners.map(function(w) {
-      return `${w.id} - ${w.nama} (${w.jenisPeserta || w.cluster || 'Umum'} | ${w.grup || 'Umum'} | ${w.kelompok || 'Umum'})`;
-    }).join(', ');
+    const sisa = APP.lastWinners.map(w =>
+      `${w.id} - ${w.nama} (${w.jenisPeserta || w.cluster || 'Umum'} | ${w.grup || 'Umum'} | ${w.kelompok || 'Umum'})`
+    ).join(', ');
     record.Daftar_Pemenang_Keluar = sisa || 'DIBATALKAN';
     record.pemenang = structWinners(APP.lastWinners);
     record.Jumlah_Pemenang = APP.lastWinners.length;
@@ -2706,33 +2755,24 @@ window.disqualifyWinner = async function(idx) {
   if (typeof updatePesertaDatalist === 'function') updatePesertaDatalist();
 
   closeModal('winnerModal');
-  showToast('Mencari pengganti untuk ' + disqualified.nama + '...', 'info');
+  showToast('Mengundi ' + victims.length + ' pengganti sekaligus...', 'info');
 
+  // 4) Undi N pengganti dalam SATU putaran (N reel serentak).
   setTimeout(function() {
-    let rules;
-    if (disqualified.originalRule) {
-      rules = [{
-        jenis: disqualified.originalRule.jenis || 'Semua',
-        grup: disqualified.originalRule.grup || 'Semua',
-        kelompok: disqualified.originalRule.kelompok || 'Semua',
-        count: 1
-      }];
-    } else {
-      const replacementCluster = disqualified.cluster || 'Semua';
-      rules = [{ cluster: replacementCluster, count: 1 }];
-    }
+    const rules = victims.map(replacementRuleFromWinner);
+    const need = rules.length;
 
-    const activePesertaTotal = getActivePeserta();
     const unavailableIds = getUnavailableParticipantIds();
-    const currentActive = activePesertaTotal.filter(p => !unavailableIds.has(p.id));
-    const available = currentActive.filter(p => matchRuleParticipant(p, rules[0]));
-
-    if (available.length === 0) {
-      showToast('Tidak ada peserta pengganti yang cocok dengan kriteria hadiah ini.', 'error');
+    const pool = getActivePeserta().filter(p => !unavailableIds.has(p.id));
+    if (pool.length === 0) {
+      showToast('Tidak ada peserta pengganti yang tersedia.', 'error');
       if (APP.lastWinners.length > 0) showWinnerModal(APP.lastWinners);
       return;
     }
-    executeSpinMulti(rules, 1, true);
+    if (pool.length < need) {
+      showToast('Hanya ' + pool.length + ' peserta tersisa untuk ' + need + ' pengganti — sebagian slot mungkin kosong.', 'warning');
+    }
+    executeSpinMulti(rules, need, true);
   }, 600);
 };
 
