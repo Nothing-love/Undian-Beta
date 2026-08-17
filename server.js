@@ -679,8 +679,11 @@ app.post('/api/admin', requireAuth, requireAdminUnlocked, (req, res) => {
 app.post('/api/admin/status', requireAuth, (req, res) => {
   const stored = normalizeAdmin(readJson(STATE_FILES.admin, DEFAULT_STATE.admin));
   const incoming = Array.isArray(req.body.targets) ? req.body.targets : [];
+  // Identitas target: bila berjangkar-hadiah, kunci ke prizeId agar sinkron status
+  // tetap cocok walau nomor ronde bergeser (operator memindah hadiah). Target lama
+  // (tanpa prizeId) tetap dicocokkan via nomor ronde.
   const identity = (t) =>
-    `${t.ronde}|${t.cluster || 'Semua'}|${[...(Array.isArray(t.targets) ? t.targets : [])].sort().join(',')}`;
+    `${t.prizeId ? 'p:' + t.prizeId : 'r:' + t.ronde}|${t.cluster || 'Semua'}|${[...(Array.isArray(t.targets) ? t.targets : [])].sort().join(',')}`;
 
   const statusByKey = new Map();
   for (const t of incoming) {
