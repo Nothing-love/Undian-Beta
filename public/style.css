@@ -2351,11 +2351,14 @@ select.input-modern {
   padding: 8px 12px !important;
   justify-content: center;
 }
+/* Badge golongan/grup TETAP SEJAJAR (satu baris) dengan nomor #N berapa pun jumlah
+   pemenangnya — tidak lagi menumpuk ke bawah saat pemenang banyak. */
 #winnerModal.wn-lg .winner-card-header,
 #winnerModal.wn-xl .winner-card-header {
-  flex-direction: column !important;
-  align-items: flex-start !important;
-  gap: 3px !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 14px !important; /* jarak nomor #N ↔ badge agar tak mepet */
   margin-bottom: 3px !important;
   padding-right: 15px !important;
 }
@@ -2365,11 +2368,14 @@ select.input-modern {
 #winnerModal.wn-lg .winner-card-cluster,
 #winnerModal.wn-xl .winner-card-cluster {
   display: block !important;
-  width: 100% !important;
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  width: auto !important;
   max-width: 100% !important;
+  text-align: center !important; /* teks panjang membungkus RATA TENGAH → rapi */
   font-size: 0.62rem !important;
   line-height: 1.15 !important;
-  padding: 1px 6px !important;
+  padding: 0 !important;
   white-space: normal !important;
   word-break: break-word !important;
 }
@@ -2499,6 +2505,7 @@ select.input-modern {
   width: 100%;
   margin-bottom: 6px;
   padding-right: 20px;
+  gap: 14px; /* jarak nomor #N ↔ badge golongan agar tak mepet */
 }
 
 @keyframes cardPop {
@@ -2523,6 +2530,7 @@ select.input-modern {
   letter-spacing: 0.05em;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
   line-height: 1.2 !important;
+  flex: 0 0 auto !important; /* nomor #N tak menyusut → badge golongan mengisi sisa, tetap sebaris */
 }
 
 .winner-card-cluster {
