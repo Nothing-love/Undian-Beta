@@ -582,7 +582,7 @@ async function syncStateWithServer() {
     // 3. Sync Admin Targets & Password
     if (data.admin) {
       if (data.admin.targets) APP.adminTargets = data.admin.targets;
-      
+
       const localData = btoa(JSON.stringify(data.admin));
       try {
         localStorage.setItem(ADMIN_STORAGE_KEY, localData);
@@ -591,11 +591,16 @@ async function syncStateWithServer() {
       }
     }
 
+    // Selaraskan ronde efektif target dengan hadiah terkini (mis. operator memindah
+    // ronde sebuah hadiah dari perangkat lain) SEBELUM merender apa pun.
+    syncTargetRounds();
+
     // 4. Update UI Components
     updateUI();
     if (typeof updatePrizeSidebar === 'function') updatePrizeSidebar();
     if (typeof updatePesertaDatalist === 'function') updatePesertaDatalist();
     if (typeof refreshAdminTable === 'function') refreshAdminTable();
+    if (typeof populateAdminPrizeSelect === 'function' && document.getElementById('adminPrize')) populateAdminPrizeSelect();
     if (typeof renderPrizeSettings === 'function') renderPrizeSettings();
   } catch (e) {
     // Ignore network drop
@@ -657,6 +662,9 @@ async function syncFullStateFromRemote() {
     if (data.admin) {
       if (data.admin.targets) APP.adminTargets = data.admin.targets;
     }
+
+    // Ronde efektif target mengikuti hadiah terkini setelah state utuh dimuat.
+    syncTargetRounds();
   } catch (e) {
     console.warn('syncFullStateFromRemote error:', e.message);
   }
@@ -1654,6 +1662,63 @@ function getUnavailableParticipantIds() {
   return unavailable;
 }
 
+// ===================== TARGET ⇄ HADIAH (PRIZE) RESOLUTION =====================
+// Target adm1n kini BERJANGKAR pada HADIAH (prize.id), bukan nomor ronde. Ronde
+// efektif sebuah target selalu DITURUNKAN dari ronde hadiahnya saat ini. Jadi bila
+// operator memindah hadiah ke ronde lain, target otomatis ikut — pemenang yang
+// ditargetkan tetap keluar untuk HADIAH yang benar, apa pun nomor rondenya.
+function findPrizeById(prizeId) {
+  if (!prizeId) return null;
+  return (APP.settings.prizes || []).find(p => p && p.id === prizeId) || null;
+}
+
+function prizeRoundById(prizeId) {
+  const prize = findPrizeById(prizeId);
+  return prize ? (parseInt(prize.ronde) || 1) : null;
+}
+
+// Ronde efektif target: berbasis hadiah → ronde hadiah kini; target lama
+// (tanpa prizeId) → nomor ronde statis yang tersimpan. Jika hadiah sudah dihapus,
+// jatuh ke ronde terakhir yang diketahui agar target tak "hilang" senyap.
+function effectiveRonde(t) {
+  if (t && t.prizeId) {
+    const r = prizeRoundById(t.prizeId);
+    if (r != null) return r;
+  }
+  return t ? (parseInt(t.ronde) || 0) : 0;
+}
+
+// Selaraskan field `ronde` & `prizeName` tiap target dengan kondisi hadiah terkini.
+// Dipanggil sebelum spin, sebelum render tabel, dan setelah sinkron state — sehingga
+// nomor ronde tersimpan/tertampil selalu mengikuti hadiah (mis. operator geser ronde).
+function syncTargetRounds() {
+  if (!Array.isArray(APP.adminTargets)) return;
+  APP.adminTargets.forEach(t => {
+    if (!t || !t.prizeId) return;
+    const prize = findPrizeById(t.prizeId);
+    if (!prize) return; // hadiah dihapus → pertahankan ronde terakhir diketahui
+    t.ronde = parseInt(prize.ronde) || 1;
+    if (prize.name) t.prizeName = prize.name;
+  });
+}
+
+// Amankan target "terdampar": bila hadiahnya kini berada di ronde yang SUDAH lewat
+// (mis. operator memindahnya mundur), target itu tak akan pernah dieksekusi dan
+// pesertanya akan terkunci selamanya (tak bisa menang apa pun). Lepaskan sebagai
+// 'Terlewati' — konsisten dengan perilaku target yang dilewati: peserta kembali ke
+// undian acak. Tetap terlaporkan rapi di tabel adm1n (fateOf).
+function releaseStrandedTargets() {
+  if (!Array.isArray(APP.adminTargets)) return;
+  let changed = false;
+  APP.adminTargets.forEach(t => {
+    if (t && t.status === 'Belum Dieksekusi' && effectiveRonde(t) < (APP.currentRonde || 1)) {
+      t.status = 'Terlewati';
+      changed = true;
+    }
+  });
+  if (changed) saveAdminStatus();
+}
+
 function updatePesertaStatus(winners) {
   const winnerIds = new Set((winners || []).map(w => w.id));
   (APP.dataPeserta || []).forEach(p => {
@@ -1948,6 +2013,11 @@ window.handleSpin = function() {
     return;
   }
 
+  // Selaraskan ronde target dengan hadiah terkini SEBELUM membaca target apa pun,
+  // agar hadiah yang dipindah operator langsung tercermin di ronde efektif target.
+  syncTargetRounds();
+  releaseStrandedTargets();
+
   // Read single unified round configuration for APP.currentRonde
   let rules = [];
   const prizes = APP.settings.prizes || [];
@@ -1956,6 +2026,8 @@ window.handleSpin = function() {
   if (currentPrizes.length > 0) {
     currentPrizes.forEach(p => {
       rules.push({
+        prizeId: p.id || null,          // identitas hadiah → penempatan target presisi per hadiah
+        prizeName: p.name || '',
         jenis: p.jenis || 'Semua',
         grup: p.grup || 'Semua',
         kelompok: p.kelompok || 'Semua',
@@ -2001,7 +2073,7 @@ window.handleSpin = function() {
   // spin crash (isSpinning tetap true, UI terkunci sampai reload).
   const reservedForOtherRonde = new Set();
   (APP.adminTargets || []).forEach(t => {
-    if (t.status === 'Belum Dieksekusi' && t.ronde !== APP.currentRonde) {
+    if (t.status === 'Belum Dieksekusi' && effectiveRonde(t) !== APP.currentRonde) {
       (t.targets || []).forEach(id => reservedForOtherRonde.add(id));
     }
   });
@@ -2151,7 +2223,7 @@ function determineWinnersMulti(rules) {
   let activeTargets = [];
   if (!APP.isReplacementSpin) {
     activeTargets = (APP.adminTargets || [])
-      .filter(t => t.ronde === APP.currentRonde && t.status !== 'Sudah Dieksekusi');
+      .filter(t => effectiveRonde(t) === APP.currentRonde && t.status !== 'Sudah Dieksekusi');
   }
 
   // Track target IDs dynamically per rules loop
@@ -2168,6 +2240,12 @@ function determineWinnersMulti(rules) {
 
     // 1. Eksekusi target adm1n untuk ronde ini (jika ada)
     targetStates.forEach(state => {
+      // Target BERBASIS HADIAH hanya boleh ditempatkan pada aturan (rule) HADIAH yang
+      // sama — sehingga bila satu ronde memuat >1 hadiah, tiap pemenang rig masuk ke
+      // slot hadiah yang benar (bukan sekadar "salah satu pemenang ronde ini").
+      // Target lama (tanpa prizeId) tetap berperilaku lama: cocok aturan mana pun.
+      if (state.original.prizeId && rule.prizeId !== state.original.prizeId) return;
+
       const validTargetIds = state.remainingIds.filter(targetId => {
         if (batchWinnerIds.has(targetId)) return false;
         const targetPeserta = APP.dataPeserta.find(p => p.id === targetId && p.status === 'Belum Diundi');
@@ -2302,7 +2380,7 @@ function determineWinnersMulti(rules) {
 function getAdminTarget(ronde, clusterName) {
   if (!APP.adminTargets) return null;
   return APP.adminTargets.find(t =>
-    t.ronde === ronde &&
+    effectiveRonde(t) === ronde &&
     (t.cluster === 'Semua' || clusterName === 'Semua' || t.cluster === clusterName) &&
     t.status !== 'Sudah Dieksekusi'
   );
@@ -2852,8 +2930,13 @@ window.updatePrizeCategory = function(id, field, value) {
 window.updatePrizeRonde = function(id, ronde) {
   const prize = APP.settings.prizes.find(p => p.id === id);
   if (prize) prize.ronde = parseInt(ronde) || 1;
+  // Target berjangkar-hadiah ikut berpindah ronde otomatis: pemenang yang ditargetkan
+  // tetap keluar untuk HADIAH ini, bukan untuk apa pun yang kebetulan di ronde lama.
+  syncTargetRounds();
   saveSettings();
   updatePrizeSidebar();
+  if (typeof refreshAdminTable === 'function') refreshAdminTable();
+  if (typeof populateAdminPrizeSelect === 'function' && document.getElementById('adminPrize')) populateAdminPrizeSelect();
 };
 
 window.updatePrizeName = function(id, name) {
@@ -2967,13 +3050,10 @@ function togglePasswordVisibility() {
 window.togglePasswordVisibility = togglePasswordVisibility;
 
 function openAdminPanel() {
+  syncTargetRounds();
   refreshAdminTable();
-  const rondeInput = document.getElementById('adminRonde');
-  if (rondeInput) {
-    rondeInput.value = APP.currentRonde;
-    rondeInput.min = APP.currentRonde;
-  }
-  
+  populateAdminPrizeSelect();
+
   const wrapper = document.getElementById('adminPanelWrapper');
   if (wrapper) wrapper.style.display = 'block';
 
@@ -3005,6 +3085,75 @@ function openAdminPanel() {
 
   openModal('adminModal');
 }
+
+// Isi dropdown Hadiah. Hanya hadiah pada ronde SEKARANG atau setelahnya yang bisa
+// ditarget (ronde yang sudah lewat tak bisa dirig lagi). Label: nama — Ronde N (kuota).
+function populateAdminPrizeSelect() {
+  const sel = document.getElementById('adminPrize');
+  if (!sel) return;
+  const prev = sel.value;
+
+  const prizes = (APP.settings.prizes || [])
+    .filter(p => p && (parseInt(p.ronde) || 1) >= (APP.currentRonde || 1))
+    .slice()
+    .sort((a, b) => (parseInt(a.ronde) || 1) - (parseInt(b.ronde) || 1) ||
+                    String(a.name || '').localeCompare(String(b.name || '')));
+
+  if (prizes.length === 0) {
+    sel.innerHTML = '<option value="">— Belum ada hadiah (atur di Pengaturan) —</option>';
+    sel.value = '';
+    onAdminPrizeChange();
+    return;
+  }
+
+  const opts = ['<option value="">— Pilih hadiah —</option>'].concat(
+    prizes.map(p => {
+      const ronde = parseInt(p.ronde) || 1;
+      const count = parseInt(p.count) || 1;
+      const nm = (p.name && p.name.trim()) ? p.name.trim() : '(Tanpa nama)';
+      return '<option value="' + p.id + '">' + nm + ' — Ronde ' + ronde + ' (' + count + ' pemenang)</option>';
+    })
+  );
+  sel.innerHTML = opts.join('');
+
+  // Pertahankan pilihan sebelumnya bila hadiahnya masih valid.
+  sel.value = (prev && prizes.some(p => p.id === prev)) ? prev : '';
+  onAdminPrizeChange();
+}
+window.populateAdminPrizeSelect = populateAdminPrizeSelect;
+
+// Saat hadiah target dipilih: turunkan nomor ronde ke input tersembunyi (dipakai
+// validasi & kode lama) lalu tampilkan ronde efektif + filter kategori hadiah tsb.
+window.onAdminPrizeChange = function() {
+  const sel = document.getElementById('adminPrize');
+  const hiddenRonde = document.getElementById('adminRonde');
+  const hint = document.getElementById('adminPrizeHint');
+  const prize = sel ? findPrizeById(sel.value) : null;
+
+  if (!prize) {
+    if (hiddenRonde) hiddenRonde.value = APP.currentRonde || 1;
+    if (hint) hint.innerHTML = 'Target menempel pada <strong>hadiah</strong>, bukan nomor ronde. ' +
+      'Bila operator memindah hadiah ke ronde lain, target ikut otomatis — pemenang tetap keluar untuk hadiah itu.';
+    return;
+  }
+
+  const ronde = parseInt(prize.ronde) || 1;
+  if (hiddenRonde) hiddenRonde.value = ronde;
+
+  const filters = [];
+  if (prize.jenis && normalizeStr(prize.jenis) !== 'semua') filters.push('Jenis: ' + prize.jenis);
+  if (prize.grup && normalizeStr(prize.grup) !== 'semua') filters.push('Grup: ' + prize.grup);
+  if (prize.kelompok && normalizeStr(prize.kelompok) !== 'semua') filters.push('Kelompok: ' + prize.kelompok);
+  const filterNote = filters.length
+    ? ' • Hadiah ini khusus <strong>' + filters.join(' | ') + '</strong> — target harus cocok.'
+    : '';
+  const nm = (prize.name && prize.name.trim()) ? prize.name.trim() : '(Tanpa nama)';
+
+  if (hint) {
+    hint.innerHTML = 'Hadiah <strong>' + nm + '</strong> kini di <strong>Ronde ' + ronde + '</strong> (' +
+      (parseInt(prize.count) || 1) + ' pemenang). Ronde mengikuti hadiah otomatis.' + filterNote;
+  }
+};
 
 function copyRemoteUrl() {
   const url = APP.remoteUrl || document.getElementById('remoteUrlText').textContent;
@@ -3091,12 +3240,13 @@ window.filterPesertaList = function() {
   const chipContainer = document.getElementById('targetChipContainer');
   const selectedIds = chipContainer ? Array.from(chipContainer.querySelectorAll('.target-chip')).map(c => c.dataset.id) : [];
   
-  // Get all pending targets from adminTargets
+  // Get all pending targets from adminTargets → label hadiah (bukan sekadar ronde)
   const pendingTargets = {};
   (APP.adminTargets || []).forEach(t => {
     if (t.status !== 'Sudah Dieksekusi') {
+      const label = t.prizeName || (t.prizeId ? 'Hadiah' : ('Ronde ' + effectiveRonde(t)));
       (t.targets || []).forEach(id => {
-        pendingTargets[id] = t.ronde;
+        pendingTargets[id] = label;
       });
     }
   });
@@ -3119,7 +3269,7 @@ window.filterPesertaList = function() {
     const p = filtered[i];
     const isWinner = prevWinners.has(p.id);
     const isSelected = selectedIds.includes(p.id);
-    const targetedRonde = pendingTargets[p.id];
+    const targetedLabel = pendingTargets[p.id];
     
     const metaParts = [];
     if (p.id) metaParts.push('ID: ' + p.id);
@@ -3130,14 +3280,14 @@ window.filterPesertaList = function() {
     const metaStr = metaParts.join(' | ');
 
     let actionHtml = '';
-    const isDisabled = p.status === 'Gugur' || p.status === 'Sudah Diundi' || targetedRonde !== undefined;
-    
+    const isDisabled = p.status === 'Gugur' || p.status === 'Sudah Diundi' || targetedLabel !== undefined;
+
     if (p.status === 'Gugur') {
       actionHtml = '<span style="color:#DC2626; font-size:0.75rem; font-weight:600;">Gugur (Diskualifikasi)</span>';
     } else if (p.status === 'Sudah Diundi') {
       actionHtml = '<span style="color:#2563EB; font-size:0.75rem; font-weight:600;">Sudah Menang</span>';
-    } else if (targetedRonde !== undefined) {
-      actionHtml = `<span style="color:#D97706; font-size:0.75rem; font-weight:600;">Target Ronde ${targetedRonde}</span>`;
+    } else if (targetedLabel !== undefined) {
+      actionHtml = `<span style="color:#D97706; font-size:0.75rem; font-weight:600;">Target: ${targetedLabel}</span>`;
     } else if (isSelected) {
       actionHtml = '<button class="btn btn-small" style="padding:6px 12px; font-size:0.75rem; background:var(--color-bg-tertiary); color:var(--color-text-muted); border:1px solid var(--color-border);" disabled>Terpilih</button>';
     } else {
@@ -3174,9 +3324,24 @@ window.selectPesertaFromList = function(id) {
 function saveAdminTarget() {
   const clusterSelect = document.getElementById('adminCluster');
   const cluster = clusterSelect ? clusterSelect.value : 'Semua';
-  const ronde = parseInt(document.getElementById('adminRonde').value);
-  if (!ronde || ronde < APP.currentRonde) {
-    showToast('Ronde ini sudah terlewat! Silakan pilih ronde ' + APP.currentRonde + ' atau setelahnya.', 'error');
+
+  // Target kini BERJANGKAR ke HADIAH (bukan nomor ronde). Ambil hadiah terpilih;
+  // ronde efektif diturunkan dari ronde hadiah itu SAAT INI.
+  const prizeSelect = document.getElementById('adminPrize');
+  const prizeId = prizeSelect ? prizeSelect.value : '';
+  if (!prizeId) {
+    showToast('Pilih hadiah target terlebih dahulu.', 'error');
+    return;
+  }
+  const prize = findPrizeById(prizeId);
+  if (!prize) {
+    showToast('Hadiah tidak ditemukan — mungkin sudah dihapus. Muat ulang halaman.', 'error');
+    return;
+  }
+  const prizeLabel = (prize.name && prize.name.trim()) ? prize.name.trim() : '(Tanpa nama)';
+  const ronde = parseInt(prize.ronde) || 1;
+  if (ronde < APP.currentRonde) {
+    showToast('Hadiah "' + prizeLabel + '" ada di Ronde ' + ronde + ' yang sudah terlewat. Pilih hadiah di Ronde ' + APP.currentRonde + ' atau setelahnya.', 'error');
     return;
   }
 
@@ -3203,23 +3368,24 @@ function saveAdminTarget() {
     return;
   }
 
-  // Validate: targets must not already be reserved in another pending admin target
-  const pendingTargets = {};
+  // Validate: peserta belum ditargetkan oleh HADIAH LAIN yang masih menunggu.
+  // (Target hadiah yang SAMA akan ditimpa di bawah, jadi dikecualikan di sini.)
+  const reservedByOther = {};
   (APP.adminTargets || []).forEach(t => {
-    if (t.status === 'Belum Dieksekusi' && !(t.ronde === ronde && (t.cluster || 'Semua') === cluster)) {
-      (t.targets || []).forEach(id => {
-        pendingTargets[id] = t.ronde;
-      });
+    if (t.status === 'Belum Dieksekusi' && t.prizeId !== prizeId) {
+      (t.targets || []).forEach(id => { reservedByOther[id] = t; });
     }
   });
 
-  const alreadyTargeted = targets.filter(id => pendingTargets[id] !== undefined);
+  const alreadyTargeted = targets.filter(id => reservedByOther[id] !== undefined);
   if (alreadyTargeted.length > 0) {
+    const first = reservedByOther[alreadyTargeted[0]];
+    const otherLabel = first.prizeName || (first.prizeId ? 'hadiah lain' : ('Ronde ' + first.ronde));
     const names = alreadyTargeted.map(id => {
       const p = APP.dataPeserta.find(p => p.id === id);
       return p ? p.nama : id;
     });
-    showToast('Peserta "' + names.join(', ') + '" sudah ditargetkan untuk Ronde ' + pendingTargets[alreadyTargeted[0]] + '!', 'error');
+    showToast('Peserta "' + names.join(', ') + '" sudah ditargetkan untuk hadiah "' + otherLabel + '"!', 'error');
     return;
   }
 
@@ -3237,49 +3403,39 @@ function saveAdminTarget() {
     return;
   }
 
-  // Validate (BUG-1): total target ronde ini tak boleh melebihi jumlah pemenang
-  // (total count hadiah ronde; tanpa hadiah = fallback 1). Termasuk target cluster
-  // lain yang masih menunggu di ronde yang sama, agar tak ada yang terkunci saat spin.
-  const roundPrizes = (APP.settings.prizes || []).filter(p => parseInt(p.ronde) === ronde);
-  const roundCapacity = roundPrizes.length
-    ? roundPrizes.reduce((sum, p) => sum + (parseInt(p.count) || 0), 0)
-    : 1;
-  const otherReservedSameRonde = (APP.adminTargets || [])
-    .filter(t => t.ronde === ronde && (t.cluster || 'Semua') !== cluster && t.status === 'Belum Dieksekusi')
-    .reduce((sum, t) => sum + (t.targets || []).length, 0);
-  const totalForRonde = targets.length + otherReservedSameRonde;
-  if (totalForRonde > roundCapacity) {
-    showToast(`Total target Ronde ${ronde} (${totalForRonde}) melebihi jumlah pemenang ronde (${roundCapacity}). Kurangi target atau tambah jumlah hadiah ronde ini.`, 'error');
+  // Validate: jumlah target tak boleh melebihi KUOTA PEMENANG hadiah ini. Karena tiap
+  // target berjangkar ke satu hadiah (slotnya sendiri), batasnya cukup per-hadiah.
+  const prizeCapacity = parseInt(prize.count) || 1;
+  if (targets.length > prizeCapacity) {
+    showToast('Jumlah target (' + targets.length + ') melebihi jumlah pemenang hadiah "' + prizeLabel + '" (' + prizeCapacity + '). Kurangi target atau tambah jumlah pemenang hadiah ini di Pengaturan.', 'error');
     return;
   }
 
-  // Validate (BUG-2): tiap target harus cocok minimal satu aturan hadiah ronde tsb;
-  // bila tidak, target pasti dilewati saat spin (rig gagal keluar). Lewati cek ini
-  // bila ronde tak punya hadiah (aturan fallback 'Semua' menerima semua orang).
-  if (roundPrizes.length) {
-    const roundRules = roundPrizes.map(p => ({
-      jenis: p.jenis || 'Semua', grup: p.grup || 'Semua', kelompok: p.kelompok || 'Semua'
-    }));
-    const incompatible = targets.filter(id => {
+  // Validate: tiap target harus cocok FILTER (jenis/grup/kelompok) hadiah INI; bila
+  // tidak, saat spin target pasti dilewati (rig gagal keluar untuk hadiah tsb).
+  const prizeRule = { jenis: prize.jenis || 'Semua', grup: prize.grup || 'Semua', kelompok: prize.kelompok || 'Semua' };
+  const incompatible = targets.filter(id => {
+    const p = APP.dataPeserta.find(x => x.id === id);
+    if (!p) return false;
+    return !matchRuleParticipant(p, prizeRule);
+  });
+  if (incompatible.length > 0) {
+    const incNames = incompatible.map(id => {
       const p = APP.dataPeserta.find(x => x.id === id);
-      if (!p) return false;
-      return !roundRules.some(rule => matchRuleParticipant(p, rule));
+      return p ? p.nama : id;
     });
-    if (incompatible.length > 0) {
-      const incNames = incompatible.map(id => {
-        const p = APP.dataPeserta.find(x => x.id === id);
-        return p ? p.nama : id;
-      });
-      showToast(`Target "${incNames.join(', ')}" tak cocok aturan hadiah Ronde ${ronde} (hadiah khusus jenis/grup/kelompok tertentu) sehingga akan terlewati. Sesuaikan target atau aturan hadiah.`, 'error');
-      return;
-    }
+    showToast('Target "' + incNames.join(', ') + '" tak cocok filter hadiah "' + prizeLabel + '" (jenis/grup/kelompok). Sesuaikan target atau filter hadiah.', 'error');
+    return;
   }
 
-  // Remove existing target for this ronde and cluster if any
-  APP.adminTargets = APP.adminTargets.filter(t => !(t.ronde === ronde && (t.cluster || 'Semua') === cluster));
+  // Timpa target lama untuk HADIAH yang sama (satu hadiah = satu target aktif).
+  APP.adminTargets = APP.adminTargets.filter(t => t.prizeId !== prizeId);
 
-  // Add new target
+  // Simpan target berjangkar-hadiah. `ronde` hanya cache; ronde efektif selalu
+  // diturunkan ulang dari hadiah (effectiveRonde) sehingga tahan pemindahan ronde.
   APP.adminTargets.push({
+    prizeId: prizeId,
+    prizeName: prize.name || '',
     cluster: cluster,
     ronde: ronde,
     targets: targets,
@@ -3289,16 +3445,22 @@ function saveAdminTarget() {
   saveAdminSettings();
   refreshAdminTable();
 
-  // Reset chip container dan input
-  if (chipContainer) chipContainer.innerHTML = '';
+  // Reset chip container (kembalikan placeholder) & pilihan hadiah.
+  if (chipContainer) {
+    chipContainer.innerHTML = '<span id="chipPlaceholder" style="color:var(--color-text-muted); font-size:0.85rem; align-self:center;">Belum ada target dipilih...</span>';
+  }
   updateTargetChipCount();
+  if (prizeSelect) prizeSelect.value = '';
+  onAdminPrizeChange();
 
-  showToast('Target Ronde ' + ronde + ' (' + targets.length + ' orang) berhasil disimpan.', 'success');
+  showToast('Target hadiah "' + prizeLabel + '" (' + targets.length + ' orang) berhasil disimpan.', 'success');
 }
 
 function refreshAdminTable() {
   const tbody = document.getElementById('adminTargetBody');
   if (!tbody) return; // halaman non-adm1n (mis. dashboard) tak punya tabel ini
+
+  syncTargetRounds(); // ronde efektif tiap target selalu mengikuti hadiahnya terkini
 
   if (!APP.adminTargets || APP.adminTargets.length === 0) {
     tbody.innerHTML = '<tr><td colspan="5" class="empty-row">Belum ada target yang disimpan</td></tr>';
@@ -3325,48 +3487,60 @@ function refreshAdminTable() {
     return { nama, label: '⏳ Menunggu Ronde ' + targetRonde, color: '#6B7280' };
   };
 
-  // Sort by ronde
-  const sorted = [...APP.adminTargets].sort((a, b) => a.ronde - b.ronde);
+  // Sort by ronde efektif (mengikuti hadiah)
+  const sorted = [...APP.adminTargets].sort((a, b) => effectiveRonde(a) - effectiveRonde(b));
 
   tbody.innerHTML = sorted.map((t, index) => {
+    const effRonde = effectiveRonde(t);
+    const prizeGone = t.prizeId && !findPrizeById(t.prizeId);
+    const prizeLabel = t.prizeName || (t.prizeId ? 'Hadiah' : 'Ronde ' + t.ronde);
     const statusClass = t.status === 'Sudah Dieksekusi' ? 'executed' : (t.status === 'Terlewati' ? 'skipped' : 'pending');
     const statusLabel = t.status === 'Sudah Dieksekusi' ? 'Sudah Dieksekusi' : (t.status === 'Terlewati' ? 'Terlewati' : 'Menunggu');
     const detailHtml = t.targets.map(id => {
-      const f = fateOf(id, t.ronde);
+      const f = fateOf(id, effRonde);
       return '<div style="margin-bottom:6px; line-height:1.3;"><strong>' + f.nama + '</strong><br/>' +
              '<span style="font-size:0.72rem; font-weight:600; color:' + f.color + ';">' + f.label + '</span></div>';
     }).join('');
+    const rondeCell = prizeGone
+      ? '<strong>' + prizeLabel + '</strong><br/><span style="font-size:0.72rem; color:#DC2626;">⚠ Hadiah dihapus</span>'
+      : '<strong>' + prizeLabel + '</strong><br/><span style="font-size:0.72rem; color:var(--color-text-muted);">Ronde ' + effRonde + '</span>';
+    // data-label + pembungkus .cell-val: dipakai layout KARTU di layar HP (lihat CSS
+    // adm1n.html @media 640px). Di desktop tetap tampil sebagai tabel biasa.
     return '<tr>' +
-      '<td><strong>' + (t.cluster || 'Semua') + '</strong></td>' +
-      '<td><strong>Ronde ' + t.ronde + '</strong></td>' +
-      '<td style="max-width:260px; word-break:break-word;">' + detailHtml + '</td>' +
-      '<td><span class="admin-status ' + statusClass + '">' + statusLabel + '</span></td>' +
-      '<td><button class="btn btn-small btn-danger" onclick="deleteAdminTarget(' + index + ')" title="Hapus target ini">Hapus</button></td>' +
+      '<td data-label="Kategori"><div class="cell-val"><strong>' + (t.cluster || 'Semua') + '</strong></div></td>' +
+      '<td data-label="Hadiah"><div class="cell-val">' + rondeCell + '</div></td>' +
+      '<td data-label="Pemenang"><div class="cell-val" style="max-width:260px; word-break:break-word;">' + detailHtml + '</div></td>' +
+      '<td data-label="Status"><div class="cell-val"><span class="admin-status ' + statusClass + '">' + statusLabel + '</span></div></td>' +
+      '<td data-label="Aksi" style="text-align:center;"><button class="btn btn-small btn-danger" onclick="deleteAdminTarget(' + index + ')" title="Hapus target ini">Hapus</button></td>' +
       '</tr>';
   }).join('');
 }
 
 async function deleteAdminTarget(index) {
-  const sorted = [...APP.adminTargets].sort((a, b) => a.ronde - b.ronde);
+  // HARUS memakai kunci urut yang SAMA dengan refreshAdminTable (effectiveRonde),
+  // agar index tombol memetakan ke target yang benar (bukan salah hapus).
+  const sorted = [...APP.adminTargets].sort((a, b) => effectiveRonde(a) - effectiveRonde(b));
   const targetToDelete = sorted[index];
-  
+
   if (!targetToDelete) return;
-  
+
+  const label = targetToDelete.prizeName || (targetToDelete.prizeId ? 'Hadiah' : ('Ronde ' + targetToDelete.ronde));
   const names = targetToDelete.targets.map(id => {
     const p = APP.dataPeserta.find(p => p.id === id);
     return p ? p.nama : id;
   }).join(', ');
-  
+
   const ok = await showCustomConfirm(
     'Hapus Target',
-    'Hapus target: "' + names + '" di Ronde ' + targetToDelete.ronde + ' (' + (targetToDelete.cluster || 'Semua') + ')? Tindakan ini tidak bisa dibatalkan.'
+    'Hapus target: "' + names + '" untuk hadiah "' + label + '" (' + (targetToDelete.cluster || 'Semua') + ')? Tindakan ini tidak bisa dibatalkan.'
   );
   if (!ok) return;
-  
+
   APP.adminTargets = APP.adminTargets.filter(t => t !== targetToDelete);
   saveAdminSettings();
   refreshAdminTable();
-  showToast('Target Ronde ' + targetToDelete.ronde + ' berhasil dihapus.', 'success');
+  populateAdminPrizeSelect();
+  showToast('Target hadiah "' + label + '" berhasil dihapus.', 'success');
 }
 window.deleteAdminTarget = deleteAdminTarget;
 

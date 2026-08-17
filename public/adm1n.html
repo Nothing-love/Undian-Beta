@@ -106,10 +106,21 @@
 
     .admin-grid {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: minmax(360px, 440px) 1fr;
+      grid-template-areas:
+        "target table"
+        "password table";
       gap: var(--space-xl);
       align-items: start;
     }
+
+    .card-target { grid-area: target; }
+    .card-table { grid-area: table; }
+    .card-password { grid-area: password; }
+
+    /* Nilai sel tabel dibungkus satu wadah agar saat mode kartu (mobile) tidak
+       pecah jadi banyak flex-item. */
+    .admin-table .cell-val { display: block; }
 
     .admin-card {
       background: var(--color-surface);
@@ -232,10 +243,16 @@
       background: rgba(var(--color-primary-rgb), 0.03);
     }
 
-    /* Mobile Responsive Breakpoints */
-    @media (max-width: 900px) {
+    /* ==================== RESPONSIVE / MOBILE ==================== */
+
+    /* Tablet & bawah: satu kolom dengan urutan berguna — Target → Tabel → Password. */
+    @media (max-width: 960px) {
       .admin-grid {
         grid-template-columns: 1fr;
+        grid-template-areas:
+          "target"
+          "table"
+          "password";
         gap: 16px;
       }
 
@@ -245,41 +262,82 @@
       }
     }
 
-    @media (max-width: 600px) {
-      .admin-header {
-        padding: 10px 14px;
-      }
+    /* HP: header ringkas + tabel target berubah jadi KARTU (tanpa scroll samping). */
+    @media (max-width: 640px) {
+      .admin-header { padding: 10px 14px; }
+      .header-title-group { gap: 10px; }
+      .admin-page-title { font-size: 1.1rem; }
+      .btn-back-dashboard { padding: 8px 12px; font-size: 0.8rem; }
 
-      .header-title-group {
-        gap: 10px;
-      }
+      .admin-container { padding: 0 10px; margin: 10px auto; }
+      .admin-card-body { padding: 14px; }
+      .admin-card-header { padding: 12px 14px; }
+      .admin-card-header h2 { font-size: 1rem; }
 
-      .admin-page-title {
-        font-size: 1.15rem;
+      /* Tabel → kartu bertumpuk (pola responsive-table) */
+      #adminTargetTable.admin-table-wrap { max-height: none; overflow: visible; }
+      .admin-table { white-space: normal; font-size: 0.9rem; }
+      .admin-table thead { /* sembunyikan header secara visual, tetap aksesibel */
+        position: absolute; width: 1px; height: 1px;
+        margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); border: 0;
       }
+      .admin-table, .admin-table tbody { display: block; width: 100%; }
+      .admin-table tr {
+        display: block;
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-md);
+        background: var(--color-surface);
+        padding: 4px 12px 10px;
+        margin: 12px 0;
+      }
+      .admin-table tr:hover td { background: transparent; }
+      .admin-table td {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 14px;
+        padding: 10px 0;
+        border: none;
+        border-bottom: 1px dashed var(--color-border-light);
+        white-space: normal;
+      }
+      .admin-table td:last-child { border-bottom: none; }
+      .admin-table td::before {
+        content: attr(data-label);
+        flex: 0 0 auto;
+        font-size: 0.7rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--color-text-muted);
+        padding-top: 2px;
+      }
+      .admin-table td .cell-val { text-align: right; min-width: 0; }
+      /* Kolom Pemenang: label di atas, daftar penuh di bawah (rata kiri) */
+      .admin-table td[data-label="Pemenang"] { flex-direction: column; align-items: stretch; gap: 6px; }
+      .admin-table td[data-label="Pemenang"] .cell-val { text-align: left; }
+      /* Kolom Aksi: tombol Hapus full-width, mudah ditekan */
+      .admin-table td[data-label="Aksi"] { display: block; padding-bottom: 2px; }
+      .admin-table td[data-label="Aksi"]::before { display: none; }
+      .admin-table td[data-label="Aksi"] .btn { width: 100%; min-height: 42px; }
+      /* Baris kosong */
+      .admin-table td.empty-row { display: block; text-align: center; }
+      .admin-table td.empty-row::before { display: none; }
 
-      .btn-back-dashboard {
-        padding: 6px 12px;
-        font-size: 0.8rem;
-      }
+      /* Modal peserta: nyaris layar penuh + target sentuh lebih besar */
+      #pesertaListModal.modal-overlay { padding: 8px; }
+      #pesertaListModal .modal { width: 100% !important; height: 92vh !important; max-height: 92vh !important; max-width: none !important; }
+      #pesertaListContainer .btn-small { min-height: 40px; padding: 8px 14px; font-size: 0.8rem; }
 
-      .admin-container {
-        padding: 0 10px;
-        margin: 10px auto;
-      }
+      /* Login modal: tak terlalu jauh dari atas */
+      #adminLoginModal { margin: 28px auto !important; width: 92% !important; }
+    }
 
-      .admin-card-body {
-        padding: 14px;
-      }
-
-      .admin-card-header {
-        padding: 12px 14px;
-      }
-
-      .modal {
-        width: 94% !important;
-        max-height: 88vh !important;
-      }
+    /* HP kecil */
+    @media (max-width: 380px) {
+      .admin-page-title { font-size: 1rem; }
+      .btn-back-dashboard { font-size: 0.75rem; }
+      .admin-card-header h2 { font-size: 0.95rem; }
     }
 
     /* Premium Scrollbar */
@@ -352,120 +410,120 @@
 
       <div class="admin-grid">
 
-        <!-- COLUMN 1: TARGET CONFIG & PASSWORD -->
-        <div style="display:flex; flex-direction:column; gap: var(--space-xl);">
+        <!-- CARD: Configure Target (grid-area: target) -->
+        <section class="admin-card card-target">
+          <div class="admin-card-header">
+            <h2>🎯 TARGET</h2>
+          </div>
+          <div class="admin-card-body">
 
-          <!-- CARD: Configure Round Target -->
-          <section class="admin-card">
-            <div class="admin-card-header">
-              <h2>🎯 TARGET</h2>
+            <div class="form-group">
+              <label for="adminCluster">Filter Kategori Target</label>
+              <select id="adminCluster" class="form-control">
+                <option value="Semua">Semua Kategori</option>
+              </select>
             </div>
-            <div class="admin-card-body">
 
-              <div class="form-group">
-                <label for="adminCluster">Filter Kategori Target</label>
-                <select id="adminCluster" class="form-control">
-                  <option value="Semua">Semua Kategori</option>
-                </select>
-              </div>
-
-              <div class="form-group">
-                <label for="adminRonde">Ronde Target Pengundian</label>
-                <input type="number" id="adminRonde" class="form-control" min="1" value="1" />
-              </div>
-
-              <div class="form-group">
-                <label>
-                  Daftar Pemenang yang Ditargetkan
-                  <span id="targetChipCount"
-                    style="font-size:0.8rem; font-weight:700; color:var(--color-primary); margin-left:5px;">(0
-                    dipilih)</span>
-                </label>
-
-                <!-- Trigger select list modal -->
-                <button type="button" class="btn btn-outline" onclick="openPesertaListModal(null)"
-                  style="width: 100%; justify-content: center; min-height: 44px; margin-bottom: 10px; border-style: dashed; font-weight: 600;">
-                  🔍 Cari & Pilih Nama Peserta
-                </button>
-
-                <div id="targetChipContainer" class="target-chip-box">
-                  <span id="chipPlaceholder"
-                    style="color:var(--color-text-muted); font-size:0.85rem; align-self:center;">Belum ada target
-                    dipilih...</span>
-                </div>
-
-                <p style="font-size: 0.78rem; color: var(--color-text-muted); margin: 8px 0 0 0; text-align: center;">
-                  Target yang Anda simpan di sini akan keluar secara otomatis saat spin ronde tersebut dijalankan.
-                </p>
-              </div>
-
-              <button class="btn btn-primary" id="saveAdminTargetBtn"
-                style="width: 100%; justify-content: center; min-height: 46px; font-weight: 700; margin-top: 5px;">
-                Simpan Target Ronde
-              </button>
-
-            </div>
-          </section>
-
-          <!-- CARD: Security & Password -->
-          <section class="admin-card">
-            <div class="admin-card-header">
-              <h2>🔒 Ubah Password Panel Admin (khusus Dev)</h2>
-            </div>
-            <div class="admin-card-body">
-              <p style="font-size:0.78rem; color:var(--color-text-muted); margin:0 0 6px 0;">
-                Password ini hanya untuk membuka panel admin — berbeda dari password login operator (diatur di Pengaturan).
+            <div class="form-group">
+              <label for="adminPrize">Hadiah yang Ditargetkan</label>
+              <select id="adminPrize" class="form-control" onchange="onAdminPrizeChange()">
+                <option value="">— Pilih hadiah —</option>
+              </select>
+              <!-- Nomor ronde tak lagi diinput manual; ia DITURUNKAN otomatis dari ronde
+                   hadiah terpilih. Input tersembunyi ini hanya cermin (dipakai kode lama). -->
+              <input type="hidden" id="adminRonde" value="1" />
+              <p id="adminPrizeHint"
+                style="font-size:0.78rem; color:var(--color-text-muted); margin:6px 0 0 0;">
+                Target menempel pada <strong>hadiah</strong>, bukan nomor ronde. Bila operator memindah
+                hadiah ke ronde lain, target ikut otomatis — pemenang tetap keluar untuk hadiah itu.
               </p>
-              <div class="form-group">
-                <label for="currentAdminPassword">Password Panel Admin Saat Ini</label>
-                <input type="password" id="currentAdminPassword" class="form-control" placeholder="Password panel admin sekarang" />
-              </div>
-              <div class="form-group">
-                <label for="newAdminPassword">Password Panel Admin Baru</label>
-                <input type="password" id="newAdminPassword" class="form-control" placeholder="Minimal 4 karakter" />
-              </div>
-              <button class="btn btn-outline" id="changePasswordBtn" style="width:100%; justify-content:center; min-height:44px; font-weight:700;">
-                Ubah Password Panel Admin
+            </div>
+
+            <div class="form-group">
+              <label>
+                Daftar Pemenang yang Ditargetkan
+                <span id="targetChipCount"
+                  style="font-size:0.8rem; font-weight:700; color:var(--color-primary); margin-left:5px;">(0
+                  dipilih)</span>
+              </label>
+
+              <!-- Trigger select list modal -->
+              <button type="button" class="btn btn-outline" onclick="openPesertaListModal(null)"
+                style="width: 100%; justify-content: center; min-height: 44px; margin-bottom: 10px; border-style: dashed; font-weight: 600;">
+                🔍 Cari & Pilih Nama Peserta
               </button>
-            </div>
-          </section>
 
-        </div>
-
-        <!-- COLUMN 2: ACTIVE TARGET TABLE -->
-        <div style="display:flex; flex-direction:column; gap: var(--space-xl);">
-
-          <!-- CARD: Saved Target Table -->
-          <section class="admin-card">
-            <div class="admin-card-header">
-              <h2>📋 Daftar Target Aktif</h2>
-            </div>
-            <div class="admin-card-body" style="padding: 0;">
-
-              <div id="adminTargetTable" class="admin-table-wrap">
-                <table class="admin-table">
-                  <thead>
-                    <tr>
-                      <th>Kategori Target</th>
-                      <th>Ronde</th>
-                      <th>Target Pemenang</th>
-                      <th>Status</th>
-                      <th style="text-align: center;">Aksi</th>
-                    </tr>
-                  </thead>
-                  <tbody id="adminTargetBody">
-                    <tr>
-                      <td colspan="5" class="empty-row"
-                        style="padding: 30px; text-align: center; color: var(--color-text-muted);">Belum ada target</td>
-                    </tr>
-                  </tbody>
-                </table>
+              <div id="targetChipContainer" class="target-chip-box">
+                <span id="chipPlaceholder"
+                  style="color:var(--color-text-muted); font-size:0.85rem; align-self:center;">Belum ada target
+                  dipilih...</span>
               </div>
 
+              <p style="font-size: 0.78rem; color: var(--color-text-muted); margin: 8px 0 0 0; text-align: center;">
+                Target yang Anda simpan di sini akan keluar secara otomatis saat spin ronde tersebut dijalankan.
+              </p>
             </div>
-          </section>
 
-        </div>
+            <button class="btn btn-primary" id="saveAdminTargetBtn"
+              style="width: 100%; justify-content: center; min-height: 46px; font-weight: 700; margin-top: 5px;">
+              Simpan Target Ronde
+            </button>
+
+          </div>
+        </section>
+
+        <!-- CARD: Saved Target Table (grid-area: table) -->
+        <section class="admin-card card-table">
+          <div class="admin-card-header">
+            <h2>📋 Daftar Target Aktif</h2>
+          </div>
+          <div class="admin-card-body" style="padding: 0;">
+
+            <div id="adminTargetTable" class="admin-table-wrap">
+              <table class="admin-table">
+                <thead>
+                  <tr>
+                    <th>Kategori Target</th>
+                    <th>Hadiah (Ronde)</th>
+                    <th>Target Pemenang</th>
+                    <th>Status</th>
+                    <th style="text-align: center;">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody id="adminTargetBody">
+                  <tr>
+                    <td colspan="5" class="empty-row"
+                      style="padding: 30px; text-align: center; color: var(--color-text-muted);">Belum ada target</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+          </div>
+        </section>
+
+        <!-- CARD: Security & Password (grid-area: password) -->
+        <section class="admin-card card-password">
+          <div class="admin-card-header">
+            <h2>🔒 Ubah Password Panel Admin (khusus Dev)</h2>
+          </div>
+          <div class="admin-card-body">
+            <p style="font-size:0.78rem; color:var(--color-text-muted); margin:0 0 6px 0;">
+              Password ini hanya untuk membuka panel admin — berbeda dari password login operator (diatur di Pengaturan).
+            </p>
+            <div class="form-group">
+              <label for="currentAdminPassword">Password Panel Admin Saat Ini</label>
+              <input type="password" id="currentAdminPassword" class="form-control" placeholder="Password panel admin sekarang" />
+            </div>
+            <div class="form-group">
+              <label for="newAdminPassword">Password Panel Admin Baru</label>
+              <input type="password" id="newAdminPassword" class="form-control" placeholder="Minimal 4 karakter" />
+            </div>
+            <button class="btn btn-outline" id="changePasswordBtn" style="width:100%; justify-content:center; min-height:44px; font-weight:700;">
+              Ubah Password Panel Admin
+            </button>
+          </div>
+        </section>
 
       </div>
 
