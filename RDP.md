@@ -23,15 +23,21 @@ Setiap sesi baru (context sudah kosong), kerjakan urutan ini:
 
 ## 1. Tujuan & ruang lingkup
 
-Memproduksikan **3 konsep HUD** yang sudah disetujui menjadi halaman nyata, dengan **satu bahasa desain HUD** (selaras dashboard) di seluruh aplikasi:
+Memproduksikan **4 konsep HUD** yang sudah disetujui menjadi halaman nyata, dengan **satu bahasa desain HUD** di seluruh aplikasi. **Urutan pengerjaan (alur ditetapkan user):**
 
-1. **Halaman Setting** (`public/setting.html`)
-2. **Popup Pemenang** (modal di `public/dashboard.html` / dipakai app.js)
-3. **Panel Admin — mobile** (`public/adm1n.html`)
+1. **Dashboard** (`public/dashboard.html`) — panggung undian
+2. **Popup Pemenang** (modal di dashboard / dipakai app.js)
+3. **Halaman Setting** (`public/setting.html`)
+4. **Panel Admin — mobile** (`public/adm1n.html`)
 
-Ditambah penyelarasan **Dashboard** & **Login** agar satu identitas.
+Plus **Login** (`public/login.html`) diselaraskan (pintu masuk, ringan).
 
-**Bukan** ruang lingkup di sini: mengganti logika server/undian/sinkronisasi yang sudah jalan. Kita mengganti **kulit (UI) + beberapa UX**, mempertahankan alur data & endpoint.
+**Bukan** ruang lingkup: mengganti logika server/undian/sinkronisasi/endpoint yang sudah jalan. Kita mengganti **kulit (UI)** saja + sedikit UX, mempertahankan alur data & `id` handler.
+
+### 1.1 Prinsip wajib (governance) 🔒
+1. **UI‑only.** TIDAK mengubah alur/logika yang sudah berjalan (undian, sinkron, endpoint, `id` handler). Fokus: ubah **tampilan** agar selaras.
+2. **Audit Paritas tiap fase.** Sebelum menulis UI sebuah halaman, petakan **tiap elemen UI konsep → fungsi/`id` di `app.js` yang sudah ada**. Pertahankan `id`/atribut yang dipakai kode lama.
+3. **Elemen tanpa logika = WAJIB DIDISKUSIKAN.** Bila konsep punya elemen/menu yang **belum ada logikanya**, atau logika lama tak punya UI‑nya → **berhenti & diskusikan dulu** dengan user. Jangan diam‑diam menambah UI palsu atau membuang fitur. Target: **nol miss** antara logika lama ↔ tampilan baru.
 
 ---
 
@@ -40,12 +46,8 @@ Ditambah penyelarasan **Dashboard** & **Login** agar satu identitas.
 - **Stack:** Node + Express (`server.js`), sesi via `express-session`+file store, upload via `multer`, remote via `ngrok`, proses via `pm2`. Frontend statis di `public/`.
 - **Frontend produksi:** `public/app.js` (~4348 baris), `public/style.css` (~4357 baris), + `setting.html`, `adm1n.html`, `dashboard.html`, `login.html`, `stage-layout.js`.
 - **Font produksi sekarang:** Google Fonts **Inter/Outfit** (via `<link>` CDN). **Tema sekarang** default `professional_blue` (belum ada `komando`).
-- **Perubahan belum di‑commit (harus direkonsiliasi di Fase 0):**
-  - `public/setting.html` + `public/style.css` → konsep **lama** (kartu accordion + quick‑nav) — **arah berbeda dari HUD**, kemungkinan **di‑revert**.
-  - `public/app.js` → wiring accordion/quick‑nav/dirty‑bar dari sesi lampau — juga arah lama.
-  - `dasboard.png` (untracked) — screenshot, boleh diabaikan/ hapus.
-
-> Keputusan Fase 0: revert 3 file di atas ke `HEAD` lalu bangun ulang berbasis HUD, **atau** pertahankan sebagian. Rekomendasi: **revert** (bersih, hindari campur dua konsep). Lihat §6.
+- **Baseline sudah dibersihkan (2026-08-19):** perubahan accordion‑era di `setting.html`/`style.css`/`app.js` **di‑stash** (`git stash` — recoverable) → worktree = `HEAD` untuk file itu. Branch kerja: **`feat/produksi-hud`**.
+  - `dasboard.png` (untracked) — screenshot, boleh diabaikan/hapus.
 
 ---
 
@@ -84,9 +86,12 @@ Nilai lengkap ada di tiap artifact (`THEMES` + fungsi `apply()`), **satukan ke `
 
 | Konsep (artifact) | URL | File produksi target | Status konsep |
 |---|---|---|---|
+| **Dashboard — HUD** (v3, adaptif terang/gelap) | https://claude.ai/code/artifact/dc837248-5029-4af3-bd4e-d261e46d7b57 | `dashboard.html` (+ `style.css`, `app.js`) | ✅ disetujui |
+| **Popup Pemenang — HUD** | https://claude.ai/code/artifact/83810d33-b946-4883-a3bc-a3674eca52c2 | `dashboard.html` (modal) + `style.css` + `app.js` (`showWinnerModal`) | ✅ inti disetujui · ⏳ penyempurnaan adaptif >10 belum difinalkan |
 | **Setting — HUD** | https://claude.ai/code/artifact/d88b998a-7ac0-4bbd-b87f-53f487a5cf0b | `setting.html` (+ `style.css`, `app.js`) | ✅ disetujui |
-| **Popup Pemenang — HUD** | https://claude.ai/code/artifact/83810d33-b946-4883-a3bc-a3674eca52c2 | `dashboard.html` (modal) + `style.css` + `app.js` (`showWinnerModal`) | ✅ inti disetujui · ⏳ penyempurnaan adaptif >10 belum difinalkan (edit lokal belum di‑publish) |
 | **Panel Admin — mobile HUD** | https://claude.ai/code/artifact/dad2fa86-36a5-4fa9-8f92-e7609f074506 | `adm1n.html` (+ `style.css`, `app.js`) | ✅ disetujui (v2: tanpa Filter Kategori) |
+
+**Elemen UI Dashboard (untuk Audit Paritas §1.1):** brand/crest "KOMANDO", judul + sub‑judul acara, chip **Peserta Aktif** (mis. 1.550), tombol **Pengaturan** (→ setting) & **Layar Penuh**, panel **Hadiah Ronde** (nama hadiah · badge ronde · "N Pemenang" · gambar hadiah), **Mesin Slot** + state idle "Siap Mengundi", tombol **Spin Undian**, toggle **Stop Manual**, tombol **Download Hasil**, **swatch tema**. ⚠️ Verifikasi ke `app.js`: apakah **Stop Manual** & **Download Hasil** sudah ada logikanya — bila tidak → **diskusikan** (§1.1).
 
 > Cara ambil isi artifact untuk porting: **WebFetch URL** → tersimpan sebagai file tool‑result → ambil bagian penulis (antara `<body>` … akhir, buang frame‑runtime). Untuk produksi, **jangan** inline font base64 — pakai CDN (§3.1).
 
@@ -95,38 +100,40 @@ Nilai lengkap ada di tiap artifact (`THEMES` + fungsi `apply()`), **satukan ke `
 ## 5. Rencana bertahap (Fase) — boleh berhenti di tiap milestone
 
 ### Fase 0 — Fondasi sistem desain  🧱
-- [ ] Putuskan & rekonsiliasi perubahan belum‑commit (revert `setting.html`/`style.css`/`app.js` ke `HEAD` — lihat §6/§2).
+- [x] ~~Rekonsiliasi perubahan accordion‑era~~ — **selesai**: di‑stash, baseline bersih di branch `feat/produksi-hud`.
 - [ ] Tambah font HUD (Bebas/Rajdhani/Teko) ke `<link>` semua halaman.
 - [ ] Tambah token + kelas dasar HUD (`.card/.in`, corner‑bracket, `.btn2`, chip, dst.) ke `style.css` (blok baru, tak menimpa yang lain).
 - [ ] Satukan `THEME_PRESETS` 8 tema + `applyTheme()` di `app.js` (default `komando`), set `data-mode`.
 - **Selesai bila:** tema bisa di‑switch dan token tersedia global; halaman lama belum berubah tampilan drastis (aman).
 
-### Fase 1 — Halaman Setting (HUD)  ⚙️
-- [ ] Port struktur & gaya dari artifact Setting ke `setting.html` (kartu HUD, tipografi, kontrol).
-- [ ] Sambungkan ke `app.js` yang ada (branding preview, tema, ronde/hadiah/target, keamanan, editor tata letak) — **pertahankan ID & fungsi** agar logika lama tetap jalan.
-- [ ] Responsif mobile.
-- **Selesai bila:** semua fitur setting berfungsi seperti sebelumnya, tampil HUD, tanpa regresi simpan/sinkron.
+### Fase 1 — Dashboard (HUD) + Login  🖥️
+- [ ] **Audit Paritas** (§1.1): petakan tiap elemen UI konsep Dashboard → `id`/fungsi `app.js`. Cek khusus **Stop Manual** & **Download Hasil** ada logikanya; yang tak ada → **diskusikan** sebelum lanjut.
+- [ ] Port kerangka HUD ke `dashboard.html` (header/brand, panel Hadiah Ronde, mesin slot, kontrol Spin, footer) — **pertahankan `id` & hook** yang dipakai `app.js`/`stage-layout.js` (mesin slot, reel, spin, dll).
+- [ ] Selaraskan `login.html` (pintu masuk) dengan token/tema HUD (ringan).
+- **Selesai bila:** dashboard tampil HUD, undian/spin/sinkron **tanpa regresi**; login senada.
 
 ### Fase 2 — Popup Pemenang (HUD)  🏆
-- [ ] Finalkan konsep adaptif **>10** di artifact dulu (edit lokal yang tertunda) → setujui.
-- [ ] Terapkan markup/kelas HUD ke modal `#winnerModal` (dashboard) + `style.css`.
-- [ ] Sesuaikan `showWinnerModal()` di `app.js`: mode hero/grid/roster otomatis dari jumlah + klasifikasi + preset latar + aksen tema. Pertahankan preset (`winnerBgPreset`) & tombol yang ada.
-- **Selesai bila:** 1/4/>10 pemenang tampil rapi di proyektor, klasifikasi lengkap, preset & tema jalan.
+- [ ] **Audit Paritas**: elemen modal → `showWinnerModal()`/`#winnerModal` yang ada.
+- [ ] Finalkan konsep adaptif **>10** di artifact dulu (edit lokal tertunda) → setujui.
+- [ ] Terapkan markup/kelas HUD ke `#winnerModal` + `style.css`; sesuaikan `showWinnerModal()` (mode hero/grid/roster dari jumlah + klasifikasi + preset latar + aksen tema). Pertahankan `winnerBgPreset` & tombol yang ada.
+- **Selesai bila:** 1/4/>10 pemenang rapi di proyektor, klasifikasi lengkap, preset & tema jalan.
 
-### Fase 3 — Panel Admin mobile (HUD)  🎯
-- [ ] Port `adm1n.html` ke layout HUD mobile‑first (login · panel target · pilih peserta).
-- [ ] Sambungkan ke fungsi admin di `app.js` (login, target per‑hadiah, chip peserta, tabel→kartu target, ubah password). **Tanpa Filter Kategori** (sesuai v2).
+### Fase 3 — Halaman Setting (HUD)  ⚙️
+- [ ] **Audit Paritas**: tiap kontrol setting → `id`/fungsi lama (branding preview, tema, ronde/hadiah/target, keamanan, editor tata letak).
+- [ ] Port struktur & gaya dari artifact Setting ke `setting.html`; **pertahankan `id` & fungsi**.
+- [ ] Responsif mobile.
+- **Selesai bila:** semua fitur setting jalan seperti semula, tampil HUD, tanpa regresi simpan/sinkron.
+
+### Fase 4 — Panel Admin mobile (HUD)  🎯
+- [ ] **Audit Paritas**: login admin · target per‑hadiah · chip peserta · tabel→kartu target · ubah password → fungsi `app.js` yang ada.
+- [ ] Port `adm1n.html` ke layout HUD mobile‑first (login · panel target · pilih peserta). **Tanpa Filter Kategori** (v2).
 - [ ] Target sentuh ≥44px, sticky header + aksi, aman‑notch.
-- **Selesai bila:** alur target berfungsi penuh dari HP, nyaman satu tangan.
-
-### Fase 4 — Konsistensi Dashboard & Login  🖥️
-- [ ] Selaraskan `dashboard.html` & `login.html` dengan token/tema HUD (minimal: font, warna, tombol, header).
-- **Selesai bila:** seluruh aplikasi terasa satu identitas.
+- **Selesai bila:** alur target berfungsi penuh dari HP, tanpa regresi.
 
 ### Fase 5 — Uji lintas perangkat & rilis  🚢
 - [ ] `npm run check` bersih; uji manual desktop + HP (lihat §8).
 - [ ] Uji 8 tema tak merusak keterbacaan (terang & gelap).
-- [ ] Commit + tag + deploy sesuai `PANDUAN.md`.
+- [ ] Commit + (merge ke main) + deploy sesuai `PANDUAN.md`.
 
 ---
 
@@ -135,7 +142,7 @@ Nilai lengkap ada di tiap artifact (`THEMES` + fungsi `apply()`), **satukan ke `
 | # | Keputusan | Rekomendasi |
 |---|---|---|
 | K1 | Cakupan adopsi HUD: **seluruh app** atau per‑halaman saja? | **Seluruh app** (konsisten) — Dashboard/Login ikut di Fase 4. |
-| K2 | Perubahan belum‑commit (accordion) | **Revert** ke `HEAD`, bangun ulang HUD (hindari campur konsep). |
+| K2 | Perubahan belum‑commit (accordion) | ✅ Selesai: **di‑stash** (recoverable), baseline bersih. |
 | K3 | Tema: **ganti** set tema lama dengan 8 tema HUD, atau gabung? | **Ganti** jadi 8 tema HUD (default `komando`). |
 | K4 | Branding default | **Kopassus / 17 Agustus** sebagai contoh, tapi tetap bisa diubah via Setting. |
 | K5 | Font | **CDN Google Fonts** di produksi (bukan inline base64). |
@@ -144,11 +151,11 @@ Nilai lengkap ada di tiap artifact (`THEMES` + fungsi `apply()`), **satukan ke `
 
 ## 7. Papan Status  📊
 
-- Fase 0 Fondasi — ⬜ belum
-- Fase 1 Setting — ⬜ belum
+- Fase 0 Fondasi — 🟨 jalan (baseline bersih; tokens/fonts/tema belum)
+- Fase 1 Dashboard + Login — ⬜ belum
 - Fase 2 Popup Pemenang — ⬜ belum (konsep adaptif >10 ⏳)
-- Fase 3 Admin mobile — ⬜ belum
-- Fase 4 Dashboard/Login — ⬜ belum
+- Fase 3 Setting — ⬜ belum
+- Fase 4 Admin mobile — ⬜ belum
 - Fase 5 Uji & rilis — ⬜ belum
 
 Legenda: ⬜ belum · 🟨 jalan · ✅ selesai.
@@ -168,3 +175,4 @@ Legenda: ⬜ belum · 🟨 jalan · ✅ selesai.
 ## 9. Log Perubahan (append tiap sesi)
 
 - **2026-08-19** — RDP.md dibuat. Konsep HUD Setting/Popup/Admin sudah jadi (artifact). Belum ada kode produksi HUD yang ditulis. Menunggu konfirmasi K1–K5 sebelum Fase 0.
+- **2026-08-19** — User konfirmasi K1–K5 (ikuti semua rekomendasi). Baseline dibersihkan: accordion‑era di‑stash di branch `feat/produksi-hud`, RDP.md di‑commit. Ditambah konsep **Dashboard** (artifact dc837248). Alur diurutkan ulang: **Dashboard → Popup → Setting → Admin** (+Login). Ditambah **§1.1 Prinsip wajib** (UI‑only + Audit Paritas + elemen tanpa logika wajib didiskusikan). RENCANA_V2.md sempat hilang dari worktree → dipulihkan (`git restore`).
