@@ -4410,3 +4410,164 @@ body.hud.has-bg #eventSubtitle {
   -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
 }
 
+/* ==================== HUD POPUP PEMENANG — port konsep 83810d33 (restyle chrome; markup/logika/mode/preset TETAP) ====================
+   RDP §3.5: popup selalu GELAP SINEMATIK (preset = mood latar), TEMA hanya ubah AKSEN, teks hardcode terang.
+   Nomor tetap #N (urut, permintaan user 2a); klasifikasi tetap breadcrumb lengkap (2b). CSS-ONLY — showWinnerModal tak diubah. */
+
+/* Overlay lebih gelap agar panggung sinematik */
+body.hud #winnerModal.modal-overlay { background: rgba(0,0,0,.55) !important; }
+
+/* Panel: bingkai HUD bersudut + border primary + glow (bukan bingkai emas/rounded) */
+body.hud #winnerModal .modal-winner {
+  border: 0 !important; border-radius: 0 !important;
+  clip-path: polygon(0 16px,16px 0,calc(100% - 22px) 0,100% 22px,100% calc(100% - 16px),calc(100% - 16px) 100%,22px 100%,0 calc(100% - 16px));
+  box-shadow: inset 0 0 0 1.5px rgba(var(--color-primary-rgb),.7), 0 30px 70px -24px rgba(0,0,0,.85), 0 0 42px rgba(var(--color-primary-rgb),.18) !important;
+}
+body.hud #winnerModal .winner-modal-overlay-tint {
+  background: radial-gradient(130% 85% at 50% 118%, rgba(0,0,0,.55), transparent 60%), linear-gradient(180deg, rgba(0,0,0,.08), rgba(0,0,0,.42)) !important;
+}
+
+/* Judul: Bebas Neue putih + glow primary (matikan gradient emas). Garis hias samping dihilangkan (konsep bersih). */
+body.hud #winnerModal .winner-title-wrap::before,
+body.hud #winnerModal .winner-title-wrap::after { display: none !important; }
+body.hud #winnerModal .winner-title {
+  font-family: var(--font-display) !important; font-weight: 400 !important; letter-spacing: .06em !important;
+  background: none !important; -webkit-background-clip: border-box !important; background-clip: border-box !important;
+  -webkit-text-fill-color: #fff !important; color: #fff !important;
+  text-shadow: 0 0 26px rgba(var(--color-primary-rgb),.6), 0 3px 10px rgba(0,0,0,.55) !important;
+}
+/* Sub-judul: Rajdhani aksen primary (bukan pill emas) */
+body.hud #winnerModal .winner-subtitle {
+  background: none !important; box-shadow: none !important; border-radius: 0 !important; padding: 2px 0 !important; margin: 8px auto 2px !important;
+  font-family: var(--font-tech) !important; font-weight: 700 !important; letter-spacing: .16em !important; color: var(--color-primary-light) !important;
+}
+body.hud #winnerModal .winner-subtitle #winnerRonde { color: #fff !important; }
+
+/* Kartu pemenang: bevel gelap + border primary (konsep .wc) */
+body.hud #winnerModal .winner-card {
+  background: rgba(15,22,38,.82) !important; border: 1.5px solid rgba(var(--color-primary-rgb),.45) !important; border-radius: 0 !important;
+  clip-path: polygon(0 8px,8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%) !important;
+}
+/* Nomor #N: badge Teko aksen primary */
+body.hud #winnerModal .winner-card-number {
+  font-family: var(--font-number) !important; font-weight: 600 !important; letter-spacing: .02em !important; color: var(--color-primary-light) !important;
+  background: rgba(var(--color-primary-rgb),.14) !important; border: 1px solid rgba(var(--color-primary-rgb),.34) !important; border-radius: 0 !important;
+  clip-path: polygon(4px 0,100% 0,100% 100%,0 100%,0 4px) !important; padding: 1px 8px !important;
+}
+/* Nama: Rajdhani terang (matikan gradient bila ada) */
+body.hud #winnerModal .winner-card-name {
+  font-family: var(--font-tech) !important; font-weight: 700 !important; letter-spacing: .02em !important; text-transform: uppercase !important;
+  color: #eaf0f8 !important; -webkit-text-fill-color: #eaf0f8 !important; background: none !important; text-shadow: 0 1px 8px rgba(0,0,0,.5) !important;
+}
+/* Klasifikasi (breadcrumb lengkap): Rajdhani muted */
+body.hud #winnerModal .winner-card-cluster {
+  font-family: var(--font-tech) !important; font-weight: 600 !important; letter-spacing: .04em !important; text-transform: uppercase !important; color: #9fb0c2 !important;
+}
+/* Tombol × gugur */
+body.hud #winnerModal .btn-disqualify { background: rgba(220,38,38,.92) !important; border-radius: 3px !important; color: #fff !important; }
+
+/* Bar aksi + tombol HUD (chevron & outline, konsep .btn2) */
+body.hud #winnerModal .winner-actions { background: rgba(5,7,13,.5) !important; border-top: 1px solid rgba(var(--color-primary-rgb),.25) !important; }
+body.hud #winnerModal #winnerCloseBtn {
+  font-family: var(--font-number) !important; font-weight: 600 !important; letter-spacing: .1em !important; text-transform: uppercase !important; color: #fff !important;
+  background: linear-gradient(180deg, var(--color-primary-light), var(--color-primary) 60%, var(--color-primary-dark)) !important; border: 0 !important; border-radius: 0 !important;
+  clip-path: polygon(12px 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 12px 100%, 0 50%) !important;
+  box-shadow: 0 8px 22px -6px rgba(var(--color-primary-rgb),.7) !important;
+}
+body.hud #winnerModal #winnerRespinBtn {
+  font-family: var(--font-tech) !important; font-weight: 700 !important; text-transform: uppercase !important; letter-spacing: .04em !important; color: var(--color-primary-light) !important;
+  background: rgba(5,7,13,.4) !important; border: 1px solid rgba(var(--color-primary-rgb),.6) !important; border-radius: 0 !important;
+  clip-path: polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px) !important;
+}
+body.hud #winnerModal .winner-cards::-webkit-scrollbar-thumb { background: rgba(var(--color-primary-rgb),.5) !important; }
+
+/* ---- ROSTER RINGKAS (konsep v-20) untuk BANYAK/SANGAT BANYAK pemenang (wn-lg ≤24, wn-xl >24) ----
+   Kartu tinggi bertumpuk → BARIS RINGKAS: [#N] di kiri (rentang 2 baris), NAMA kanan-atas,
+   klasifikasi kanan-bawah. 2 kolom (lg) / 3 kolom (xl), menggulir bila terlalu banyak (RDP §3.5).
+   CSS-ONLY (display:contents membuka .winner-card-header → nomor & klaster jadi item grid). Mode/preset/markup TETAP. */
+body.hud #winnerModal.wn-lg .winner-cards,
+body.hud #winnerModal.wn-xl .winner-cards {
+  grid-auto-rows: minmax(44px, auto) !important;
+  align-content: start !important;
+  gap: 8px 12px !important;
+  padding: 10px 20px !important;
+}
+body.hud #winnerModal.wn-lg .winner-cards { grid-template-columns: repeat(2, 1fr) !important; }
+body.hud #winnerModal.wn-xl .winner-cards { grid-template-columns: repeat(3, 1fr) !important; }
+@media (max-width: 1280px) { body.hud #winnerModal.wn-xl .winner-cards { grid-template-columns: repeat(2, 1fr) !important; } }
+@media (max-width: 820px) {
+  body.hud #winnerModal.wn-lg .winner-cards,
+  body.hud #winnerModal.wn-xl .winner-cards { grid-template-columns: 1fr !important; }
+}
+/* Kartu → baris grid: kolom [nomor | isi], baris [nama / klasifikasi] */
+body.hud #winnerModal.wn-lg .winner-card,
+body.hud #winnerModal.wn-xl .winner-card {
+  display: grid !important;
+  grid-template-columns: auto minmax(0, 1fr) !important;
+  grid-template-areas: "num name" "num cluster" !important;
+  align-items: center !important;
+  align-content: center !important;
+  column-gap: 11px !important;
+  row-gap: 1px !important;
+  text-align: left !important;
+  min-height: 0 !important;
+  padding: 7px 32px 7px 11px !important; /* ruang kanan utk tombol × absolut */
+}
+body.hud #winnerModal.wn-lg .winner-card-header,
+body.hud #winnerModal.wn-xl .winner-card-header { display: contents !important; }
+body.hud #winnerModal.wn-lg .winner-card-number,
+body.hud #winnerModal.wn-xl .winner-card-number {
+  grid-area: num !important; align-self: center !important;
+  min-width: 30px !important; text-align: center !important; margin: 0 !important;
+}
+body.hud #winnerModal.wn-lg .winner-card-name,
+body.hud #winnerModal.wn-xl .winner-card-name {
+  grid-area: name !important; align-self: end !important; text-align: left !important;
+  -webkit-line-clamp: 1 !important; margin: 0 !important; /* nama 1 baris; autofit mengecil utk nama panjang */
+}
+body.hud #winnerModal.wn-lg .winner-card-cluster,
+body.hud #winnerModal.wn-xl .winner-card-cluster {
+  grid-area: cluster !important; align-self: start !important; text-align: left !important;
+  -webkit-line-clamp: 2 !important; max-width: 100% !important; margin: 0 !important;
+}
+/* Tombol × di-tengah vertikal baris ringkas */
+body.hud #winnerModal.wn-lg .btn-disqualify,
+body.hud #winnerModal.wn-xl .btn-disqualify {
+  top: 50% !important; margin-top: -8px !important; right: 8px !important;
+}
+
+/* ---- DIALOG KONFIRMASI HUD (showCustomConfirm) — restyle chrome; animasi opacity/transform TETAP dari JS ----
+   Elemen dibuat inline oleh app.js; kita hanya samakan tampilannya ke bahasa HUD (bevel, border primary, font tech/number).
+   TIDAK menimpa opacity/transform agar animasi masuk/keluar tetap jalan. */
+body.hud .hud-confirm-overlay { background: rgba(4,7,12,.72) !important; }
+body.hud .hud-confirm-modal {
+  background: linear-gradient(160deg, #141b2a, #0b0f18) !important; /* GELAP sinematik (senada popup pemenang), tema hanya ubah aksen */
+  border: 1.5px solid rgba(var(--color-primary-rgb),.5) !important; border-radius: 0 !important;
+  clip-path: polygon(0 14px,14px 0,calc(100% - 18px) 0,100% 18px,100% calc(100% - 14px),calc(100% - 14px) 100%,18px 100%,0 calc(100% - 14px)) !important;
+  box-shadow: 0 26px 64px -22px rgba(0,0,0,.78), 0 0 40px rgba(var(--color-primary-rgb),.15) !important;
+  padding: 26px 26px 22px !important;
+}
+body.hud .hud-confirm-title {
+  font-family: var(--font-tech) !important; font-weight: 700 !important; font-size: 1.22rem !important; letter-spacing: .02em !important;
+  color: var(--color-primary-light) !important; text-shadow: 0 0 18px rgba(var(--color-primary-rgb),.4) !important; margin: 0 0 10px !important;
+}
+body.hud .hud-confirm-msg {
+  font-family: var(--font-ui) !important; font-size: .9rem !important; line-height: 1.55 !important; color: #b9c6d6 !important; margin: 0 0 22px !important;
+}
+body.hud .hud-confirm-actions { gap: 12px !important; }
+body.hud .hud-confirm-cancel {
+  font-family: var(--font-tech) !important; font-weight: 700 !important; font-size: .82rem !important; letter-spacing: .06em !important; text-transform: uppercase !important;
+  color: #cdd8e6 !important; background: rgba(255,255,255,.04) !important;
+  border: 1px solid rgba(var(--color-primary-rgb),.4) !important; border-radius: 0 !important;
+  clip-path: polygon(7px 0,100% 0,100% calc(100% - 7px),calc(100% - 7px) 100%,0 100%,0 7px) !important;
+}
+body.hud .hud-confirm-cancel:hover { background: rgba(var(--color-primary-rgb),.15) !important; color: #fff !important; }
+body.hud .hud-confirm-ok {
+  font-family: var(--font-number) !important; font-weight: 600 !important; font-size: 1.05rem !important; letter-spacing: .08em !important; text-transform: uppercase !important;
+  color: #fff !important; border: 0 !important; border-radius: 0 !important;
+  background: linear-gradient(180deg, var(--color-primary-light), var(--color-primary) 60%, var(--color-primary-dark)) !important;
+  clip-path: polygon(9px 0,100% 0,100% calc(100% - 9px),calc(100% - 9px) 100%,0 100%,0 9px) !important;
+  box-shadow: 0 8px 22px -8px rgba(var(--color-primary-rgb),.7) !important;
+}
+body.hud .hud-confirm-ok:hover { filter: brightness(1.08) !important; }
+

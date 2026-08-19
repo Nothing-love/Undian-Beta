@@ -4087,6 +4087,7 @@ function showToast(message, type = 'info') {
 window.showCustomConfirm = function(title, message, confirmText = 'Ya, Lanjutkan', cancelText = 'Batal') {
   return new Promise((resolve) => {
     const overlay = document.createElement('div');
+    overlay.className = 'hud-confirm-overlay';
     overlay.style.cssText = `
       position: fixed;
       top: 0;
@@ -4105,6 +4106,7 @@ window.showCustomConfirm = function(title, message, confirmText = 'Ya, Lanjutkan
     `;
 
     const modal = document.createElement('div');
+    modal.className = 'hud-confirm-modal';
     modal.style.cssText = `
       background: var(--color-surface, #1E293B);
       border: 1px solid var(--color-border-light, #334155);
@@ -4122,6 +4124,7 @@ window.showCustomConfirm = function(title, message, confirmText = 'Ya, Lanjutkan
 
     const titleEl = document.createElement('h3');
     titleEl.textContent = title;
+    titleEl.className = 'hud-confirm-title';
     titleEl.style.cssText = `
       font-family: 'Outfit', sans-serif;
       font-size: 1.25rem;
@@ -4132,6 +4135,7 @@ window.showCustomConfirm = function(title, message, confirmText = 'Ya, Lanjutkan
 
     const msgEl = document.createElement('p');
     msgEl.textContent = message;
+    msgEl.className = 'hud-confirm-msg';
     msgEl.style.cssText = `
       font-family: 'Inter', sans-serif;
       font-size: 0.88rem;
@@ -4141,6 +4145,7 @@ window.showCustomConfirm = function(title, message, confirmText = 'Ya, Lanjutkan
     `;
 
     const btnContainer = document.createElement('div');
+    btnContainer.className = 'hud-confirm-actions';
     btnContainer.style.cssText = `
       display: flex;
       gap: 12px;
@@ -4149,6 +4154,7 @@ window.showCustomConfirm = function(title, message, confirmText = 'Ya, Lanjutkan
 
     const cancelBtn = document.createElement('button');
     cancelBtn.textContent = cancelText;
+    cancelBtn.className = 'hud-confirm-cancel';
     cancelBtn.style.cssText = `
       flex: 1;
       padding: 10px 16px;
@@ -4166,6 +4172,7 @@ window.showCustomConfirm = function(title, message, confirmText = 'Ya, Lanjutkan
 
     const confirmBtn = document.createElement('button');
     confirmBtn.textContent = confirmText;
+    confirmBtn.className = 'hud-confirm-ok';
     confirmBtn.style.cssText = `
       flex: 1;
       padding: 10px 16px;
