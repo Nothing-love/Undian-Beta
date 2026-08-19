@@ -43,7 +43,7 @@ const APP = {
     eventTitle: 'DOORPRIZE',
     eventSubtitle: 'Aplikasi Undian Digital',
     logoUrl: null,
-    theme: 'professional_blue',
+    theme: 'komando',
     customColors: { primary: '#2563EB', secondary: '#7C3AED', accent: '#F59E0B' },
     prizes: []
   }
@@ -56,6 +56,14 @@ const HISTORY_STORAGE_KEY = 'dorprize_history';
 
 // ===================== THEME PRESETS =====================
 const THEME_PRESETS = {
+  komando: {
+    primary: '#DC2626', primaryLight: '#F04444', primaryDark: '#B01B1B', primaryRgb: '220, 38, 38',
+    secondary: '#7F1D1D', secondaryLight: '#991B1B', secondaryRgb: '127, 29, 29',
+    accent: '#F97316', accentLight: '#FB923C', accentRgb: '249, 115, 22',
+    bg: '#0A0E15', bgSecondary: '#0F141D', surface: '#111826',
+    text: '#E9EEF6', textSecondary: '#B3C1D1', textMuted: '#7F93A8',
+    border: '#1F2A3A', borderLight: '#2A3749'
+  },
   professional_blue: {
     primary: '#2563EB', primaryLight: '#3B82F6', primaryDark: '#1D4ED8', primaryRgb: '37, 99, 235',
     secondary: '#7C3AED', secondaryLight: '#8B5CF6', secondaryRgb: '124, 58, 237',
@@ -709,7 +717,7 @@ function applyTheme(themeKey) {
       border: '#E2E8F0', borderLight: '#F1F5F9'
     };
   } else {
-    colors = THEME_PRESETS[themeKey] || THEME_PRESETS.professional_blue;
+    colors = THEME_PRESETS[themeKey] || THEME_PRESETS.komando;
   }
 
   root.style.setProperty('--color-primary', colors.primary);
@@ -730,6 +738,13 @@ function applyTheme(themeKey) {
   root.style.setProperty('--color-text-muted', colors.textMuted);
   root.style.setProperty('--color-border', colors.border);
   root.style.setProperty('--color-border-light', colors.borderLight);
+
+  // Sinyal mode gelap/terang dari luminance latar tema → poles adaptif (judul & idle ala konsep [data-mode]).
+  // UI-only: hanya set atribut; tidak menyentuh alur undian/reel (sengaja BUKAN body.dark-theme).
+  const _bgHex = String(colors.bg || '#ffffff').replace('#', '');
+  const _br = parseInt(_bgHex.substr(0, 2), 16), _bgc = parseInt(_bgHex.substr(2, 2), 16), _bb = parseInt(_bgHex.substr(4, 2), 16);
+  const _isDark = ((0.2126 * (_br || 255) + 0.7152 * (_bgc || 255) + 0.0722 * (_bb || 255)) / 255) < 0.5;
+  root.setAttribute('data-mode', _isDark ? 'dark' : 'light');
 }
 
 window.applyEventSettings = function() {
@@ -756,6 +771,16 @@ window.applyEventSettings = function() {
   root.style.setProperty('--title-size-event', titleSize);
   root.style.setProperty('--subtitle-color-event', subColor);
   root.style.setProperty('--subtitle-size-event', subSize);
+
+  // Brand-word HUD (dari settings.brandName; sembunyi bila kosong) — Fase 1
+  const hudBrand = document.getElementById('hudBrand');
+  const hudBrandName = document.getElementById('hudBrandName');
+  if (hudBrand && hudBrandName) {
+    const bn = (APP.settings.brandName || '').trim();
+    hudBrandName.textContent = bn;
+    hudBrand.style.display = bn ? 'flex' : 'none';
+  }
+
   root.style.setProperty('--prize-font-family', prizeFont);
   root.style.setProperty('--prize-title-color', prizeTitleColor);
   root.style.setProperty('--reel-number-color', reelNumColor);
@@ -923,7 +948,7 @@ window.updateThemePreview = function(themeKey) {
       text: '#FFFFFF'
     };
   } else {
-    colors = THEME_PRESETS[themeKey] || THEME_PRESETS.professional_blue;
+    colors = THEME_PRESETS[themeKey] || THEME_PRESETS.komando;
   }
 
   previewBox.style.background = `linear-gradient(135deg, ${colors.bg || colors.secondary}, ${colors.surface || colors.primary})`;
