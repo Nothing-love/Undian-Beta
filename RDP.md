@@ -167,7 +167,7 @@ Nilai lengkap ada di tiap artifact (`THEMES` + fungsi `apply()`), **satukan ke `
 ## 7. Papan Status  📊
 
 - Fase 0 Fondasi — 🟨 tema komando+default ✅, token/font HUD ✅; kelas komponen menyusul per‑port
-- Fase 1 Dashboard + Login — 🟨 Dashboard HUD ✅ + **fidelity v3 ke konsep** ✅ (teruji preview browser: idle & loaded); Login belum
+- Fase 1 Dashboard + Login — 🟨 **Dashboard HUD SELESAI & DI‑COMMIT** (`47fd124`: 8 tema adaptif, mode gambar‑latar sinematik lintas‑tema, layout‑custom, fit judul/sub teks panjang, banner sesuai konsep — teruji di app nyata `:3000`); **Login belum**
 - Fase 2 Popup Pemenang — ⬜ belum (konsep adaptif >10 ⏳)
 - Fase 3 Setting — ⬜ belum
 - Fase 4 Admin mobile — ⬜ belum
