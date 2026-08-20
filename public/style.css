@@ -7,6 +7,12 @@
 
 /* ===================== CSS CUSTOM PROPERTIES ===================== */
 :root {
+  /* HUD fonts (Fase 0 — konsep HUD) */
+  --font-display: 'Bebas Neue', 'Oswald', sans-serif;
+  --font-tech: 'Rajdhani', 'Segoe UI', sans-serif;
+  --font-number: 'Teko', 'Oswald', sans-serif;
+  --font-ui: 'Inter', 'Segoe UI', system-ui, sans-serif;
+
   /* Dynamic Typography & Branding */
   --font-event: 'Outfit', sans-serif;
   --text-transform-event: uppercase;
@@ -3939,3 +3945,942 @@ body.bg-filter-normal::after {
 .fullscreen-toggle .fs-icon-exit { display: none; }
 body.is-fullscreen .fullscreen-toggle .fs-icon-enter { display: none; }
 body.is-fullscreen .fullscreen-toggle .fs-icon-exit { display: block; }
+
+/* ==================== HUD DASHBOARD (Fase 1 — port konsep, scoped .hud) ==================== */
+/* Restyle chrome saja; internal reel (.slot-reel/.slot-cell) & state spin tidak disentuh. */
+body.hud { font-family: var(--font-ui); }
+
+/* Header bar */
+body.hud #appHeader {
+  background: linear-gradient(160deg, var(--color-surface), color-mix(in srgb, var(--color-surface) 84%, var(--color-bg)));
+  border-bottom: 1px solid rgba(var(--color-primary-rgb), .35);
+  box-shadow: 0 8px 26px -18px rgba(0,0,0,.6);
+}
+/* Brand-word di samping logo (baca settings.brandName via JS) */
+body.hud .hud-brand { display: none; flex-direction: column; justify-content: center; line-height: 1; margin-left: 4px; }
+body.hud .hud-brand b { font-family: var(--font-display); font-weight: 400; font-size: 1.45rem; letter-spacing: .05em; color: var(--color-text); }
+
+/* Stat badges → HUD chips */
+body.hud .stat-badge {
+  font-family: var(--font-tech); font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+  background: var(--color-bg); border: 1px solid var(--color-border); color: var(--color-text-secondary);
+  clip-path: polygon(6px 0,100% 0,calc(100% - 6px) 100%,0 100%);
+}
+body.hud .stat-badge svg { color: var(--color-primary-light); }
+body.hud .stat-badge-accent { color: var(--color-primary-light); border-color: rgba(var(--color-primary-rgb),.5); }
+
+/* Icon buttons (Pengaturan / Reset / Layar Penuh) → HUD */
+body.hud .btn-icon, body.hud .fullscreen-toggle {
+  background: var(--color-bg); border: 1px solid var(--color-border); color: var(--color-text-secondary);
+  clip-path: polygon(6px 0,100% 0,100% calc(100% - 6px),calc(100% - 6px) 100%,0 100%,0 6px);
+}
+body.hud .btn-icon:hover, body.hud .fullscreen-toggle:hover {
+  color: #fff; border-color: rgba(var(--color-primary-rgb),.6); background: rgba(var(--color-primary-rgb),.14);
+}
+
+/* Panel: Hadiah Ronde + Frame Mesin Slot → panel bersudut + corner brackets */
+body.hud #prizeSidebar, body.hud .slot-machine-frame {
+  position: relative;
+  border: 1.5px solid rgba(var(--color-primary-rgb), .5);
+  clip-path: polygon(0 14px,14px 0,calc(100% - 20px) 0,100% 20px,100% calc(100% - 14px),calc(100% - 14px) 100%,20px 100%,0 calc(100% - 14px));
+  box-shadow: 0 16px 40px -22px rgba(0,0,0,.6), 0 0 22px rgba(var(--color-primary-rgb),.12);
+  background: linear-gradient(160deg, var(--color-surface), color-mix(in srgb, var(--color-surface) 86%, var(--color-bg)));
+}
+body.hud #prizeSidebar::before, body.hud .slot-machine-frame::before,
+body.hud #prizeSidebar::after,  body.hud .slot-machine-frame::after {
+  content: ""; position: absolute; width: 13px; height: 13px; border: 2px solid var(--color-primary);
+  filter: drop-shadow(0 0 3px rgba(var(--color-primary-rgb),.55)); pointer-events: none; z-index: 4;
+}
+body.hud #prizeSidebar::before, body.hud .slot-machine-frame::before { top: 11px; left: 11px; border-right: 0; border-bottom: 0; }
+body.hud #prizeSidebar::after,  body.hud .slot-machine-frame::after  { bottom: 11px; right: 11px; border-left: 0; border-top: 0; }
+
+/* Judul & isi panel hadiah */
+body.hud .prize-title-txt { font-family: var(--font-tech); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+body.hud #prizeRondeNumber { font-family: var(--font-number); font-weight: 600; color: var(--color-primary-light); }
+body.hud .prize-name, body.hud #currentPrizeName { font-family: var(--font-tech); font-weight: 700; letter-spacing: .02em; }
+body.hud .prize-card-count .pc-num { font-family: var(--font-number); color: var(--color-primary-light); }
+body.hud .prize-card-count .pc-label { font-family: var(--font-tech); text-transform: uppercase; letter-spacing: .05em; }
+
+/* Slot idle */
+body.hud .idle-title { font-family: var(--font-display); font-weight: 400; letter-spacing: .06em; color: var(--color-text); }
+body.hud .idle-sub { font-family: var(--font-tech); }
+body.hud .idle-sub strong { color: var(--color-primary-light); }
+
+/* Tombol Spin → HUD (TANPA !important pada background agar state spin dari JS tetap menang) */
+body.hud .spin-button {
+  font-family: var(--font-number); font-weight: 600; letter-spacing: 4px; text-transform: uppercase;
+  clip-path: polygon(12px 0,100% 0,calc(100% - 12px) 100%,0 100%);
+  background: linear-gradient(180deg, var(--color-primary-light), var(--color-primary) 60%, var(--color-primary-dark));
+  border: none; box-shadow: 0 10px 26px -8px rgba(var(--color-primary-rgb),.7);
+}
+
+/* Toggle Stop Manual + tombol Download Hasil */
+body.hud .manual-toggle-text { font-family: var(--font-tech); font-weight: 600; letter-spacing: .04em; text-transform: uppercase; font-size: .8rem; }
+body.hud .export-excel-btn {
+  font-family: var(--font-tech); font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
+  background: var(--color-bg); border: 1px solid rgba(var(--color-primary-rgb),.5); color: var(--color-primary-light);
+  clip-path: polygon(7px 0,100% 0,100% calc(100% - 7px),calc(100% - 7px) 100%,0 100%,0 7px);
+}
+body.hud .export-excel-btn:hover { color: #fff; border-color: var(--color-primary); background: rgba(var(--color-primary-rgb),.15); }
+
+/* Footer (di luar #stage) */
+body.hud #appFooter {
+  background: linear-gradient(0deg, var(--color-surface), color-mix(in srgb, var(--color-surface) 70%, var(--color-bg)));
+  border-top: 1px solid rgba(var(--color-primary-rgb),.3);
+  font-family: var(--font-tech); letter-spacing: .04em;
+}
+body.hud #appFooter .footer-brand { color: var(--color-primary-light); font-weight: 700; text-transform: uppercase; letter-spacing: .2em; font-size: .72rem; }
+body.hud #statusText { color: var(--color-text-muted); text-transform: uppercase; letter-spacing: .05em; font-size: .74rem; }
+
+/* ===== HUD DASHBOARD v2 — lebih setia ke konsep (banner judul/sub, kartu hadiah pedestal, slot, footer). Nilai px = cqw konsep × 19.2 (kanvas 1920). ===== */
+
+/* --- Banner judul & sub-judul (latar chevron) — font/ukuran/warna tetap milik user --- */
+body.hud #eventTitle {
+  display: inline-block; padding: 12px 56px;
+  background: linear-gradient(180deg, rgba(var(--color-primary-rgb),.18), rgba(var(--color-primary-rgb),.05));
+  clip-path: polygon(40px 0, calc(100% - 40px) 0, 100% 50%, calc(100% - 40px) 100%, 40px 100%, 0 50%);
+  box-shadow: inset 0 0 0 2px rgba(var(--color-primary-rgb),.85), 0 0 34px rgba(var(--color-primary-rgb),.22);
+}
+body.hud #eventSubtitle {
+  display: inline-block; padding: 6px 34px; margin-top: 8px;
+  background: color-mix(in srgb, var(--color-surface) 78%, var(--color-bg));
+  clip-path: polygon(26px 0, calc(100% - 26px) 0, 100% 50%, calc(100% - 26px) 100%, 26px 100%, 0 50%);
+  box-shadow: inset 0 0 0 1px rgba(var(--color-primary-rgb),.5); letter-spacing: .3em;
+}
+
+/* --- Corner brackets 4 sudut pada panel; matikan ::before/::after v1 --- */
+body.hud #prizeSidebar::before, body.hud .slot-machine-frame::before,
+body.hud #prizeSidebar::after,  body.hud .slot-machine-frame::after { content: none; }
+body.hud .cnr { position: absolute; width: 26px; height: 26px; z-index: 6; border: 2px solid var(--color-primary-light);
+  filter: drop-shadow(0 0 3px rgba(var(--color-primary-rgb),.7)); pointer-events: none; }
+body.hud .cnr.tl { top: 10px; left: 10px; border-right: 0; border-bottom: 0; }
+body.hud .cnr.tr { top: 10px; right: 10px; border-left: 0; border-bottom: 0; }
+body.hud .cnr.bl { bottom: 10px; left: 10px; border-right: 0; border-top: 0; }
+body.hud .cnr.br { bottom: 10px; right: 10px; border-left: 0; border-top: 0; }
+
+/* --- Kepala panel hadiah + badge ronde (parallelogram) --- */
+body.hud .prize-title-txt { font-family: var(--font-number); font-weight: 600; font-size: 1.9rem; letter-spacing: .04em; text-transform: uppercase; }
+body.hud #prizeRondeNumber {
+  display: inline-grid; place-items: center; min-width: 46px; height: 46px; padding: 0 6px;
+  font-family: var(--font-number); font-weight: 600; font-size: 1.9rem; line-height: 1; color: #fff;
+  background: var(--color-primary); clip-path: polygon(18% 0, 100% 0, 82% 100%, 0 100%);
+  box-shadow: 0 0 16px rgba(var(--color-primary-rgb),.6);
+}
+
+/* --- Kartu hadiah → pedestal + nama + win-pill --- */
+body.hud .prize-adaptive .prize-card-img {
+  position: relative; overflow: hidden; border: 1px solid var(--color-border);
+  background: linear-gradient(180deg, color-mix(in srgb,var(--color-surface) 88%,#000), color-mix(in srgb,var(--color-bg) 85%,#000));
+  clip-path: polygon(0 15px,15px 0,100% 0,100% calc(100% - 15px),calc(100% - 15px) 100%,0 100%);
+}
+body.hud .prize-adaptive .prize-card-img::after {
+  content:""; position:absolute; inset:0; pointer-events:none; z-index:0;
+  background: radial-gradient(72% 42% at 50% 100%, rgba(var(--color-primary-rgb),.42), transparent 72%);
+}
+body.hud .prize-adaptive .prize-card-img img { position: relative; z-index: 1; filter: drop-shadow(0 16px 22px rgba(0,0,0,.7)); }
+body.hud .prize-adaptive .prize-card-name {
+  font-family: var(--prize-font-family, var(--font-number)); font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--prize-title-color, var(--color-text));
+}
+body.hud .prize-adaptive .prize-card-count {
+  display: inline-flex; align-items: center; gap: 8px; height: 48px; padding: 0 22px; margin-top: 8px; border: none;
+  font-family: var(--font-number); font-weight: 600; text-transform: uppercase; color: #fff;
+  background: linear-gradient(100deg, var(--color-primary-dark), var(--color-primary));
+  clip-path: polygon(15px 0,100% 0,calc(100% - 15px) 100%,0 100%);
+  box-shadow: 0 8px 22px -6px rgba(var(--color-primary-rgb),.5);
+}
+body.hud .prize-adaptive .prize-card-count .pc-num,
+body.hud .prize-adaptive .prize-card-count .pc-label { color: #fff; }
+
+/* --- Slot idle: judul besar (Bebas) + tag SPIN --- */
+body.hud .idle-title { font-family: var(--font-display); font-weight: 400; font-size: 120px; line-height: 1; letter-spacing: .05em; color: #f3f6fa;
+  text-shadow: 0 0 40px rgba(var(--color-primary-rgb),.4), 0 6px 18px rgba(0,0,0,.5); }
+body.hud .idle-sub { font-family: var(--font-tech); font-size: 1.6rem; letter-spacing: .2em; text-transform: uppercase; color: var(--color-text-secondary); }
+body.hud .idle-sub strong {
+  color: #fff; padding: 8px 22px; letter-spacing: .1em; display: inline-block;
+  background: linear-gradient(100deg, var(--color-primary), var(--color-primary-light));
+  clip-path: polygon(14px 0,100% 0,calc(100% - 14px) 100%,0 100%); box-shadow: 0 0 26px rgba(var(--color-primary-rgb),.5);
+}
+
+/* --- Tombol Spin: chevron banner besar + glow --- */
+body.hud .spin-button {
+  clip-path: polygon(35px 0, calc(100% - 35px) 0, 100% 50%, calc(100% - 35px) 100%, 35px 100%, 0 50%);
+  box-shadow: 0 0 46px rgba(var(--color-primary-rgb),.5), inset 0 5px 0 rgba(255,255,255,.28), inset 0 -7px 16px rgba(0,0,0,.3);
+}
+
+/* --- Footer bawah: garis atas + brand kanan (Rajdhani) --- */
+body.hud #appFooter { justify-content: space-between; }
+body.hud #appFooter .footer-brand { font-family: var(--font-tech); font-weight: 700; letter-spacing: .28em; }
+
+/* ===== HUD DASHBOARD v2 — perbaikan setelah uji browser ===== */
+/* Judul satu baris & tak terpotong atas */
+body.hud #eventTitle { white-space: nowrap; }
+body.hud .header-center { padding-top: 12px; overflow: visible; }
+/* Kartu hadiah: konten transparan → panel gelap konsep tampil; hanya pedestal (img) yg bergaya */
+body.hud #prizeSidebar .sidebar-header { background: transparent !important; border-bottom: none !important; }
+body.hud #prizeDisplay .prize-card,
+body.hud #prizeDisplay .prize-card-body { background: transparent !important; border: none !important; box-shadow: none !important; }
+body.hud #prizeDisplay .prize-card-img {
+  background: linear-gradient(180deg, color-mix(in srgb,var(--color-surface) 88%,#000), color-mix(in srgb,var(--color-bg) 85%,#000)) !important;
+  border: 1px solid var(--color-border) !important;
+}
+
+/* ==================== HUD DASHBOARD v3 — kesetiaan penuh ke konsep dc837248 ====================
+   Menutup gap visual v2: latar panggung (glow+grid+scanline), crest logo, chip 2-baris,
+   art latar slot (kraken+skema+vignette), pedestal (cincin), banner judul & idle presisi,
+   titik status. Semua adaptif token tema; latar panggung di-skip saat .has-bg agar gambar
+   latar tetap tampil. Tak menyentuh reel (.slot-reel/.slot-cell) maupun logika app.js. */
+
+/* --- Latar panggung: glow radial + grid + scanline (hanya bila TANPA gambar latar) --- */
+body.hud #mainApp { position: relative; }
+body.hud:not(.has-bg) #mainApp {
+  background:
+    radial-gradient(60% 85% at 50% 40%, rgba(var(--color-primary-rgb),.10), transparent 60%),
+    radial-gradient(45% 55% at 90% 6%, rgba(var(--color-primary-rgb),.12), transparent 62%),
+    radial-gradient(40% 50% at 6% 96%, rgba(var(--color-secondary-rgb),.10), transparent 60%),
+    linear-gradient(160deg, color-mix(in srgb, var(--color-bg) 90%, #000), var(--color-bg));
+}
+body.hud:not(.has-bg) #mainApp::before {
+  content: ""; position: absolute; inset: 0; z-index: 0; pointer-events: none; opacity: .55;
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--color-text) 6%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--color-text) 6%, transparent) 1px, transparent 1px);
+  background-size: 54px 54px, 54px 54px;
+  -webkit-mask-image: radial-gradient(120% 120% at 50% 40%, #000 25%, transparent 92%);
+          mask-image: radial-gradient(120% 120% at 50% 40%, #000 25%, transparent 92%);
+}
+body.hud:not(.has-bg) #mainApp::after {
+  content: ""; position: absolute; inset: 0; z-index: 0; pointer-events: none; opacity: .32;
+  background: repeating-linear-gradient(0deg, color-mix(in srgb, var(--color-text) 7%, transparent) 0 2px, transparent 2px 4px);
+}
+/* Konten di atas latar dekoratif */
+body.hud #appHeader { z-index: 10; }
+body.hud #mainContent, body.hud #centerArea, body.hud #controlsArea { position: relative; z-index: 1; }
+/* Header konsep: transparan (tanpa bar) di atas panggung; glass tetap saat .has-bg */
+body.hud:not(.has-bg) #appHeader { background: transparent; border-bottom: none; box-shadow: none; }
+
+/* --- Header lebih lega + crest logo + brand-word --- */
+body.hud #appHeader { min-height: 120px; height: 120px; padding: 6px 40px; }
+body.hud .header-left  { top: 0 !important; bottom: 0 !important; left: 26px; align-items: center; gap: 14px; }
+body.hud .header-right { top: 0 !important; bottom: 0 !important; right: 26px !important; align-items: center !important; gap: 10px !important; }
+body.hud .header-center { padding-top: 0; overflow: visible; }
+
+/* Crest: bingkai bulat + cincin glow di sekeliling logo default (SVG) */
+body.hud .header-logo {
+  width: 66px; height: 66px; border-radius: 50%; display: grid; place-items: center; flex-shrink: 0;
+  background: radial-gradient(circle at 50% 34%, color-mix(in srgb, var(--color-surface) 82%, #000), var(--color-bg) 74%);
+  box-shadow: 0 0 0 2px rgba(var(--color-primary-rgb),.8), 0 0 20px rgba(var(--color-primary-rgb),.4), inset 0 0 14px rgba(0,0,0,.55);
+}
+body.hud .header-logo svg { width: 60%; height: 60%; }
+
+/* Brand-word (settings.brandName) di samping crest — Rajdhani */
+body.hud .hud-brand { margin-left: 2px; }
+body.hud .hud-brand b { font-family: var(--font-tech); font-weight: 700; font-size: 1.35rem; letter-spacing: .12em; text-transform: uppercase; color: var(--color-text); }
+
+/* --- Chip statistik 2-baris (angka Teko + label Rajdhani) --- */
+body.hud .stat-badge {
+  height: auto; min-height: 46px; padding: 5px 14px; gap: 9px; border-radius: 0;
+  background: linear-gradient(160deg, var(--color-surface), color-mix(in srgb, var(--color-surface) 84%, var(--color-bg))) !important;
+  border: 1px solid rgba(var(--color-primary-rgb),.42) !important;
+  clip-path: polygon(9px 0, 100% 0, calc(100% - 9px) 100%, 0 100%);
+  backdrop-filter: none;
+}
+body.hud .stat-badge svg { width: 18px; height: 18px; color: var(--color-primary-light) !important; stroke: var(--color-primary-light) !important; }
+body.hud .chip-col { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.02; }
+body.hud .chip-col b { font-family: var(--font-number); font-weight: 600; font-size: 1.5rem; color: var(--color-text); letter-spacing: .01em; }
+body.hud .chip-col small { font-family: var(--font-tech); font-weight: 600; font-size: .62rem; letter-spacing: .08em; text-transform: uppercase; color: var(--color-text-muted); }
+/* Chip ronde: label + nomor dalam kotak aksen (parallelogram) */
+body.hud #rondeBadge { gap: 8px; border-color: rgba(var(--color-primary-rgb),.5) !important; }
+body.hud .chip-lbl { font-family: var(--font-tech); font-weight: 600; font-size: .66rem; letter-spacing: .1em; text-transform: uppercase; color: var(--color-text-secondary); }
+body.hud .rnd-num {
+  display: inline-grid; place-items: center; min-width: 30px; height: 30px; padding: 0 6px;
+  font-family: var(--font-number); font-weight: 600; font-size: 1.4rem; line-height: 1; color: #fff;
+  background: var(--color-primary); clip-path: polygon(16% 0, 100% 0, 84% 100%, 0 100%);
+  box-shadow: 0 0 12px rgba(var(--color-primary-rgb),.55);
+}
+
+/* Tombol ikon (Pengaturan/Reset/Layar penuh) sedikit lebih besar */
+body.hud .btn-icon, body.hud .fullscreen-toggle { width: 34px; height: 34px; border-radius: 0; }
+
+/* --- Banner judul & sub-judul: presisi konsep (Bebas + Rajdhani), warna ikut tema --- */
+body.hud #eventTitle {
+  font-family: var(--font-display) !important;
+  font-size: 3rem !important;
+  color: var(--color-primary-light) !important;
+  padding: 12px 60px; letter-spacing: .05em !important; line-height: 1 !important;
+  text-shadow: 0 0 30px rgba(var(--color-primary-rgb),.5), 0 2px 10px rgba(0,0,0,.4) !important;
+}
+body.hud #eventSubtitle {
+  font-family: var(--font-tech) !important;
+  color: var(--color-text-secondary) !important;
+  letter-spacing: .38em !important; font-weight: 600 !important; font-size: 1rem !important;
+}
+
+/* --- Prize: cincin pedestal + kondisi awal (placeholder) bergaya --- */
+body.hud .prize-adaptive .prize-card-img { position: relative; }
+body.hud .prize-adaptive .prize-card-img::before {
+  content: ""; position: absolute; left: 50%; bottom: 12%; transform: translateX(-50%);
+  width: 70%; height: 10%; border-radius: 50%; z-index: 0;
+  border: 1px solid rgba(var(--color-primary-rgb),.5); box-shadow: 0 0 20px rgba(var(--color-primary-rgb),.4);
+}
+body.hud #prizeDisplay .prize-image-container {
+  width: 210px; height: 210px; border-radius: 0; border: 1px solid var(--color-border);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--color-surface) 88%, #000), color-mix(in srgb, var(--color-bg) 85%, #000));
+  clip-path: polygon(0 15px, 15px 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%);
+}
+body.hud #prizeImagePlaceholder { font-family: var(--font-tech); font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--color-text-muted); }
+
+/* --- Slot: art latar (kraken + skema + vignette) di belakang reel/idle --- */
+body.hud .slot-machine-header, body.hud #slotMachine { position: relative; z-index: 1; }
+body.hud .hud-slot-bg { position: absolute; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+body.hud.has-bg .hud-slot-bg { display: none; }
+body.hud .hud-slot-bg .kraken, body.hud .hud-slot-bg .schem { position: absolute; }
+body.hud .hud-slot-bg .kraken { left: 46%; top: 50%; transform: translate(-50%,-50%); width: 78%; height: auto; color: color-mix(in srgb, var(--color-text) 9%, transparent); }
+body.hud .hud-slot-bg .schem { right: 3%; top: 50%; transform: translateY(-50%); width: 34%; height: auto; color: color-mix(in srgb, var(--color-primary) 38%, transparent); }
+body.hud .hud-slot-bg::after { content: ""; position: absolute; inset: 0; background: radial-gradient(72% 92% at 50% 50%, transparent 32%, color-mix(in srgb, var(--color-bg) 55%, transparent) 100%); }
+
+/* --- Idle: judul SOLID (matikan gradient-clip base yang membuatnya merah-oranye) --- */
+body.hud .idle-title {
+  background: none !important; -webkit-text-fill-color: currentColor !important;
+  -webkit-background-clip: border-box !important; background-clip: border-box !important;
+  animation: none !important; color: var(--color-text) !important;
+  text-shadow: 0 0 40px rgba(var(--color-primary-rgb),.4), 0 6px 18px rgba(0,0,0,.5) !important;
+}
+
+/* --- Tombol Spin lebih megah (mendekati 30cqw konsep) --- */
+body.hud .spin-button { width: 500px !important; height: 96px !important; font-size: 2.6rem !important; }
+
+/* --- Footer: titik status hijau (indikator siap/live) --- */
+body.hud #statusText { display: inline-flex; align-items: center; gap: 9px; }
+body.hud #statusText::before {
+  content: ""; width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0;
+  background: #22c55e; box-shadow: 0 0 8px rgba(34,197,94,.85);
+}
+
+/* ==================== HUD DASHBOARD v4 — kalibrasi UKURAN ke konsep (cqw→px @1920×1080) ====================
+   Konsep dc837248 memakai satuan container (cqw/cqh). Panggung produksi #stage = 1920×1080 lalu di-scale,
+   jadi px di sini = nilai konsep: 1cqw≈19.2px, 1cqh≈10.8px. Menyamakan PROPORSI kartu hadiah & mesin undian
+   agar "beneran mirip" konsep. Murni CSS — id/handler/reel tak disentuh. */
+
+/* --- Kartu hadiah: lebar panel 20cqw + teks/pill sesuai konsep --- */
+body.hud #prizeSidebar { width: 384px; }                    /* 20cqw (dulu 280px → sempit → judul wrap) */
+body.hud .sidebar-header h2 { white-space: nowrap; }        /* "HADIAH RONDE 3" satu baris */
+body.hud #prizeRondeNumber { min-width: 48px; height: 48px; font-size: 33px; }   /* rnd-badge 2.5cqw / 1.7cqw */
+body.hud .prize-adaptive .prize-card-name { font-size: 41px; line-height: 1.05; -webkit-line-clamp: 2; }  /* 2.15cqw (dulu 28px) */
+body.hud .prize-adaptive .prize-card-count { height: 52px; padding: 0 25px; }    /* 2.7cqw tinggi */
+body.hud .prize-adaptive .prize-card-count .pc-num   { font-size: 36px; }         /* .n 1.85cqw */
+body.hud .prize-adaptive .prize-card-count .pc-label { font-size: 27px; opacity: 1; } /* 1.4cqw (dulu 16px) */
+
+/* --- Mesin undian: panel MENGISI kolom (konsep 1fr), idle & tombol sesuai konsep --- */
+body.hud #centerArea { justify-content: flex-start; gap: 28px; padding: 24px 24px 18px; }
+body.hud .slot-machine-frame {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  width: 100%; max-width: 100%; height: auto; max-height: none; margin: 0; flex: 1 1 auto;
+}
+body.hud .idle-title { font-size: 142px; }                  /* 7.4cqw (dulu 120px) */
+body.hud .idle-sub { font-size: 30px; }                     /* 1.55cqw (dulu 25.6px) */
+body.hud .idle-sub strong { padding: 8px 23px; }            /* tag .4cqw 1.2cqw */
+body.hud #controlsArea { flex: 0 0 auto; }
+body.hud .spin-button { width: 576px !important; height: 96px !important; font-size: 50px !important; }  /* 30cqw / 5cqw / 2.6cqw */
+
+/* ==================== HUD DASHBOARD v5 — KARTU HADIAH presisi konsep ====================
+   Umpan balik user: (1) kartu hadiah TAK menyentuh batas bawah (top-weighted, ada ruang bawah),
+   (2) "Hadiah Ronde" CENTER + teks SOLID (bukan gradient) + tab miring, (3) pill jumlah pemenang
+   = parallelogram + IKON peserta seperti konsep. Murni CSS. */
+
+/* (2) Header "HADIAH RONDE": center, teks solid, tab miring seperti konsep (.prize-head/.tab) */
+body.hud .sidebar-header { padding: 22px 14px 4px; }
+body.hud .sidebar-header h2 { justify-content: center; gap: 12px; letter-spacing: .04em; }
+body.hud .prize-title-txt {
+  background: none; -webkit-background-clip: border-box; background-clip: border-box;
+  -webkit-text-fill-color: currentColor; color: var(--color-text);
+}
+body.hud .prize-title-bar {
+  width: 19px; height: 38px; min-height: 0; align-self: center; border-radius: 0;
+  background: var(--color-primary);
+  clip-path: polygon(0 0, 100% 18%, 100% 82%, 0 100%);
+  box-shadow: 0 0 8px rgba(var(--color-primary-rgb), .6);
+}
+
+/* (1) Kartu 1-hadiah: tinggi natural + top-align → ruang di bawah, tak menyentuh dasar panel */
+body.hud .prize-adaptive.prize-single { justify-content: center; padding: 14px 12px 22px; }
+body.hud .prize-adaptive.prize-single .prize-card { flex: 0 1 auto; justify-content: flex-start; gap: 16px; }
+/* Latar/pedestal hadiah: PERSEGI seperti konsep (~1:1), bukan 4/5 yang terlalu tinggi */
+body.hud .prize-adaptive.prize-single .prize-card-img { aspect-ratio: 1 / 1; max-height: none; }
+
+/* (3) Pill jumlah pemenang: parallelogram + IKON peserta + angka besar (presisi konsep .win-pill) */
+body.hud .prize-adaptive .prize-card-count { align-items: center; gap: 10px; }
+body.hud .prize-adaptive .prize-card-count::before {
+  content: ""; width: 24px; height: 24px; flex-shrink: 0;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2'/%3E%3Ccircle cx='9' cy='7' r='4'/%3E%3Cpath d='M23 21v-2a4 4 0 0 0-3-3.87'/%3E%3C/svg%3E") center/contain no-repeat;
+}
+
+/* ==================== HUD DASHBOARD v6 — header/footer bersih + judul tahan teks panjang ====================
+   Umpan balik user: (1) hapus chip "Ronde Aktif" (markup dibuang), (2) hapus status "Siap…" (kiri bawah),
+   (3) tinggi chip Peserta = tombol ikon (34px), (4) judul/sub tetap rapi utk kalimat panjang. Murni CSS.
+   (Ronde tetap tampil di panel "HADIAH RONDE N"; status footer disembunyikan, JS #statusText null-safe.) */
+
+/* (3) Chip Peserta: SATU baris, tinggi = tombol ikon (34px) */
+body.hud #pesertaBadge { height: 34px; min-height: 0; padding: 0 13px; gap: 8px; }
+body.hud #pesertaBadge svg { width: 15px; height: 15px; }
+body.hud #pesertaBadge b { font-family: var(--font-number); font-weight: 600; font-size: 1.3rem; line-height: 1; color: var(--color-text); letter-spacing: .01em; }
+body.hud #pesertaBadge small { font-family: var(--font-tech); font-weight: 600; font-size: .68rem; letter-spacing: .06em; text-transform: uppercase; color: var(--color-text-muted); }
+
+/* (2) Footer: buang status "Siap…"; sisakan brand di kanan (seperti konsep) */
+body.hud #statusText { display: none; }
+body.hud #appFooter { justify-content: flex-end; }
+
+/* (4) Judul & sub-judul tahan teks panjang: batasi lebar (bebas dari crest & chip),
+   boleh wrap max 2 baris (header memanjang), seimbang, tak menabrak elemen lain. */
+body.hud #appHeader { height: auto; min-height: 120px; padding-top: 10px; padding-bottom: 10px; }
+body.hud #eventTitle {
+  white-space: normal; max-width: 1180px; overflow-wrap: break-word; text-wrap: balance; line-height: 1.02 !important;
+}
+body.hud #eventSubtitle {
+  white-space: normal; max-width: 1000px; overflow-wrap: break-word; text-wrap: balance;
+}
+
+/* ==================== HUD DASHBOARD v7 — poles adaptif gelap/terang (ala konsep [data-mode]) ====================
+   Menyamakan perilaku dark/light konsep: judul terang→primary (kontras), gelap→primary-light (menyala);
+   idle "SIAP MENGUNDI" di tema gelap → near-white (#f3f6fa) spt konsep (tema terang tetap ikut --color-text). */
+body.hud #eventTitle { color: var(--color-primary) !important; }
+:root[data-mode="dark"] body.hud #eventTitle { color: var(--color-primary-light) !important; }
+:root[data-mode="dark"] body.hud .idle-title { color: #f3f6fa !important; }
+
+/* ==================== HUD DASHBOARD v9 — mode LATAR GAMBAR (.has-bg): sinematik & selalu terbaca ====================
+   Gambar latar biasanya gelap/ramai. Agar tampil seperti target (crisp, teks terang) di SEMUA tema —
+   bukan cuma tema gelap — .has-bg diperlakukan SINEMATIK: panel kaca GELAP + teks terang + aksen tema.
+   (Tema terang + gambar gelap kalau pakai kaca terang = washed & teks gelap tak terbaca.)
+   Menimpa glass has-bg lama via specificity (body.hud.has-bg) + !important. */
+
+/* Panel slot & hadiah: kaca gelap sinematik (gambar tetap tembus, panel tegas) — semua tema */
+body.hud.has-bg #prizeSidebar,
+body.hud.has-bg .slot-machine-frame {
+  background: linear-gradient(160deg, rgba(9,12,19,.56), rgba(9,12,19,.72)) !important;
+  border-color: rgba(var(--color-primary-rgb),.55) !important;
+  -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
+}
+body.hud.has-bg #appHeader { background: transparent !important; }
+
+/* Teks utama → terang (terbaca di atas gambar), apa pun temanya */
+body.hud.has-bg .idle-title { color: #f3f6fa !important; text-shadow: 0 3px 20px rgba(0,0,0,.85), 0 0 44px rgba(var(--color-primary-rgb),.45) !important; }
+body.hud.has-bg .idle-sub { color: #e6edf5 !important; }
+body.hud.has-bg .hud-brand b { color: #f3f6fa !important; }
+body.hud.has-bg .prize-title-txt { color: #f3f6fa !important; }
+body.hud.has-bg .prize-adaptive .prize-card-name { color: var(--prize-title-color, #f3f6fa) !important; text-shadow: 0 2px 10px rgba(0,0,0,.9), 0 0 4px rgba(0,0,0,.7) !important; }
+
+/* Judul: aksen terang + shadow tebal agar terbaca di atas gambar — TAPI banner tetap gaya KONSEP
+   (tint primary + border primary + glow), BUKAN kotak gelap. Sub-judul: warna & banner ikut konsep
+   (--color-text-secondary di banner surface solid) — tidak di-override. */
+body.hud.has-bg #eventTitle { color: var(--color-primary-light) !important; text-shadow: 0 2px 12px rgba(0,0,0,.75), 0 0 30px rgba(var(--color-primary-rgb),.5) !important; }
+
+/* Chip peserta & tombol ikon: latar gelap + teks terang agar kontras (bukan surface terang) */
+body.hud.has-bg #pesertaBadge,
+body.hud.has-bg .btn-icon,
+body.hud.has-bg #resetUndianBtn,
+body.hud.has-bg .fullscreen-toggle {
+  background: rgba(9,12,19,.55) !important;
+  border-color: rgba(var(--color-primary-rgb),.5) !important;
+  color: #eaf0f8 !important;
+}
+body.hud.has-bg #pesertaBadge b { color: #f3f6fa !important; }
+body.hud.has-bg #pesertaBadge small { color: #c7d2df !important; }
+body.hud.has-bg .btn-icon svg,
+body.hud.has-bg #resetUndianBtn svg,
+body.hud.has-bg .fullscreen-toggle svg { color: #eaf0f8 !important; stroke: #eaf0f8 !important; }
+
+/* ==================== HUD DASHBOARD v10 — banner judul/sub TETAP gaya KONSEP saat layout-custom + has-bg ====================
+   PENYEBAB "latar judul/sub tak sesuai": editor tata letak (`.stage-custom`) + gambar latar (`.has-bg`) memberi
+   judul/sub "KACA PUTIH" (surface 62% + blur + border putih + shadow polos) yg MENIMPA banner konsep (L3067).
+   Kembalikan ke KONSEP dengan specificity lebih tinggi: judul = tint primary + border primary + glow;
+   sub = surface solid + border primary. Chevron & teks tetap; readability dijaga border+glow+shadow teks. */
+body.hud.has-bg #stage.stage-custom #eventTitle {
+  background: linear-gradient(180deg, rgba(var(--color-primary-rgb),.18), rgba(var(--color-primary-rgb),.05)) !important;
+  border: 0 !important; border-radius: 0 !important;
+  box-shadow: inset 0 0 0 2px rgba(var(--color-primary-rgb),.85), 0 0 34px rgba(var(--color-primary-rgb),.22) !important;
+  -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
+}
+/* Sub-judul saat has-bg: banner GELAP (bukan putih di tema terang) + teks terang — selaras konsep
+   yang disetujui (komando/gelap) & mode sinematik. Grup mencakup layout-custom (2,3,1) & biasa (1,2,1). */
+body.hud.has-bg #stage.stage-custom #eventSubtitle,
+body.hud.has-bg #eventSubtitle {
+  background: rgba(9,12,19,.62) !important;
+  border: 0 !important; border-radius: 0 !important;
+  color: #cdd7e3 !important;
+  box-shadow: inset 0 0 0 1px rgba(var(--color-primary-rgb),.55) !important;
+  -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
+}
+
+/* ==================== HUD POPUP PEMENANG — port konsep 83810d33 (restyle chrome; markup/logika/mode/preset TETAP) ====================
+   RDP §3.5: popup selalu GELAP SINEMATIK (preset = mood latar), TEMA hanya ubah AKSEN, teks hardcode terang.
+   Nomor tetap #N (urut, permintaan user 2a); klasifikasi tetap breadcrumb lengkap (2b). CSS-ONLY — showWinnerModal tak diubah. */
+
+/* Overlay lebih gelap agar panggung sinematik */
+body.hud #winnerModal.modal-overlay { background: rgba(0,0,0,.55) !important; }
+
+/* Panel: bingkai HUD bersudut + border primary + glow (bukan bingkai emas/rounded) */
+body.hud #winnerModal .modal-winner {
+  border: 0 !important; border-radius: 0 !important;
+  clip-path: polygon(0 16px,16px 0,calc(100% - 22px) 0,100% 22px,100% calc(100% - 16px),calc(100% - 16px) 100%,22px 100%,0 calc(100% - 16px));
+  box-shadow: inset 0 0 0 1.5px rgba(var(--color-primary-rgb),.7), 0 30px 70px -24px rgba(0,0,0,.85), 0 0 42px rgba(var(--color-primary-rgb),.18) !important;
+}
+body.hud #winnerModal .winner-modal-overlay-tint {
+  background: radial-gradient(130% 85% at 50% 118%, rgba(0,0,0,.55), transparent 60%), linear-gradient(180deg, rgba(0,0,0,.08), rgba(0,0,0,.42)) !important;
+}
+
+/* Judul: Bebas Neue putih + glow primary (matikan gradient emas). Garis hias samping dihilangkan (konsep bersih). */
+body.hud #winnerModal .winner-title-wrap::before,
+body.hud #winnerModal .winner-title-wrap::after { display: none !important; }
+body.hud #winnerModal .winner-title {
+  font-family: var(--font-display) !important; font-weight: 400 !important; letter-spacing: .06em !important;
+  background: none !important; -webkit-background-clip: border-box !important; background-clip: border-box !important;
+  -webkit-text-fill-color: #fff !important; color: #fff !important;
+  text-shadow: 0 0 26px rgba(var(--color-primary-rgb),.6), 0 3px 10px rgba(0,0,0,.55) !important;
+}
+/* Sub-judul: Rajdhani aksen primary (bukan pill emas) */
+body.hud #winnerModal .winner-subtitle {
+  background: none !important; box-shadow: none !important; border-radius: 0 !important; padding: 2px 0 !important; margin: 8px auto 2px !important;
+  font-family: var(--font-tech) !important; font-weight: 700 !important; letter-spacing: .16em !important; color: var(--color-primary-light) !important;
+}
+body.hud #winnerModal .winner-subtitle #winnerRonde { color: #fff !important; }
+
+/* Kartu pemenang: bevel gelap + border primary (konsep .wc) */
+body.hud #winnerModal .winner-card {
+  background: rgba(15,22,38,.82) !important; border: 1.5px solid rgba(var(--color-primary-rgb),.45) !important; border-radius: 0 !important;
+  clip-path: polygon(0 8px,8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%) !important;
+}
+/* Nomor #N: badge Teko aksen primary */
+body.hud #winnerModal .winner-card-number {
+  font-family: var(--font-number) !important; font-weight: 600 !important; letter-spacing: .02em !important; color: var(--color-primary-light) !important;
+  background: rgba(var(--color-primary-rgb),.14) !important; border: 1px solid rgba(var(--color-primary-rgb),.34) !important; border-radius: 0 !important;
+  clip-path: polygon(4px 0,100% 0,100% 100%,0 100%,0 4px) !important; padding: 1px 8px !important;
+}
+/* Nama: Rajdhani terang (matikan gradient bila ada) */
+body.hud #winnerModal .winner-card-name {
+  font-family: var(--font-tech) !important; font-weight: 700 !important; letter-spacing: .02em !important; text-transform: uppercase !important;
+  color: var(--reel-number-color, #eaf0f8) !important; -webkit-text-fill-color: var(--reel-number-color, #eaf0f8) !important; background: none !important; text-shadow: 0 1px 8px rgba(0,0,0,.5) !important;
+}
+/* Klasifikasi (breadcrumb lengkap): Rajdhani muted */
+body.hud #winnerModal .winner-card-cluster {
+  font-family: var(--font-tech) !important; font-weight: 600 !important; letter-spacing: .04em !important; text-transform: uppercase !important; color: var(--winner-number-color, #9fb0c2) !important;
+}
+/* Tombol × gugur */
+body.hud #winnerModal .btn-disqualify { background: rgba(220,38,38,.92) !important; border-radius: 3px !important; color: #fff !important; }
+
+/* Bar aksi + tombol HUD (chevron & outline, konsep .btn2) */
+body.hud #winnerModal .winner-actions { background: rgba(5,7,13,.5) !important; border-top: 1px solid rgba(var(--color-primary-rgb),.25) !important; }
+body.hud #winnerModal #winnerCloseBtn {
+  font-family: var(--font-number) !important; font-weight: 600 !important; letter-spacing: .1em !important; text-transform: uppercase !important; color: #fff !important;
+  background: linear-gradient(180deg, var(--color-primary-light), var(--color-primary) 60%, var(--color-primary-dark)) !important; border: 0 !important; border-radius: 0 !important;
+  clip-path: polygon(12px 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 12px 100%, 0 50%) !important;
+  box-shadow: 0 8px 22px -6px rgba(var(--color-primary-rgb),.7) !important;
+}
+body.hud #winnerModal #winnerRespinBtn {
+  font-family: var(--font-tech) !important; font-weight: 700 !important; text-transform: uppercase !important; letter-spacing: .04em !important; color: var(--color-primary-light) !important;
+  background: rgba(5,7,13,.4) !important; border: 1px solid rgba(var(--color-primary-rgb),.6) !important; border-radius: 0 !important;
+  clip-path: polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px) !important;
+}
+body.hud #winnerModal .winner-cards::-webkit-scrollbar-thumb { background: rgba(var(--color-primary-rgb),.5) !important; }
+
+/* ---- ROSTER RINGKAS (konsep v-20) untuk BANYAK/SANGAT BANYAK pemenang (wn-lg ≤24, wn-xl >24) ----
+   Kartu tinggi bertumpuk → BARIS RINGKAS: [#N] di kiri (rentang 2 baris), NAMA kanan-atas,
+   klasifikasi kanan-bawah. 2 kolom (lg) / 3 kolom (xl), menggulir bila terlalu banyak (RDP §3.5).
+   CSS-ONLY (display:contents membuka .winner-card-header → nomor & klaster jadi item grid). Mode/preset/markup TETAP. */
+body.hud #winnerModal.wn-lg .winner-cards,
+body.hud #winnerModal.wn-xl .winner-cards {
+  grid-auto-rows: minmax(44px, auto) !important;
+  align-content: start !important;
+  gap: 8px 12px !important;
+  padding: 10px 20px !important;
+}
+body.hud #winnerModal.wn-lg .winner-cards { grid-template-columns: repeat(2, 1fr) !important; }
+body.hud #winnerModal.wn-xl .winner-cards { grid-template-columns: repeat(3, 1fr) !important; }
+@media (max-width: 1280px) { body.hud #winnerModal.wn-xl .winner-cards { grid-template-columns: repeat(2, 1fr) !important; } }
+@media (max-width: 820px) {
+  body.hud #winnerModal.wn-lg .winner-cards,
+  body.hud #winnerModal.wn-xl .winner-cards { grid-template-columns: 1fr !important; }
+}
+/* Kartu → baris grid: kolom [nomor | isi], baris [nama / klasifikasi] */
+body.hud #winnerModal.wn-lg .winner-card,
+body.hud #winnerModal.wn-xl .winner-card {
+  display: grid !important;
+  grid-template-columns: auto minmax(0, 1fr) !important;
+  grid-template-areas: "num name" "num cluster" !important;
+  align-items: center !important;
+  align-content: center !important;
+  column-gap: 11px !important;
+  row-gap: 1px !important;
+  text-align: left !important;
+  min-height: 0 !important;
+  padding: 7px 32px 7px 11px !important; /* ruang kanan utk tombol × absolut */
+}
+body.hud #winnerModal.wn-lg .winner-card-header,
+body.hud #winnerModal.wn-xl .winner-card-header { display: contents !important; }
+body.hud #winnerModal.wn-lg .winner-card-number,
+body.hud #winnerModal.wn-xl .winner-card-number {
+  grid-area: num !important; align-self: center !important;
+  min-width: 30px !important; text-align: center !important; margin: 0 !important;
+}
+body.hud #winnerModal.wn-lg .winner-card-name,
+body.hud #winnerModal.wn-xl .winner-card-name {
+  grid-area: name !important; align-self: end !important; text-align: left !important;
+  -webkit-line-clamp: 1 !important; margin: 0 !important; /* nama 1 baris; autofit mengecil utk nama panjang */
+}
+body.hud #winnerModal.wn-lg .winner-card-cluster,
+body.hud #winnerModal.wn-xl .winner-card-cluster {
+  grid-area: cluster !important; align-self: start !important; text-align: left !important;
+  -webkit-line-clamp: 2 !important; max-width: 100% !important; margin: 0 !important;
+}
+/* Tombol × di-tengah vertikal baris ringkas */
+body.hud #winnerModal.wn-lg .btn-disqualify,
+body.hud #winnerModal.wn-xl .btn-disqualify {
+  top: 50% !important; margin-top: -8px !important; right: 8px !important;
+}
+
+/* ---- DIALOG KONFIRMASI HUD (showCustomConfirm) — restyle chrome; animasi opacity/transform TETAP dari JS ----
+   Elemen dibuat inline oleh app.js; kita hanya samakan tampilannya ke bahasa HUD (bevel, border primary, font tech/number).
+   TIDAK menimpa opacity/transform agar animasi masuk/keluar tetap jalan. */
+body.hud .hud-confirm-overlay { background: rgba(4,7,12,.72) !important; }
+body.hud .hud-confirm-modal {
+  background: linear-gradient(160deg, #141b2a, #0b0f18) !important; /* GELAP sinematik (senada popup pemenang), tema hanya ubah aksen */
+  border: 1.5px solid rgba(var(--color-primary-rgb),.5) !important; border-radius: 0 !important;
+  clip-path: polygon(0 14px,14px 0,calc(100% - 18px) 0,100% 18px,100% calc(100% - 14px),calc(100% - 14px) 100%,18px 100%,0 calc(100% - 14px)) !important;
+  box-shadow: 0 26px 64px -22px rgba(0,0,0,.78), 0 0 40px rgba(var(--color-primary-rgb),.15) !important;
+  padding: 26px 26px 22px !important;
+}
+body.hud .hud-confirm-title {
+  font-family: var(--font-tech) !important; font-weight: 700 !important; font-size: 1.22rem !important; letter-spacing: .02em !important;
+  color: var(--color-primary-light) !important; text-shadow: 0 0 18px rgba(var(--color-primary-rgb),.4) !important; margin: 0 0 10px !important;
+}
+body.hud .hud-confirm-msg {
+  font-family: var(--font-ui) !important; font-size: .9rem !important; line-height: 1.55 !important; color: #b9c6d6 !important; margin: 0 0 22px !important;
+}
+body.hud .hud-confirm-actions { gap: 12px !important; }
+body.hud .hud-confirm-cancel {
+  font-family: var(--font-tech) !important; font-weight: 700 !important; font-size: .82rem !important; letter-spacing: .06em !important; text-transform: uppercase !important;
+  color: #cdd8e6 !important; background: rgba(255,255,255,.04) !important;
+  border: 1px solid rgba(var(--color-primary-rgb),.4) !important; border-radius: 0 !important;
+  clip-path: polygon(7px 0,100% 0,100% calc(100% - 7px),calc(100% - 7px) 100%,0 100%,0 7px) !important;
+}
+body.hud .hud-confirm-cancel:hover { background: rgba(var(--color-primary-rgb),.15) !important; color: #fff !important; }
+body.hud .hud-confirm-ok {
+  font-family: var(--font-number) !important; font-weight: 600 !important; font-size: 1.05rem !important; letter-spacing: .08em !important; text-transform: uppercase !important;
+  color: #fff !important; border: 0 !important; border-radius: 0 !important;
+  background: linear-gradient(180deg, var(--color-primary-light), var(--color-primary) 60%, var(--color-primary-dark)) !important;
+  clip-path: polygon(9px 0,100% 0,100% calc(100% - 9px),calc(100% - 9px) 100%,0 100%,0 9px) !important;
+  box-shadow: 0 8px 22px -8px rgba(var(--color-primary-rgb),.7) !important;
+}
+body.hud .hud-confirm-ok:hover { filter: brightness(1.08) !important; }
+
+/* ==================== HUD SETTING — port konsep d88b998a (Fase 3; CSS-only, id/handler/fungsi TETAP) ====================
+   Scope: body.setting-page → tak bleed ke dashboard/modal (kelas .btn/.form-control/.status-tag dipakai bersama).
+   Tema = AKSEN via token; gelap/terang adaptif. Panel bersudut + corner-bracket + font Bebas/Rajdhani/Teko/Inter (selaras Dashboard). */
+
+body.setting-page {
+  background:
+    radial-gradient(62% 60% at 50% 0%, rgba(var(--color-primary-rgb),.09), transparent 60%),
+    var(--color-bg) !important;
+}
+/* Halaman Setting = kanvas BERSIH (konsep): matikan overlay gambar-latar acara (has-bg body::before/::after). */
+body.setting-page::before, body.setting-page::after { display: none !important; content: none !important; background: none !important; }
+/* Halaman Setting: TAMPILKAN background upload operator + scrim gelap agar form tetap terbaca (permintaan user 2026-08-20). */
+body.setting-page.has-bg {
+  background:
+    linear-gradient(rgba(8,11,18,.82), rgba(8,11,18,.88)),
+    var(--bg-image, none) center center / cover fixed no-repeat,
+    var(--color-bg) !important;
+}
+
+/* ---- Header bar ---- */
+body.setting-page .settings-header {
+  background: linear-gradient(160deg, var(--color-surface), color-mix(in srgb, var(--color-surface) 82%, var(--color-bg))) !important;
+  border-bottom: 1px solid rgba(var(--color-primary-rgb),.45) !important;
+  box-shadow: 0 8px 26px -18px rgba(0,0,0,.7) !important;
+}
+body.setting-page .header-title-group { gap: 14px !important; }
+body.setting-page .btn-back-dashboard {
+  background: var(--color-bg) !important; border: 1px solid var(--color-border) !important; border-radius: 0 !important;
+  color: var(--color-text-secondary) !important; font-family: var(--font-tech) !important; font-weight: 700 !important;
+  font-size: .78rem !important; letter-spacing: .08em !important; text-transform: uppercase !important;
+  clip-path: polygon(7px 0,100% 0,100% calc(100% - 7px),calc(100% - 7px) 100%,0 100%,0 7px);
+}
+body.setting-page .btn-back-dashboard:hover { color: var(--color-text) !important; border-color: rgba(var(--color-primary-rgb),.5) !important; transform: none !important; }
+body.setting-page .set-crest {
+  width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; flex-shrink: 0;
+  background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--color-surface) 80%, #000), var(--color-bg) 72%);
+  box-shadow: 0 0 0 2px rgba(var(--color-primary-rgb),.8), 0 0 14px rgba(var(--color-primary-rgb),.4);
+}
+body.setting-page .set-crest svg { width: 60%; height: 60%; color: var(--color-primary-light); }
+body.setting-page .settings-page-title {
+  font-family: var(--font-display) !important; font-weight: 400 !important; font-size: 1.7rem !important;
+  letter-spacing: .04em !important; line-height: 1 !important;
+  background: none !important; -webkit-text-fill-color: var(--color-text) !important; color: var(--color-text) !important;
+}
+body.setting-page .settings-page-title small {
+  display: block; font-family: var(--font-tech); font-weight: 600; font-size: .64rem; letter-spacing: .32em;
+  text-transform: uppercase; color: var(--color-text-muted); margin-top: 3px; -webkit-text-fill-color: var(--color-text-muted);
+}
+body.setting-page .settings-header-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+/* ---- Status chips (DB status #uploadStatusText + #saveStat) ---- */
+body.setting-page .status-tag, body.setting-page .schip {
+  display: inline-flex !important; align-items: center; gap: 7px;
+  font-family: var(--font-tech) !important; font-weight: 600 !important; font-size: .72rem !important;
+  letter-spacing: .06em !important; text-transform: uppercase !important; padding: 5px 11px !important;
+  background: var(--color-bg) !important; border: 1px solid var(--color-border) !important; border-radius: 0 !important;
+  color: var(--color-text-secondary) !important;
+  clip-path: polygon(6px 0,100% 0,calc(100% - 6px) 100%,0 100%);
+}
+body.setting-page .status-tag.warning, body.setting-page .schip.warn { color: #f5b731 !important; border-color: rgba(245,183,49,.45) !important; }
+body.setting-page .status-tag.success, body.setting-page .schip.ok { color: #22c55e !important; border-color: rgba(34,197,94,.45) !important; }
+body.setting-page .schip .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; box-shadow: 0 0 7px currentColor; }
+
+/* ---- Cards / panels (bevel + border primary + corner-bracket) ---- */
+body.setting-page .settings-card {
+  position: relative;
+  background: linear-gradient(160deg, var(--color-surface), color-mix(in srgb, var(--color-surface) 86%, var(--color-bg))) !important;
+  border: 1.5px solid rgba(var(--color-primary-rgb),.4) !important; border-radius: 0 !important;
+  clip-path: polygon(0 14px,14px 0,calc(100% - 20px) 0,100% 20px,100% calc(100% - 14px),calc(100% - 14px) 100%,20px 100%,0 calc(100% - 14px));
+  box-shadow: 0 16px 40px -22px rgba(0,0,0,.5), 0 0 22px rgba(var(--color-primary-rgb),.10) !important;
+}
+body.setting-page .settings-card:hover { border-color: rgba(var(--color-primary-rgb),.55) !important; box-shadow: 0 18px 42px -22px rgba(0,0,0,.55), 0 0 26px rgba(var(--color-primary-rgb),.16) !important; }
+body.setting-page .settings-card::before, body.setting-page .settings-card::after {
+  content: ""; position: absolute; width: 13px; height: 13px; border: 2px solid var(--color-primary);
+  filter: drop-shadow(0 0 3px rgba(var(--color-primary-rgb),.55)); pointer-events: none; z-index: 3;
+}
+body.setting-page .settings-card::before { top: 11px; left: 11px; border-right: 0; border-bottom: 0; }
+body.setting-page .settings-card::after { bottom: 11px; right: 11px; border-left: 0; border-top: 0; }
+body.setting-page .settings-card-header {
+  background: transparent !important;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent) !important;
+}
+body.setting-page .settings-card-header h2 {
+  font-family: var(--font-tech) !important; font-weight: 700 !important; font-size: 1.02rem !important;
+  letter-spacing: .09em !important; text-transform: uppercase !important; color: var(--color-text) !important;
+}
+body.setting-page .settings-card-header h2 svg { color: var(--color-primary-light) !important; }
+/* tab miring sebelum judul kartu (konsep .card-head .tab) */
+body.setting-page .settings-card-header h2::before {
+  content: ""; width: 5px; height: 20px; flex-shrink: 0; background: var(--color-primary);
+  clip-path: polygon(0 0,100% 15%,100% 85%,0 100%); box-shadow: 0 0 8px rgba(var(--color-primary-rgb),.6);
+}
+
+/* ---- Form controls ---- */
+body.setting-page .form-control, body.setting-page .input-modern {
+  background: var(--color-bg) !important; color: var(--color-text) !important; border: 1px solid var(--color-border) !important;
+  border-radius: 0 !important; font-family: var(--font-ui) !important;
+  clip-path: polygon(7px 0,100% 0,100% calc(100% - 7px),calc(100% - 7px) 100%,0 100%,0 7px);
+  transition: border-color .15s, box-shadow .15s;
+}
+body.setting-page .form-control:focus, body.setting-page .input-modern:focus {
+  border-color: var(--color-primary) !important; box-shadow: 0 0 0 2px rgba(var(--color-primary-rgb),.22) !important; outline: none !important;
+}
+body.setting-page select.form-control, body.setting-page select.input-modern {
+  appearance: none; -webkit-appearance: none; padding-right: 30px !important; cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2 4l4 4 4-4' stroke='%237f93a8' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important; background-position: right 11px center !important; background-size: 11px !important;
+}
+body.setting-page label { font-family: var(--font-tech) !important; letter-spacing: .03em; }
+body.setting-page .settings-card-body h3 {
+  font-family: var(--font-number) !important; font-weight: 600 !important; font-size: 1rem !important;
+  letter-spacing: .07em !important; text-transform: uppercase !important; color: var(--color-primary-light) !important;
+}
+/* Range sliders */
+body.setting-page input[type=range] {
+  -webkit-appearance: none; appearance: none; height: 6px; border-radius: 3px; outline: none;
+  background: linear-gradient(90deg, var(--color-primary) 0 55%, var(--color-border) 55%) !important;
+}
+body.setting-page input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--color-primary-light);
+  border: 2px solid var(--color-surface); box-shadow: 0 0 8px rgba(var(--color-primary-rgb),.6); cursor: pointer;
+}
+body.setting-page input[type=range]::-moz-range-thumb {
+  width: 16px; height: 16px; border-radius: 50%; background: var(--color-primary-light); border: 2px solid var(--color-surface); cursor: pointer;
+}
+/* Color inputs (jangan kena clip-path .form-control) */
+body.setting-page input[type=color] {
+  clip-path: none !important; border: 1px solid var(--color-border) !important; border-radius: 4px !important;
+  background: none !important; padding: 0 !important;
+}
+
+/* ---- Buttons ---- */
+body.setting-page .btn { border-radius: 0 !important; }
+body.setting-page .btn-primary {
+  font-family: var(--font-number) !important; font-weight: 600 !important; font-size: 1.05rem !important;
+  letter-spacing: .08em !important; text-transform: uppercase !important; color: #fff !important; border: 0 !important;
+  background: linear-gradient(180deg, var(--color-primary-light), var(--color-primary) 60%, var(--color-primary-dark)) !important;
+  clip-path: polygon(9px 0,100% 0,calc(100% - 9px) 100%,0 100%);
+  box-shadow: 0 6px 16px -6px rgba(var(--color-primary-rgb),.6) !important;
+}
+body.setting-page .btn-primary:hover { filter: brightness(1.07) !important; }
+body.setting-page .btn-outline, body.setting-page .btn-secondary {
+  background: transparent !important; border: 1px solid rgba(var(--color-primary-rgb),.55) !important; color: var(--color-primary-light) !important;
+  font-family: var(--font-tech) !important; font-weight: 700 !important; letter-spacing: .07em !important; text-transform: uppercase !important;
+  box-shadow: none !important; border-radius: 0 !important;
+  clip-path: polygon(7px 0,100% 0,100% calc(100% - 7px),calc(100% - 7px) 100%,0 100%,0 7px);
+}
+body.setting-page .btn-outline:hover, body.setting-page .btn-secondary:hover { border-color: var(--color-primary) !important; color: var(--color-text) !important; }
+body.setting-page .btn-remove-rule { color: #ef4444 !important; }
+
+/* ---- Upload dropzones ---- */
+body.setting-page .logo-upload-area, body.setting-page .upload-area {
+  background: var(--color-bg) !important; border: 2px dashed color-mix(in srgb, var(--color-primary) 40%, var(--color-border)) !important;
+  border-radius: 0 !important;
+  clip-path: polygon(0 9px,9px 0,calc(100% - 9px) 0,100% 9px,100% calc(100% - 9px),calc(100% - 9px) 100%,9px 100%,0 calc(100% - 9px));
+}
+body.setting-page .logo-upload-area:hover, body.setting-page .upload-area:hover { border-color: var(--color-primary) !important; background: var(--color-bg) !important; }
+
+/* ---- Theme swatches (konsep .sw2) ---- */
+body.setting-page .theme-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 10px; }
+body.setting-page .theme-swatch {
+  background: var(--color-bg) !important; border: 1px solid var(--color-border) !important; border-radius: 0 !important;
+  color: var(--color-text-secondary) !important; padding: 10px !important; text-align: left !important;
+  display: flex !important; flex-direction: column !important; gap: 7px !important;
+  clip-path: polygon(0 7px,7px 0,calc(100% - 7px) 0,100% 7px,100% 100%,0 100%);
+}
+body.setting-page .theme-swatch:hover { border-color: color-mix(in srgb, var(--color-text) 30%, transparent) !important; }
+body.setting-page .theme-swatch.active {
+  border-color: var(--color-primary) !important;
+  box-shadow: 0 0 0 2px rgba(var(--color-primary-rgb),.3), 0 0 14px rgba(var(--color-primary-rgb),.2) !important;
+}
+body.setting-page .theme-swatch .swatch-colors { display: flex; gap: 4px; }
+body.setting-page .theme-swatch .swatch-colors span { width: 15px !important; height: 15px !important; border-radius: 3px !important; box-shadow: inset 0 0 0 1px rgba(128,128,128,.25); }
+body.setting-page .theme-swatch .swatch-label { font-family: var(--font-tech) !important; font-weight: 700 !important; font-size: .78rem !important; letter-spacing: .03em; color: var(--color-text) !important; }
+body.setting-page .theme-swatch .swatch-badge { font-family: var(--font-tech) !important; font-size: .6rem !important; color: var(--color-text-muted) !important; text-transform: uppercase; letter-spacing: .04em; background: none !important; padding: 0 !important; }
+
+/* ---- Prize/round rows ---- */
+body.setting-page .prize-setting-item {
+  background: var(--color-bg) !important; border: 1px solid var(--color-border) !important; border-radius: 0 !important;
+  clip-path: polygon(0 8px,8px 0,calc(100% - 8px) 0,100% 8px,100% 100%,0 100%);
+}
+
+/* ---- Custom colors panel ---- */
+body.setting-page #customColorSection {
+  background: var(--color-bg) !important; border: 1px solid var(--color-border) !important; border-radius: 0 !important;
+  clip-path: polygon(0 8px,8px 0,calc(100% - 8px) 0,100% 8px,100% calc(100% - 8px),calc(100% - 8px) 100%,8px 100%,0 calc(100% - 8px));
+}
+
+/* ---- Floating save bar + dirty state ---- */
+body.setting-page .floating-save-bar {
+  background: linear-gradient(160deg, var(--color-surface), color-mix(in srgb, var(--color-surface) 80%, var(--color-bg))) !important;
+  border: 1px solid rgba(var(--color-primary-rgb),.5) !important; border-radius: 0 !important;
+  backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
+  clip-path: polygon(0 12px,12px 0,calc(100% - 12px) 0,100% 12px,100% calc(100% - 12px),calc(100% - 12px) 100%,12px 100%,0 calc(100% - 12px));
+  box-shadow: 0 20px 46px -20px rgba(0,0,0,.75), 0 0 22px rgba(var(--color-primary-rgb),.14) !important;
+  transition: border-color .3s, box-shadow .3s;
+}
+body.setting-page .floating-save-bar.dirty {
+  border-color: var(--color-primary) !important;
+  box-shadow: 0 20px 46px -18px rgba(0,0,0,.8), 0 0 26px rgba(var(--color-primary-rgb),.42) !important;
+}
+body.setting-page .save-hint {
+  display: inline-flex; align-items: center; gap: 8px; white-space: nowrap;
+  font-family: var(--font-tech); font-weight: 600; font-size: .74rem; letter-spacing: .06em; text-transform: uppercase; color: var(--color-text-muted);
+  max-width: 0; overflow: hidden; opacity: 0; transition: max-width .35s ease, opacity .3s;
+}
+body.setting-page .save-hint .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--color-primary); box-shadow: 0 0 9px var(--color-primary); flex-shrink: 0; }
+body.setting-page .floating-save-bar.dirty .save-hint { max-width: 260px; opacity: 1; }
+body.setting-page .floating-save-bar.dirty #saveSettingsBtn { animation: sbpulse 2s ease-in-out infinite; }
+@keyframes sbpulse { 0%,100% { box-shadow: 0 6px 16px -6px rgba(var(--color-primary-rgb),.6); } 50% { box-shadow: 0 9px 24px -4px rgba(var(--color-primary-rgb),.95); } }
+
+/* ---- Footer ---- */
+body.setting-page .settings-foot {
+  text-align: center; font-family: var(--font-tech); font-weight: 600; letter-spacing: .3em; text-transform: uppercase;
+  font-size: .72rem; color: var(--color-text-muted); padding: 4px 0 6px;
+}
+body.setting-page .settings-foot b { color: var(--color-primary-light); font-weight: 700; }
+
+@media (prefers-reduced-motion: reduce) { body.setting-page .floating-save-bar.dirty #saveSettingsBtn { animation: none; } }
+
+/* ---- Kartu Identitas & Branding: RAPATKAN (kompak) agar batas bawah kolom kiri ~rata dgn Keamanan ---- */
+body.setting-page #brandingCard .settings-card-body { gap: 20px !important; padding: 16px 20px !important; }
+body.setting-page #brandingCard .form-group { margin: 0 !important; }
+body.setting-page #brandingCard label { margin-bottom: 4px !important; }
+body.setting-page #brandingCard .form-control { padding-top: 7px !important; padding-bottom: 7px !important; }
+body.setting-page #brandingCard .settings-grid { gap: 10px !important; margin-top: 4px !important; margin-bottom: 6px !important; }
+body.setting-page #brandingCard .settings-card-body > div[style*="border-top"] { padding-top: 10px !important; margin-top: 6px !important; margin-bottom: 8px !important; }
+body.setting-page #brandingCard h3 { margin-bottom: 8px !important; }
+body.setting-page #brandingCard .logo-upload-area { min-height: 52px !important; padding: 8px !important; }
+
+/* ==================== EDITOR TATA LETAK → gaya konsep d88b998a (HUD) ==================== */
+body.setting-page .le-root { gap: 12px !important; }
+body.setting-page .le-toolbar { gap: 9px !important; }
+body.setting-page .le-check {
+  font-family: var(--font-tech) !important; font-weight: 600 !important; font-size: .74rem !important;
+  letter-spacing: .05em !important; text-transform: uppercase !important; color: var(--color-text-secondary) !important;
+}
+body.setting-page .le-preset {
+  background: var(--color-bg) !important; border: 1px solid var(--color-border) !important; border-radius: 0 !important;
+  color: var(--color-text) !important; font-family: var(--font-tech) !important; font-weight: 600 !important;
+  clip-path: polygon(6px 0,100% 0,100% calc(100% - 6px),calc(100% - 6px) 100%,0 100%,0 6px);
+}
+body.setting-page .le-preset:focus { border-color: var(--color-primary) !important; box-shadow: 0 0 0 2px rgba(var(--color-primary-rgb),.22) !important; }
+/* kanvas: gelap sinematik + glow primary + bevel + kisi halus */
+body.setting-page .le-canvas-wrap {
+  max-width: none !important; border: 1px solid rgba(var(--color-primary-rgb),.4) !important; border-radius: 0 !important;
+  background: radial-gradient(60% 80% at 50% 40%, rgba(var(--color-primary-rgb),.12), transparent 60%), linear-gradient(160deg, color-mix(in srgb, var(--color-bg) 86%, #000), var(--color-bg)) !important;
+  clip-path: polygon(0 10px,10px 0,calc(100% - 10px) 0,100% 10px,100% calc(100% - 10px),calc(100% - 10px) 100%,10px 100%,0 calc(100% - 10px));
+  box-shadow: inset 0 0 50px rgba(0,0,0,.45) !important;
+}
+body.setting-page .le-canvas::before {
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--color-text) 7%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--color-text) 7%, transparent) 1px, transparent 1px) !important;
+  background-size: 5% 8.9% !important;
+}
+/* item: kotak HUD border primary */
+body.setting-page .le-item {
+  border: 1px solid rgba(var(--color-primary-rgb),.35) !important; border-radius: 0 !important;
+  background: color-mix(in srgb, var(--color-surface) 70%, transparent) !important; color: var(--color-text-secondary) !important;
+}
+body.setting-page .le-item:hover { border-color: rgba(var(--color-primary-rgb),.7) !important; }
+body.setting-page .le-item.le-selected {
+  border: 1.5px dashed var(--color-primary-light) !important; color: var(--color-text) !important;
+  background: color-mix(in srgb, var(--color-primary) 14%, transparent) !important;
+  box-shadow: 0 0 18px rgba(var(--color-primary-rgb),.25) !important;
+}
+body.setting-page .le-label { font-family: var(--font-tech) !important; font-weight: 700 !important; letter-spacing: .08em !important; color: var(--color-text-secondary) !important; }
+body.setting-page .le-content { font-family: var(--font-tech) !important; text-transform: uppercase !important; letter-spacing: .03em !important; }
+/* handle resize: kotak surface + border primary-light */
+body.setting-page .le-handle { background: var(--color-surface) !important; border: 1.5px solid var(--color-primary-light) !important; border-radius: 0 !important; }
+body.setting-page .le-rot { background: var(--color-primary) !important; border-color: var(--color-primary-light) !important; }
+body.setting-page .le-guide-v, body.setting-page .le-guide-h { border-color: var(--color-primary-light) !important; }
+/* panel properti: HUD */
+body.setting-page .le-panel {
+  background: var(--color-bg) !important; border: 1px solid var(--color-border) !important; border-radius: 0 !important;
+  clip-path: polygon(0 8px,8px 0,calc(100% - 8px) 0,100% 8px,100% calc(100% - 8px),calc(100% - 8px) 100%,8px 100%,0 calc(100% - 8px));
+}
+body.setting-page .le-panel-title { font-family: var(--font-tech) !important; font-weight: 700 !important; text-transform: uppercase !important; letter-spacing: .06em !important; color: var(--color-text) !important; }
+body.setting-page .le-row-label { font-family: var(--font-tech) !important; text-transform: uppercase !important; letter-spacing: .03em; color: var(--color-text-secondary) !important; font-size: .72rem !important; }
+body.setting-page .le-in {
+  background: var(--color-bg) !important; border: 1px solid var(--color-border) !important; border-radius: 0 !important; color: var(--color-text) !important;
+  clip-path: polygon(5px 0,100% 0,100% calc(100% - 5px),calc(100% - 5px) 100%,0 100%,0 5px);
+}
+body.setting-page .le-in:focus { border-color: var(--color-primary) !important; box-shadow: 0 0 0 2px rgba(var(--color-primary-rgb),.22) !important; }
+body.setting-page .le-row-checks { border-top-color: rgba(var(--color-primary-rgb),.25) !important; }
+
+/* ==================== JUDUL & SUB-JUDUL DASHBOARD: SETELAN USER MENANG (Fase 3 lanjutan) ====================
+   User memilih "setelan menang PENUH": WARNA + FONT + FORMAT judul/sub-judul mengikuti Setting
+   (--title-color-event / --subtitle-color-event / --font-event / --text-transform-event). UKURAN diatur skrip
+   auto-fit di dashboard.html (mulai dari ukuran pilihan user). Bingkai banner HUD (tint+border) & shadow-teks
+   (keterbacaan) TETAP — hanya font/warna/format yang dikembalikan ke kontrol user. Selector setinggi mungkin
+   (.has-bg .stage-custom) agar menang atas SEMUA override HUD sebelumnya (v2/v3/v7/v9/v10). */
+body.hud #eventTitle,
+body.hud.has-bg #eventTitle,
+body.hud.has-bg #stage.stage-custom #eventTitle {
+  font-family: var(--font-event, var(--font-display)) !important;
+  color: var(--title-color-event, var(--color-primary-light)) !important;
+  text-transform: var(--text-transform-event, uppercase) !important;
+}
+body.hud #eventSubtitle,
+body.hud.has-bg #eventSubtitle,
+body.hud.has-bg #stage.stage-custom #eventSubtitle {
+  font-family: var(--font-event, var(--font-tech)) !important;
+  color: var(--subtitle-color-event, var(--color-text-secondary)) !important;
+  text-transform: var(--text-transform-event, uppercase) !important;
+}
+
+/* Remap warna Popup Pemenang (permintaan user 2026-08-20): nama pemenang -> --reel-number-color
+   ("Warna Pemenang") & kategori -> --winner-number-color ("Warna Kategori") diterapkan langsung
+   pada aturan .winner-card-name / .winner-card-cluster di blok HUD POPUP PEMENANG (baris ~4458/4463).
+   Badge #N (.winner-card-number) kembali ke default. CSS-only; id field & logika app.js tak diubah. */
+

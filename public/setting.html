@@ -8,12 +8,15 @@
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700&family=Montserrat:wght@400;600;700;800&family=Orbitron:wght@500;700;900&family=Outfit:wght@400;600;700;800;900&family=Playfair+Display:ital,wght@0,600;0,800;1,600&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700&family=Montserrat:wght@400;600;700;800&family=Orbitron:wght@500;700;900&family=Outfit:wght@400;600;700;800;900&family=Playfair+Display:ital,wght@0,600;0,800;1,600&family=Poppins:wght@400;600;700&family=Rajdhani:wght@500;600;700&family=Teko:wght@500;600;700&display=swap" rel="stylesheet" />
   
   <!-- SheetJS -->
   <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+
+  <!-- Canvas Confetti — dipakai preview "Tes Pemenang" (showWinnerModal → fireConfetti). Tanpa ini, tombol Tes error. -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
   
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="style.css?v=2026.08.20.7" />
   
   <style>
     :root {
@@ -226,7 +229,7 @@
     }
   </style>
 </head>
-<body>
+<body class="hud setting-page">
 
   <!-- HEADER -->
   <header class="settings-header">
@@ -238,11 +241,15 @@
         </svg>
         Kembali ke Dashboard
       </a>
-      <h1 class="settings-page-title">Pengaturan Acara</h1>
+      <span class="set-crest" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c-1.5 3-4 3-4 6 0 1.4.8 2.2 1 3.4"/><path d="M12 3c1.5 3 4 3 4 6 0 1.4-.8 2.2-1 3.4"/><circle cx="9.5" cy="10" r="1"/><circle cx="14.5" cy="10" r="1"/><path d="M7 14c-1.6.3-3 1.4-3 3 1-.9 1.9-.6 2 .4M9 15c-.8 1-1 2.4-.4 3.6.5-.9 1.3-.8 1.6.2M15 15c.8 1 1 2.4.4 3.6-.5-.9-1.3-.8-1.6.2M17 14c1.6.3 3 1.4 3 3-1-.9-1.9-.6-2 .4M12 15v4"/></svg>
+      </span>
+      <h1 class="settings-page-title">Pengaturan Acara<small>Komando Pasukan Khusus</small></h1>
     </div>
-    
-    <div style="font-size: 0.85rem; color: var(--color-text-secondary); font-weight: 600;">
-      Status Database: <span id="uploadStatusText" class="status-tag warning" style="color: var(--color-text);">Belum ada data</span>
+
+    <div class="settings-header-right">
+      <span id="uploadStatusText" class="status-tag warning" style="color: var(--color-text);">Belum ada data</span>
+      <span class="schip ok" id="saveStat"><span class="dot"></span> <span class="stxt">Tersimpan</span></span>
     </div>
   </header>
 
@@ -290,7 +297,7 @@
         </section>
 
         <!-- CARD: Event Identity, Typography & Dynamic Branding -->
-        <section class="settings-card">
+        <section class="settings-card" id="brandingCard">
           <div class="settings-card-header">
             <h2>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
@@ -307,6 +314,11 @@
             <div class="form-group">
               <label for="inputEventSubtitle" style="font-weight: 600; margin-bottom: 6px; display: block;">Sub-judul Acara</label>
               <input type="text" id="inputEventSubtitle" class="form-control" placeholder="Contoh: Grand Prize Drawing 2026" style="width: 100%; box-sizing: border-box;" oninput="updateBrandingPreview()" />
+            </div>
+
+            <div class="form-group">
+              <label for="inputBrandName" style="font-weight: 600; margin-bottom: 6px; display: block;">Nama Brand/Instansi <span style="font-weight:400; color:var(--color-text-muted); font-size:0.78rem;">(opsional — tampil sbg brand di header dashboard)</span></label>
+              <input type="text" id="inputBrandName" class="form-control" placeholder="Contoh: Satsiber Kopassus" style="width: 100%; box-sizing: border-box;" />
             </div>
 
             <!-- TYPOGRAPHY & TEXT FORMAT CONTROLS -->
@@ -385,7 +397,7 @@
             <div style="border-top: 1px dashed var(--color-border-light); padding-top: 14px; margin-top: 12px; margin-bottom: 14px;">
               <h3 style="font-size: 0.9rem; font-weight: 800; color: var(--color-primary); margin: 0 0 10px 0; display: flex; align-items: center; gap: 6px;">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/></svg>
-                Kustomisasi Teks Hadiah & Warna Angka Mesin Slot
+                Kustomisasi Warna Teks Hadiah & Popup Pemenang
               </h3>
 
               <div class="settings-grid" style="grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 12px;">
@@ -413,18 +425,18 @@
 
               <div class="settings-grid" style="grid-template-columns: 1fr 1fr; gap: 15px;">
                 <div class="form-group">
-                  <label for="inputReelNumberColor" style="font-weight: 600; margin-bottom: 6px; display: block; font-size: 0.85rem;">Warna Angka Slot (Normal)</label>
+                  <label for="inputReelNumberColor" style="font-weight: 600; margin-bottom: 6px; display: block; font-size: 0.85rem;">Warna Pemenang</label>
                   <div style="display: flex; align-items: center; gap: 8px;">
                     <input type="color" id="inputReelNumberColor" class="form-control" value="#F8FAFC" style="width: 42px; height: 32px; padding: 2px; cursor: pointer; border-radius: 6px;" onchange="updateBrandingPreview()" />
-                    <span style="font-size: 0.78rem; color: var(--color-text-secondary); font-weight: 600;">Pilih warna angka saat berputar</span>
+                    <span style="font-size: 0.78rem; color: var(--color-text-secondary); font-weight: 600;">Warna nama pemenang di Popup</span>
                   </div>
                 </div>
 
                 <div class="form-group">
-                  <label for="inputWinnerNumberColor" style="font-weight: 600; margin-bottom: 6px; display: block; font-size: 0.85rem;">Warna Angka Pemenang</label>
+                  <label for="inputWinnerNumberColor" style="font-weight: 600; margin-bottom: 6px; display: block; font-size: 0.85rem;">Warna Kategori</label>
                   <div style="display: flex; align-items: center; gap: 8px;">
                     <input type="color" id="inputWinnerNumberColor" class="form-control" value="#FBBF24" style="width: 42px; height: 32px; padding: 2px; cursor: pointer; border-radius: 6px;" onchange="updateBrandingPreview()" />
-                    <span style="font-size: 0.78rem; color: var(--color-text-secondary); font-weight: 600;">Pilih warna angka saat pemenang keluar</span>
+                    <span style="font-size: 0.78rem; color: var(--color-text-secondary); font-weight: 600;">Warna teks kategori peserta di Popup</span>
                   </div>
                 </div>
               </div>
@@ -520,7 +532,14 @@
           <div class="settings-card-body">
             
             <div class="theme-grid">
-              <button class="theme-swatch active" data-theme="professional_blue" title="Profesional Biru (Event Perusahaan / Tech)">
+              <button class="theme-swatch active" data-theme="komando" title="Komando (Gelap Merah — default HUD)">
+                <div class="swatch-colors">
+                  <span style="background:#DC2626"></span><span style="background:#7F1D1D"></span><span style="background:#F97316"></span>
+                </div>
+                <span class="swatch-label">Komando</span>
+                <span class="swatch-badge">Gelap Merah</span>
+              </button>
+              <button class="theme-swatch" data-theme="professional_blue" title="Profesional Biru (Event Perusahaan / Tech)">
                 <div class="swatch-colors">
                   <span style="background:#2563EB"></span><span style="background:#7C3AED"></span><span style="background:#F59E0B"></span>
                 </div>
@@ -597,34 +616,9 @@
               </div>
             </div>
 
-            <!-- LIVE PREVIEW CONTAINER MINIMALIST -->
-            <div style="margin-top: 10px;">
-              <h4 style="margin: 0 0 6px 0; font-family:'Outfit'; font-size:0.82rem; display:flex; align-items:center; gap:6px; color: var(--color-text-secondary);">
-                👁️ Simulasi Tampilan Panggung Dashboard (Live Preview)
-              </h4>
-              <div id="themePreviewBox" class="mini-dashboard-preview" style="border-radius: var(--radius-md); padding: 10px 14px; transition: all 0.3s ease; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; gap: 8px;">
-                <div style="display:flex; align-items:center; justify-content:space-between; border-bottom:1px dashed rgba(255,255,255,0.15); padding-bottom:6px;">
-                  <div style="display:flex; align-items:center; gap:8px; overflow: hidden;">
-                    <span style="font-size:1.0rem; flex-shrink: 0;">🎁</span>
-                    <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                      <div id="miniTitle" style="font-family:'Outfit'; font-size:0.85rem; font-weight:800; line-height:1.1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">DOORPRIZE EVENT</div>
-                      <div id="miniSubtitle" style="font-size:0.68rem; opacity:0.8; margin-top:2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Aplikasi Undian Digital</div>
-                    </div>
-                  </div>
-                  <span id="miniBadge" style="font-size:0.6rem; font-weight:700; padding:2px 6px; border-radius:10px; text-transform:uppercase; flex-shrink:0;">RONDE 1</span>
-                </div>
+            <!-- Mini-preview panggung DIHAPUS (persis konsep HUD d88b998a): tema diterapkan LIVE
+                 ke seluruh halaman via applyTheme() saat swatch diklik, jadi preview mini tak perlu. -->
 
-                <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
-                  <div id="miniReel" style="padding:4px 10px; border-radius:var(--radius-sm); font-family:'Outfit'; font-size:0.82rem; font-weight:800; letter-spacing:1px; box-shadow:0 2px 8px rgba(0,0,0,0.2); transition: all 0.3s ease;">
-                    777 - PST-001
-                  </div>
-                  <div id="miniPrizeTag" style="font-size:0.7rem; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">🎁 Voucher Belanja</div>
-                  <div id="miniBtn" style="padding:4px 10px; border-radius:var(--radius-sm); font-family:'Outfit'; font-size:0.7rem; font-weight:800; letter-spacing:0.5px; cursor:pointer; flex-shrink:0;">
-                    SPIN
-                  </div>
-                </div>
-              </div>
-            </div>
             
           </div>
         </section>
@@ -662,9 +656,6 @@
             </h2>
           </div>
           <div class="settings-card-body">
-            <p style="font-size: 0.82rem; color: var(--color-text-muted); margin: 0;">
-              Password ini dipakai untuk masuk ke aplikasi (halaman <strong>Login</strong>). Password panel admin (<strong>adm1n</strong>) berbeda dan hanya diubah di halaman admin oleh dev.
-            </p>
             <div class="form-group">
               <label for="currentLoginPassword" style="font-weight: 600; margin-bottom: 6px; display: block; font-size: 0.85rem;">Password Login Saat Ini</label>
               <input type="password" id="currentLoginPassword" class="form-control" placeholder="Password login sekarang" style="width: 100%; box-sizing: border-box;" />
@@ -691,18 +682,17 @@
         <span style="font-size: 0.78rem; color: var(--color-text-muted); font-weight: 600;">Kanvas 16:9 — identik dengan dashboard</span>
       </div>
       <div class="settings-card-body">
-        <p style="font-size: 0.82rem; color: var(--color-text-muted); margin: 0; line-height: 1.5;">
-          Geser &amp; ubah ukuran tiap elemen panggung sesuka hati. Susunan di kanvas ini tampil <strong>persis sama</strong> di dashboard &amp; proyektor, berapa pun resolusinya. <strong>Klik</strong> elemen untuk memilih · <strong>seret</strong> untuk memindah · tarik titik sudut/tepi untuk mengubah ukuran · gunakan tombol bulat di atas elemen untuk memutar · panah keyboard untuk geser presisi.
-          Perubahan hanya tersimpan &amp; tersebar saat Anda menekan <strong>Simpan Tata Letak</strong> (terpisah dari tombol "Simpan Semua Pengaturan").
-        </p>
         <div id="layoutEditorRoot"></div>
       </div>
     </section>
+
+    <div class="settings-foot">Powered by <b>Satsiber Kopassus</b></div>
 
   </div>
 
   <!-- FLOATING SAVE BAR -->
   <div class="floating-save-bar">
+    <span class="save-hint" id="sbHint"><span class="dot"></span> Perubahan belum disimpan</span>
     <a href="/dashboard" class="btn btn-secondary" style="text-decoration:none; display:inline-flex; align-items:center; justify-content:center;">Batal</a>
     <button class="btn btn-primary" id="saveSettingsBtn">Simpan Semua Pengaturan</button>
   </div>

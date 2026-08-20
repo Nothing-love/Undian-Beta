@@ -43,7 +43,7 @@ const APP = {
     eventTitle: 'DOORPRIZE',
     eventSubtitle: 'Aplikasi Undian Digital',
     logoUrl: null,
-    theme: 'professional_blue',
+    theme: 'komando',
     customColors: { primary: '#2563EB', secondary: '#7C3AED', accent: '#F59E0B' },
     prizes: []
   }
@@ -56,6 +56,14 @@ const HISTORY_STORAGE_KEY = 'dorprize_history';
 
 // ===================== THEME PRESETS =====================
 const THEME_PRESETS = {
+  komando: {
+    primary: '#DC2626', primaryLight: '#F04444', primaryDark: '#B01B1B', primaryRgb: '220, 38, 38',
+    secondary: '#7F1D1D', secondaryLight: '#991B1B', secondaryRgb: '127, 29, 29',
+    accent: '#F97316', accentLight: '#FB923C', accentRgb: '249, 115, 22',
+    bg: '#0A0E15', bgSecondary: '#0F141D', surface: '#111826',
+    text: '#E9EEF6', textSecondary: '#B3C1D1', textMuted: '#7F93A8',
+    border: '#1F2A3A', borderLight: '#2A3749'
+  },
   professional_blue: {
     primary: '#2563EB', primaryLight: '#3B82F6', primaryDark: '#1D4ED8', primaryRgb: '37, 99, 235',
     secondary: '#7C3AED', secondaryLight: '#8B5CF6', secondaryRgb: '124, 58, 237',
@@ -367,12 +375,33 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (inputTitle && !inputTitle.isDummy) {
     openSettingsModal();
     initLayoutEditor();
+    // Indikator dirty (HUD Setting Fase 3): tandai "belum disimpan" saat ada perubahan input.
+    const _scont = document.querySelector('.settings-container');
+    if (_scont) {
+      const _mark = () => setSettingsDirty(true);
+      _scont.addEventListener('input', _mark);
+      _scont.addEventListener('change', _mark);
+    }
+    setSettingsDirty(false);
   }
 
-  // Jika ini halaman admin, inisialisasi panel admin
+  // Jika ini halaman admin: bila sesi MASIH ter-unlock (cookie 24 jam) — mis. halaman
+  // ter-reload sendiri / tab HP di-discard lalu dibuka lagi — langsung buka panel,
+  // JANGAN paksa login ulang (ini yang bikin "selalu kembali ke login"). GET /api/admin
+  // balas 200 bila unlocked, 403 bila terkunci.
   const adminRondeInput = document.getElementById('adminRonde');
   if (adminRondeInput && !adminRondeInput.isDummy) {
-    openAdminLogin();
+    fetch('/api/admin', { headers: { 'Accept': 'application/json' } })
+      .then(r => {
+        if (r.ok) {
+          const lb = document.getElementById('adminLoginModal');
+          if (lb) lb.style.display = 'none';
+          openAdminPanel();
+        } else {
+          openAdminLogin();
+        }
+      })
+      .catch(() => openAdminLogin());
   }
   
   updateUI();
@@ -599,8 +628,20 @@ async function syncStateWithServer() {
     updateUI();
     if (typeof updatePrizeSidebar === 'function') updatePrizeSidebar();
     if (typeof updatePesertaDatalist === 'function') updatePesertaDatalist();
-    if (typeof refreshAdminTable === 'function') refreshAdminTable();
-    if (typeof populateAdminPrizeSelect === 'function' && document.getElementById('adminPrize')) populateAdminPrizeSelect();
+    // Anti-KEDIP panel admin: sinkron 2s sering ber-"changed" untuk hal lain (mis.
+    // peserta/undian). Bangun-ulang tabel & dropdown HANYA bila data admin-nya benar
+    // berubah → hilangkan kedip & jaga pilihan/scroll operator saat mengonfigurasi.
+    const _adminSig = JSON.stringify({
+      t: APP.adminTargets,
+      r: APP.currentRonde,
+      p: (APP.settings.prizes || []).map(p => [p && p.id, p && p.name, p && p.ronde, p && p.count, p && p.jenis, p && p.grup, p && p.kelompok]),
+      h: (APP.hasilUndian || []).length
+    });
+    if (_adminSig !== APP._lastAdminRenderSig) {
+      APP._lastAdminRenderSig = _adminSig;
+      if (typeof refreshAdminTable === 'function') refreshAdminTable();
+      if (typeof populateAdminPrizeSelect === 'function' && document.getElementById('adminPrize')) populateAdminPrizeSelect();
+    }
     if (typeof renderPrizeSettings === 'function') renderPrizeSettings();
   } catch (e) {
     // Ignore network drop
@@ -709,7 +750,7 @@ function applyTheme(themeKey) {
       border: '#E2E8F0', borderLight: '#F1F5F9'
     };
   } else {
-    colors = THEME_PRESETS[themeKey] || THEME_PRESETS.professional_blue;
+    colors = THEME_PRESETS[themeKey] || THEME_PRESETS.komando;
   }
 
   root.style.setProperty('--color-primary', colors.primary);
@@ -730,6 +771,13 @@ function applyTheme(themeKey) {
   root.style.setProperty('--color-text-muted', colors.textMuted);
   root.style.setProperty('--color-border', colors.border);
   root.style.setProperty('--color-border-light', colors.borderLight);
+
+  // Sinyal mode gelap/terang dari luminance latar tema → poles adaptif (judul & idle ala konsep [data-mode]).
+  // UI-only: hanya set atribut; tidak menyentuh alur undian/reel (sengaja BUKAN body.dark-theme).
+  const _bgHex = String(colors.bg || '#ffffff').replace('#', '');
+  const _br = parseInt(_bgHex.substr(0, 2), 16), _bgc = parseInt(_bgHex.substr(2, 2), 16), _bb = parseInt(_bgHex.substr(4, 2), 16);
+  const _isDark = ((0.2126 * (_br || 255) + 0.7152 * (_bgc || 255) + 0.0722 * (_bb || 255)) / 255) < 0.5;
+  root.setAttribute('data-mode', _isDark ? 'dark' : 'light');
 }
 
 window.applyEventSettings = function() {
@@ -756,6 +804,16 @@ window.applyEventSettings = function() {
   root.style.setProperty('--title-size-event', titleSize);
   root.style.setProperty('--subtitle-color-event', subColor);
   root.style.setProperty('--subtitle-size-event', subSize);
+
+  // Brand-word HUD (dari settings.brandName; sembunyi bila kosong) — Fase 1
+  const hudBrand = document.getElementById('hudBrand');
+  const hudBrandName = document.getElementById('hudBrandName');
+  if (hudBrand && hudBrandName) {
+    const bn = (APP.settings.brandName || '').trim();
+    hudBrandName.textContent = bn;
+    hudBrand.style.display = bn ? 'flex' : 'none';
+  }
+
   root.style.setProperty('--prize-font-family', prizeFont);
   root.style.setProperty('--prize-title-color', prizeTitleColor);
   root.style.setProperty('--reel-number-color', reelNumColor);
@@ -923,7 +981,7 @@ window.updateThemePreview = function(themeKey) {
       text: '#FFFFFF'
     };
   } else {
-    colors = THEME_PRESETS[themeKey] || THEME_PRESETS.professional_blue;
+    colors = THEME_PRESETS[themeKey] || THEME_PRESETS.komando;
   }
 
   previewBox.style.background = `linear-gradient(135deg, ${colors.bg || colors.secondary}, ${colors.surface || colors.primary})`;
@@ -1200,6 +1258,7 @@ function bindEvents() {
       }
       updateThemePreview(theme);
       applyTheme(theme);
+      if (typeof setSettingsDirty === 'function') setSettingsDirty(true);
     });
   });
 
@@ -3033,13 +3092,24 @@ function openAdminLogin() {
   document.getElementById('adminLoginError').style.display = 'none';
   
   const loginBox = document.getElementById('adminLoginModal');
-  if (loginBox) loginBox.style.display = 'block';
-  
+  // 'flex' (bukan 'block') agar sesuai CSS HUD → panel login TER-TENGAH (block bikin
+  // ia mepet ke kiri). Pemanggil lain menyembunyikan via display:'none'.
+  if (loginBox) loginBox.style.display = 'flex';
+
   const wrapper = document.getElementById('adminPanelWrapper');
   if (wrapper) wrapper.style.display = 'none';
   openModal('adminLoginModal');
   setTimeout(() => document.getElementById('adminPassword').focus(), 100);
 }
+
+// Kunci panel admin (kembali ke layar login). Karena panel kini otomatis terbuka
+// selama sesi masih unlock, tombol ini memberi jalan SENGAJA untuk keluar/mengunci.
+window.lockAdminPanel = async function() {
+  try {
+    await fetch('/api/admin/lock', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+  } catch (e) { /* luring: tetap tampilkan layar login */ }
+  openAdminLogin();
+};
 
 async function handleAdminLogin() {
   const passwordInput = document.getElementById('adminPassword');
@@ -3170,6 +3240,9 @@ window.onAdminPrizeChange = function() {
   const hint = document.getElementById('adminPrizeHint');
   const prize = sel ? findPrizeById(sel.value) : null;
 
+  // Segarkan tampilan "N / slot" tiap kali hadiah (dan kuotanya) berubah.
+  if (typeof updateTargetChipCount === 'function') updateTargetChipCount();
+
   if (!prize) {
     if (hiddenRonde) hiddenRonde.value = APP.currentRonde || 1;
     if (hint) hint.innerHTML = 'Target menempel pada <strong>hadiah</strong>, bukan nomor ronde. ' +
@@ -3218,6 +3291,20 @@ window.addTargetChip = function(id) {
   const container = document.getElementById('targetChipContainer');
   if (!container) return;
 
+  // Batasi jumlah target agar TIDAK melebihi kuota pemenang hadiah terpilih.
+  // (Penegakan final tetap ada di saveAdminTarget sebagai jaring pengaman.)
+  const _prizeSel = document.getElementById('adminPrize');
+  const _selPrize = _prizeSel ? findPrizeById(_prizeSel.value) : null;
+  if (_selPrize) {
+    const quota = parseInt(_selPrize.count) || 1;
+    const current = container.querySelectorAll('.target-chip').length;
+    if (current >= quota) {
+      const nm = (_selPrize.name && _selPrize.name.trim()) ? _selPrize.name.trim() : 'ini';
+      showToast('Kuota hadiah "' + nm + '" hanya ' + quota + ' pemenang. Hapus salah satu target dulu, atau tambah jumlah pemenang di Pengaturan.', 'warning');
+      return;
+    }
+  }
+
   // Cegah duplikat
   const existing = Array.from(container.querySelectorAll('.target-chip')).map(c => c.dataset.id);
   if (existing.includes(id)) {
@@ -3256,12 +3343,23 @@ function updateTargetChipCount() {
   const container = document.getElementById('targetChipContainer');
   const count = container ? container.querySelectorAll('.target-chip').length : 0;
   const el = document.getElementById('targetChipCount');
-  if (el) el.textContent = '(' + count + ' dipilih)';
+  if (!el) return;
+  // Tampilkan kuota hadiah terpilih (N / slot) agar operator tahu batas pemenang.
+  const prizeSel = document.getElementById('adminPrize');
+  const selPrize = prizeSel ? findPrizeById(prizeSel.value) : null;
+  const quota = selPrize ? (parseInt(selPrize.count) || 1) : null;
+  el.textContent = (quota != null) ? ('(' + count + ' / ' + quota + ' slot)') : ('(' + count + ' dipilih)');
 }
 
 // ===================== PESERTA LIST MODAL =====================
 
 window.openPesertaListModal = function(btnEl) {
+  // Wajib pilih hadiah dulu → daftar peserta lalu disaring sesuai KATEGORI & KUOTA hadiah.
+  const prizeSel = document.getElementById('adminPrize');
+  if (prizeSel && !prizeSel.value) {
+    showToast('Pilih hadiah target terlebih dahulu, agar peserta bisa disaring sesuai kategori & kuota hadiah.', 'warning');
+    return;
+  }
   document.getElementById('searchPesertaInput').value = '';
   filterPesertaList();
   openModal('pesertaListModal');
@@ -3271,6 +3369,11 @@ window.filterPesertaList = function() {
   const q = document.getElementById('searchPesertaInput').value.toLowerCase();
   const adminCluster = document.getElementById('adminCluster');
   const filterCluster = adminCluster ? adminCluster.value : 'Semua';
+  // Hadiah terpilih → saring peserta agar HANYA yang cocok KATEGORI (jenis/grup/kelompok)
+  // hadiah itu yang tampil (penegakan final tetap di saveAdminTarget).
+  const _prizeSel = document.getElementById('adminPrize');
+  const _selPrize = _prizeSel ? findPrizeById(_prizeSel.value) : null;
+  const _prizeRule = _selPrize ? { jenis: _selPrize.jenis || 'Semua', grup: _selPrize.grup || 'Semua', kelompok: _selPrize.kelompok || 'Semua' } : null;
   const container = document.getElementById('pesertaListContainer');
   
   // Get all previous winners so we can mark them
@@ -3292,6 +3395,7 @@ window.filterPesertaList = function() {
   });
 
   const filtered = APP.dataPeserta.filter(p => {
+    if (_prizeRule && !matchRuleParticipant(p, _prizeRule)) return false;
     if (!matchParticipantCluster(p, filterCluster)) return false;
     if (q && !p.nama.toLowerCase().includes(q) && !p.id.toLowerCase().includes(q)) return false;
     return true;
@@ -3679,6 +3783,21 @@ function importAdminConfig() {
   }
 }
 
+// Indikator status simpan (dirty) — HUD Setting (Fase 3). UI-only: hanya MENCERMINKAN
+// keadaan tersimpan/belum di chip #saveStat + save bar; tak mengubah cara/isi penyimpanan.
+function setSettingsDirty(dirty) {
+  const chip = document.getElementById('saveStat');
+  if (chip) {
+    chip.classList.toggle('ok', !dirty);
+    chip.classList.toggle('warn', !!dirty);
+    const txt = chip.querySelector('.stxt');
+    if (txt) txt.textContent = dirty ? 'Perubahan belum disimpan' : 'Tersimpan';
+  }
+  const bar = document.querySelector('.floating-save-bar');
+  if (bar) bar.classList.toggle('dirty', !!dirty);
+}
+window.setSettingsDirty = setSettingsDirty;
+
 // ===================== SETTINGS MODAL HANDLERS =====================
 function saveEventSettings() {
   const title = document.getElementById('inputEventTitle') ? document.getElementById('inputEventTitle').value.trim() : '';
@@ -3686,6 +3805,8 @@ function saveEventSettings() {
 
   if (title) APP.settings.eventTitle = title;
   APP.settings.eventSubtitle = subtitle;
+  // Nama Brand/Instansi (brand-word header dashboard, Fase 1) — field baru Fase 3.
+  if (document.getElementById('inputBrandName')) APP.settings.brandName = document.getElementById('inputBrandName').value.trim();
 
   if (document.getElementById('inputFontFamily')) APP.settings.fontFamily = document.getElementById('inputFontFamily').value;
   if (document.getElementById('inputTextTransform')) APP.settings.textTransform = document.getElementById('inputTextTransform').value;
@@ -3721,6 +3842,7 @@ function saveEventSettings() {
   applyEventSettings();
   saveSettings();
   closeModal('settingsModal');
+  if (typeof setSettingsDirty === 'function') setSettingsDirty(false);
   showToast('Pengaturan berhasil disimpan!', 'success');
 }
 
@@ -3931,6 +4053,7 @@ function openSettingsModal() {
   // Populate current values
   if (document.getElementById('inputEventTitle')) document.getElementById('inputEventTitle').value = APP.settings.eventTitle || '';
   if (document.getElementById('inputEventSubtitle')) document.getElementById('inputEventSubtitle').value = APP.settings.eventSubtitle || '';
+  if (document.getElementById('inputBrandName')) document.getElementById('inputBrandName').value = APP.settings.brandName || '';
 
   if (document.getElementById('inputFontFamily')) document.getElementById('inputFontFamily').value = APP.settings.fontFamily || 'Outfit, sans-serif';
   if (document.getElementById('inputTextTransform')) document.getElementById('inputTextTransform').value = APP.settings.textTransform || 'uppercase';
@@ -4062,6 +4185,7 @@ function showToast(message, type = 'info') {
 window.showCustomConfirm = function(title, message, confirmText = 'Ya, Lanjutkan', cancelText = 'Batal') {
   return new Promise((resolve) => {
     const overlay = document.createElement('div');
+    overlay.className = 'hud-confirm-overlay';
     overlay.style.cssText = `
       position: fixed;
       top: 0;
@@ -4080,6 +4204,7 @@ window.showCustomConfirm = function(title, message, confirmText = 'Ya, Lanjutkan
     `;
 
     const modal = document.createElement('div');
+    modal.className = 'hud-confirm-modal';
     modal.style.cssText = `
       background: var(--color-surface, #1E293B);
       border: 1px solid var(--color-border-light, #334155);
@@ -4097,6 +4222,7 @@ window.showCustomConfirm = function(title, message, confirmText = 'Ya, Lanjutkan
 
     const titleEl = document.createElement('h3');
     titleEl.textContent = title;
+    titleEl.className = 'hud-confirm-title';
     titleEl.style.cssText = `
       font-family: 'Outfit', sans-serif;
       font-size: 1.25rem;
@@ -4107,6 +4233,7 @@ window.showCustomConfirm = function(title, message, confirmText = 'Ya, Lanjutkan
 
     const msgEl = document.createElement('p');
     msgEl.textContent = message;
+    msgEl.className = 'hud-confirm-msg';
     msgEl.style.cssText = `
       font-family: 'Inter', sans-serif;
       font-size: 0.88rem;
@@ -4116,6 +4243,7 @@ window.showCustomConfirm = function(title, message, confirmText = 'Ya, Lanjutkan
     `;
 
     const btnContainer = document.createElement('div');
+    btnContainer.className = 'hud-confirm-actions';
     btnContainer.style.cssText = `
       display: flex;
       gap: 12px;
@@ -4124,6 +4252,7 @@ window.showCustomConfirm = function(title, message, confirmText = 'Ya, Lanjutkan
 
     const cancelBtn = document.createElement('button');
     cancelBtn.textContent = cancelText;
+    cancelBtn.className = 'hud-confirm-cancel';
     cancelBtn.style.cssText = `
       flex: 1;
       padding: 10px 16px;
@@ -4141,6 +4270,7 @@ window.showCustomConfirm = function(title, message, confirmText = 'Ya, Lanjutkan
 
     const confirmBtn = document.createElement('button');
     confirmBtn.textContent = confirmText;
+    confirmBtn.className = 'hud-confirm-ok';
     confirmBtn.style.cssText = `
       flex: 1;
       padding: 10px 16px;
