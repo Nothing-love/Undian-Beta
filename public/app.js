@@ -3204,6 +3204,9 @@ window.onAdminPrizeChange = function() {
   const hint = document.getElementById('adminPrizeHint');
   const prize = sel ? findPrizeById(sel.value) : null;
 
+  // Segarkan tampilan "N / slot" tiap kali hadiah (dan kuotanya) berubah.
+  if (typeof updateTargetChipCount === 'function') updateTargetChipCount();
+
   if (!prize) {
     if (hiddenRonde) hiddenRonde.value = APP.currentRonde || 1;
     if (hint) hint.innerHTML = 'Target menempel pada <strong>hadiah</strong>, bukan nomor ronde. ' +
@@ -3252,6 +3255,20 @@ window.addTargetChip = function(id) {
   const container = document.getElementById('targetChipContainer');
   if (!container) return;
 
+  // Batasi jumlah target agar TIDAK melebihi kuota pemenang hadiah terpilih.
+  // (Penegakan final tetap ada di saveAdminTarget sebagai jaring pengaman.)
+  const _prizeSel = document.getElementById('adminPrize');
+  const _selPrize = _prizeSel ? findPrizeById(_prizeSel.value) : null;
+  if (_selPrize) {
+    const quota = parseInt(_selPrize.count) || 1;
+    const current = container.querySelectorAll('.target-chip').length;
+    if (current >= quota) {
+      const nm = (_selPrize.name && _selPrize.name.trim()) ? _selPrize.name.trim() : 'ini';
+      showToast('Kuota hadiah "' + nm + '" hanya ' + quota + ' pemenang. Hapus salah satu target dulu, atau tambah jumlah pemenang di Pengaturan.', 'warning');
+      return;
+    }
+  }
+
   // Cegah duplikat
   const existing = Array.from(container.querySelectorAll('.target-chip')).map(c => c.dataset.id);
   if (existing.includes(id)) {
@@ -3290,12 +3307,23 @@ function updateTargetChipCount() {
   const container = document.getElementById('targetChipContainer');
   const count = container ? container.querySelectorAll('.target-chip').length : 0;
   const el = document.getElementById('targetChipCount');
-  if (el) el.textContent = '(' + count + ' dipilih)';
+  if (!el) return;
+  // Tampilkan kuota hadiah terpilih (N / slot) agar operator tahu batas pemenang.
+  const prizeSel = document.getElementById('adminPrize');
+  const selPrize = prizeSel ? findPrizeById(prizeSel.value) : null;
+  const quota = selPrize ? (parseInt(selPrize.count) || 1) : null;
+  el.textContent = (quota != null) ? ('(' + count + ' / ' + quota + ' slot)') : ('(' + count + ' dipilih)');
 }
 
 // ===================== PESERTA LIST MODAL =====================
 
 window.openPesertaListModal = function(btnEl) {
+  // Wajib pilih hadiah dulu → daftar peserta lalu disaring sesuai KATEGORI & KUOTA hadiah.
+  const prizeSel = document.getElementById('adminPrize');
+  if (prizeSel && !prizeSel.value) {
+    showToast('Pilih hadiah target terlebih dahulu, agar peserta bisa disaring sesuai kategori & kuota hadiah.', 'warning');
+    return;
+  }
   document.getElementById('searchPesertaInput').value = '';
   filterPesertaList();
   openModal('pesertaListModal');
@@ -3305,6 +3333,11 @@ window.filterPesertaList = function() {
   const q = document.getElementById('searchPesertaInput').value.toLowerCase();
   const adminCluster = document.getElementById('adminCluster');
   const filterCluster = adminCluster ? adminCluster.value : 'Semua';
+  // Hadiah terpilih → saring peserta agar HANYA yang cocok KATEGORI (jenis/grup/kelompok)
+  // hadiah itu yang tampil (penegakan final tetap di saveAdminTarget).
+  const _prizeSel = document.getElementById('adminPrize');
+  const _selPrize = _prizeSel ? findPrizeById(_prizeSel.value) : null;
+  const _prizeRule = _selPrize ? { jenis: _selPrize.jenis || 'Semua', grup: _selPrize.grup || 'Semua', kelompok: _selPrize.kelompok || 'Semua' } : null;
   const container = document.getElementById('pesertaListContainer');
   
   // Get all previous winners so we can mark them
@@ -3326,6 +3359,7 @@ window.filterPesertaList = function() {
   });
 
   const filtered = APP.dataPeserta.filter(p => {
+    if (_prizeRule && !matchRuleParticipant(p, _prizeRule)) return false;
     if (!matchParticipantCluster(p, filterCluster)) return false;
     if (q && !p.nama.toLowerCase().includes(q) && !p.id.toLowerCase().includes(q)) return false;
     return true;

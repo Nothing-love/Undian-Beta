@@ -115,8 +115,9 @@
       box-shadow: 0 0 0 1.5px rgba(var(--color-primary-rgb), .7), 0 0 11px rgba(var(--color-primary-rgb), .35); }
     .crest svg { width: 60%; height: 60%; color: var(--color-primary-light); }
 
-    /* padding-bottom memberi ruang agar konten terakhir lolos dari action-bar tetap (fixed). */
-    .admin-body { padding: 14px; padding-bottom: calc(112px + env(safe-area-inset-bottom, 0)); display: flex; flex-direction: column; gap: 14px; }
+    /* Tombol "Simpan Target Ronde" kini INLINE di kartu Konfigurasi (bukan bar fixed) →
+       satu gulir bersih, daftar target tak terhalang. */
+    .admin-body { padding: 14px; padding-bottom: calc(24px + env(safe-area-inset-bottom, 0)); display: flex; flex-direction: column; gap: 14px; }
 
     /* ==================== HUD MODULE CARD ==================== */
     .mc { position: relative; background: linear-gradient(160deg, var(--color-surface), color-mix(in srgb, var(--color-surface) 88%, var(--color-bg)));
@@ -346,6 +347,8 @@
 
             <p class="hint" style="text-align:center;">Target yang Anda simpan akan keluar otomatis saat spin ronde tersebut dijalankan.</p>
 
+            <button type="button" class="mbtn" id="saveAdminTargetBtn">Simpan Target Ronde</button>
+
           </div>
         </section>
 
@@ -395,11 +398,6 @@
 
       </div>
 
-      <!-- Aksi utama sticky -->
-      <div class="abar">
-        <button type="button" class="mbtn" id="saveAdminTargetBtn">Simpan Target Ronde</button>
-      </div>
-
     </div>
   </div>
 
@@ -433,7 +431,7 @@
   <datalist id="pesertaDatalist"></datalist>
   <div id="toastContainer" class="toast-container"></div>
 
-  <script src="app.js?v=2026.08.20.4"></script>
+  <script src="app.js?v=2026.08.20.5"></script>
 </body>
 
 </html>
