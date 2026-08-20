@@ -3,482 +3,350 @@
 
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Panel Admin — DOORPRIZE</title>
 
-  <!-- Google Fonts -->
+  <!-- Google Fonts (bahasa desain HUD): Bebas Neue / Rajdhani / Teko / Inter -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link
-    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800;900&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&family=Rajdhani:wght@500;600;700&family=Teko:wght@500;600;700&display=swap"
     rel="stylesheet" />
 
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="style.css?v=2026.08.20.7" />
 
   <style>
+    /* ============================================================
+       HUD ADMIN — Panel Kontrol Target (Fase 4), mobile-first.
+       Port dari konsep artifact dad2fa86 (v2: tanpa Filter Kategori),
+       selaras Dashboard/Setting/Popup. UI-only: SEMUA id & handler
+       app.js dipertahankan; app.js TIDAK diubah.
+       Tema: app.js applyTheme() men-set token (8 tema) + data-mode
+       secara inline pada <html> → halaman ini ADAPTIF. Token komando
+       di bawah hanya fallback pra-load (mis. layar login). */
     :root {
-      --card-bg: var(--color-surface);
-      --card-border: var(--color-border-light);
+      --color-primary: #DC2626; --color-primary-light: #F04444; --color-primary-dark: #B01B1B; --color-primary-rgb: 220, 38, 38;
+      --color-secondary: #7f1d1d; --color-secondary-rgb: 127, 29, 29;
+      --color-accent: #F97316; --color-accent-rgb: 249, 115, 22;
+      --color-bg: #0a0e15; --color-bg-secondary: #0f141d; --color-surface: #111826;
+      --color-text: #e9eef6; --color-text-secondary: #b3c1d1; --color-text-muted: #7f93a8; --color-border: #1f2a3a;
     }
 
-    body {
-      background-color: var(--color-bg);
-      color: var(--color-text);
-      font-family: 'Inter', system-ui, -apple-system, sans-serif;
-      margin: 0;
-      padding: 0;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      overflow-y: auto !important;
-      -webkit-tap-highlight-color: transparent;
+    * { box-sizing: border-box; }
+
+    body.admin-hud {
+      margin: 0; min-height: 100dvh; color: var(--color-text); font-family: var(--font-ui);
+      -webkit-tap-highlight-color: transparent; -webkit-font-smoothing: antialiased;
+      background:
+        radial-gradient(52% 42% at 88% 0%, rgba(var(--color-primary-rgb), .12), transparent 60%),
+        radial-gradient(44% 46% at 3% 100%, rgba(var(--color-secondary-rgb), .10), transparent 62%),
+        var(--color-bg);
+      transition: background .35s ease, color .35s ease;
+    }
+    /* Halus grid + scanline dekoratif (di belakang konten) */
+    body.admin-hud::before {
+      content: ""; position: fixed; inset: 0; z-index: 0; pointer-events: none; opacity: .5;
+      background-image:
+        linear-gradient(rgba(128, 140, 160, .06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(128, 140, 160, .06) 1px, transparent 1px);
+      background-size: 46px 46px, 46px 46px;
+      -webkit-mask-image: radial-gradient(120% 100% at 50% 30%, #000 12%, transparent 92%);
+              mask-image: radial-gradient(120% 100% at 50% 30%, #000 12%, transparent 92%);
     }
 
-    /* Modern Sticky Header */
-    .admin-header {
-      background: var(--color-surface);
-      border-bottom: 1px solid var(--color-border-light);
-      padding: 12px var(--space-xl);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      position: sticky;
-      top: 0;
-      z-index: 100;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+    /* ==================== LOGIN ==================== */
+    /* #adminLoginModal ditampilkan default; handleAdminLogin() menyembunyikannya
+       (display:none inline) setelah unlock — jadi cukup CSS display:flex di sini. */
+    #adminLoginModal.admin-login {
+      position: fixed; inset: 0; z-index: 40; display: flex; align-items: center; justify-content: center;
+      padding: calc(20px + env(safe-area-inset-top, 0)) 18px calc(20px + env(safe-area-inset-bottom, 0));
     }
-
-    .header-title-group {
-      display: flex;
-      align-items: center;
-      gap: 15px;
-      flex-wrap: wrap;
-      width: 100%;
-      justify-content: space-between;
+    .admin-login-panel {
+      position: relative; z-index: 2; width: 100%; max-width: 400px; text-align: center;
+      padding: 40px 30px 30px; display: flex; flex-direction: column; align-items: center; gap: 14px;
+      background: linear-gradient(160deg, var(--color-surface), color-mix(in srgb, var(--color-surface) 84%, var(--color-bg)));
+      border: 1.5px solid rgba(var(--color-primary-rgb), .5);
+      clip-path: polygon(0 20px, 20px 0, calc(100% - 26px) 0, 100% 26px, 100% calc(100% - 20px), calc(100% - 20px) 100%, 26px 100%, 0 calc(100% - 26px));
+      box-shadow: 0 26px 64px -22px rgba(0, 0, 0, .7), 0 0 42px rgba(var(--color-primary-rgb), .14);
     }
+    .cnr { position: absolute; width: 20px; height: 20px; z-index: 3; border: 2px solid var(--color-primary-light);
+      filter: drop-shadow(0 0 3px rgba(var(--color-primary-rgb), .7)); pointer-events: none; }
+    .cnr.tl { top: 11px; left: 11px; border-right: 0; border-bottom: 0; }
+    .cnr.tr { top: 11px; right: 11px; border-left: 0; border-bottom: 0; }
+    .cnr.bl { bottom: 11px; left: 11px; border-right: 0; border-top: 0; }
+    .cnr.br { bottom: 11px; right: 11px; border-left: 0; border-top: 0; }
+    .lock { width: 58px; height: 58px; display: grid; place-items: center; background: var(--color-bg-secondary);
+      border: 2px solid var(--color-primary); clip-path: polygon(50% 0, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%);
+      box-shadow: 0 0 20px rgba(var(--color-primary-rgb), .5); }
+    .lock svg { width: 26px; height: 26px; color: var(--color-primary-light); }
+    .ltitle { font-family: var(--font-display); font-weight: 400; letter-spacing: .06em; font-size: 1.85rem; color: var(--color-text); line-height: 1; }
+    .lnote { font-size: .78rem; color: var(--color-text-muted); line-height: 1.55; max-width: 30ch; margin: 0; }
+    .admin-login-err { display: none; width: 100%; padding: 9px 12px; font-family: var(--font-tech); font-weight: 600;
+      font-size: .82rem; color: #fff; background: rgba(var(--color-primary-rgb), .18); border: 1px solid rgba(var(--color-primary-rgb), .6);
+      clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px); }
+    .admin-login-fld { width: 100%; text-align: left; }
 
-    .btn-back-dashboard {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      padding: 8px 16px;
-      border-radius: var(--radius-md);
-      background: var(--color-bg-secondary);
+    /* ==================== PANEL SHELL ==================== */
+    /* openAdminPanel() men-set #adminPanelWrapper display:block (inline). Kolom flex
+       full-tinggi ditempatkan di .admin-shell agar tak bentrok dengan inline itu. */
+    #adminPanelWrapper { position: relative; z-index: 1; }
+    .admin-shell { min-height: 100dvh; max-width: 760px; margin: 0 auto; }
+
+    .ahead { position: sticky; top: 0; z-index: 20; flex-shrink: 0; display: flex; align-items: center; gap: 11px;
+      padding: calc(11px + env(safe-area-inset-top, 0)) 15px 12px; border-bottom: 1px solid color-mix(in srgb, var(--color-border) 85%, transparent);
+      background: color-mix(in srgb, var(--color-bg-secondary) 92%, transparent); backdrop-filter: blur(9px); -webkit-backdrop-filter: blur(9px); }
+    .iconbtn { width: 40px; height: 40px; flex-shrink: 0; display: grid; place-items: center; cursor: pointer;
+      color: var(--color-text-secondary); background: var(--color-bg); border: 1px solid var(--color-border); text-decoration: none;
+      clip-path: polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px); transition: color .15s, border-color .15s; }
+    .iconbtn:hover { color: var(--color-text); border-color: rgba(var(--color-primary-rgb), .5); }
+    .iconbtn svg { width: 18px; height: 18px; }
+    .ahead .htxt { flex: 1; min-width: 0; }
+    .ahead .ht { font-family: var(--font-tech); font-weight: 700; font-size: .96rem; letter-spacing: .08em; text-transform: uppercase;
+      color: var(--color-text); line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ahead .hs { font-family: var(--font-tech); font-weight: 600; font-size: .6rem; letter-spacing: .22em; text-transform: uppercase; color: var(--color-text-muted); margin-top: 2px; }
+    .crest { width: 38px; height: 38px; border-radius: 50%; flex-shrink: 0; display: grid; place-items: center;
+      background: radial-gradient(circle at 50% 32%, color-mix(in srgb, var(--color-primary) 16%, var(--color-surface)), var(--color-bg) 78%);
+      box-shadow: 0 0 0 1.5px rgba(var(--color-primary-rgb), .7), 0 0 11px rgba(var(--color-primary-rgb), .35); }
+    .crest svg { width: 60%; height: 60%; color: var(--color-primary-light); }
+
+    /* padding-bottom memberi ruang agar konten terakhir lolos dari action-bar tetap (fixed). */
+    .admin-body { padding: 14px; padding-bottom: calc(112px + env(safe-area-inset-bottom, 0)); display: flex; flex-direction: column; gap: 14px; }
+
+    /* ==================== HUD MODULE CARD ==================== */
+    .mc { position: relative; background: linear-gradient(160deg, var(--color-surface), color-mix(in srgb, var(--color-surface) 88%, var(--color-bg)));
       border: 1px solid var(--color-border);
-      color: var(--color-text);
-      text-decoration: none;
-      font-weight: 600;
-      font-size: 0.85rem;
-      transition: all var(--transition-fast);
-    }
+      clip-path: polygon(0 11px, 11px 0, calc(100% - 15px) 0, 100% 15px, 100% calc(100% - 11px), calc(100% - 11px) 100%, 15px 100%, 0 calc(100% - 11px));
+      box-shadow: 0 10px 26px -16px rgba(0, 0, 0, .6); }
+    .mc-head { display: flex; align-items: center; gap: 9px; padding: 12px 15px; border-bottom: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent); }
+    .mc-head .tab { width: 4px; height: 17px; flex-shrink: 0; background: var(--color-primary);
+      clip-path: polygon(0 0, 100% 15%, 100% 85%, 0 100%); box-shadow: 0 0 7px rgba(var(--color-primary-rgb), .6); }
+    .mc-head h3 { font-family: var(--font-tech); font-weight: 700; font-size: .88rem; letter-spacing: .07em; text-transform: uppercase; margin: 0; color: var(--color-text); flex: 1; line-height: 1.15; }
+    .mc-head .em { font-size: .95rem; }
+    .mc-body { padding: 14px 15px; display: flex; flex-direction: column; gap: 13px; }
+    .mc-body.mc-body-flush { padding: 6px 0 10px; }
+    /* password <details> */
+    details.mc > summary.mc-summary { list-style: none; cursor: pointer; }
+    details.mc > summary.mc-summary::-webkit-details-marker { display: none; }
+    .mc-caret { color: var(--color-text-muted); font-size: .8rem; transition: transform .2s; }
+    details.mc[open] .mc-caret { transform: rotate(180deg); }
 
-    .btn-back-dashboard:hover {
-      background: var(--color-primary);
-      color: #FFFFFF;
-      border-color: var(--color-primary);
-      transform: translateY(-1px);
-    }
+    /* ==================== FIELDS ==================== */
+    .fld { display: flex; flex-direction: column; gap: 6px; }
+    .flbl { font-family: var(--font-tech); font-weight: 700; font-size: .68rem; letter-spacing: .1em; text-transform: uppercase; color: var(--color-text-secondary); }
+    .fin { width: 100%; min-height: 46px; background: var(--color-bg); color: var(--color-text); border: 1px solid var(--color-border);
+      padding: 12px 13px; font-family: var(--font-ui); font-size: .92rem; outline: none; transition: border-color .15s, box-shadow .15s;
+      clip-path: polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px); }
+    .fin::placeholder { color: color-mix(in srgb, var(--color-text-muted) 90%, transparent); }
+    .fin:focus { border-color: var(--color-primary); box-shadow: 0 0 0 2px rgba(var(--color-primary-rgb), .22); }
+    .selwrap { position: relative; }
+    .selwrap::after { content: ""; position: absolute; right: 15px; top: 50%; width: 8px; height: 8px;
+      border-right: 2px solid var(--color-primary-light); border-bottom: 2px solid var(--color-primary-light);
+      transform: translateY(-70%) rotate(45deg); pointer-events: none; }
+    select.fin { appearance: none; -webkit-appearance: none; padding-right: 34px; cursor: pointer; }
+    .hint { font-size: .74rem; color: var(--color-text-muted); line-height: 1.55; margin: 0; }
+    .hint b { color: var(--color-text-secondary); }
 
-    .admin-page-title {
-      font-family: 'Outfit', sans-serif;
-      font-size: 1.35rem;
-      font-weight: 800;
-      margin: 0;
-      background: linear-gradient(135deg, #EF4444, #7C3AED);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      letter-spacing: -0.01em;
-    }
+    /* ==================== BUTTONS (touch ≥44px) ==================== */
+    .mbtn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%; min-height: 48px; cursor: pointer; border: 0; color: #fff;
+      font-family: var(--font-number); font-weight: 600; font-size: 1.1rem; letter-spacing: .08em; text-transform: uppercase; padding: 12px 18px; line-height: 1;
+      background: linear-gradient(180deg, var(--color-primary-light), var(--color-primary) 60%, var(--color-primary-dark));
+      clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%); box-shadow: 0 9px 20px -9px rgba(var(--color-primary-rgb), .7);
+      transition: filter .15s, transform .07s; }
+    .mbtn:hover { filter: brightness(1.07); }
+    .mbtn:active { transform: translateY(1px); }
+    .mbtn svg { width: 16px; height: 16px; }
+    .mbtn.outline { background: transparent; border: 1px solid rgba(var(--color-primary-rgb), .55); color: var(--color-primary-light); box-shadow: none;
+      font-family: var(--font-tech); font-weight: 700; font-size: .9rem; letter-spacing: .06em; }
+    .mbtn.dash { background: var(--color-bg); border: 1.5px dashed rgba(var(--color-primary-rgb), .5); color: var(--color-primary-light); box-shadow: none;
+      clip-path: polygon(0 8px, 8px 0, calc(100% - 8px) 0, 100% 8px, 100% calc(100% - 8px), calc(100% - 8px) 100%, 8px 100%, 0 calc(100% - 8px));
+      font-family: var(--font-tech); font-weight: 700; font-size: .88rem; letter-spacing: .04em; text-transform: none; }
+    .mbtn.dash:hover { border-color: var(--color-primary); color: var(--color-text); filter: none; }
+    .mbtn:focus-visible, .iconbtn:focus-visible, .eye:focus-visible { outline: 2px solid var(--color-primary-light); outline-offset: 2px; }
 
-    .admin-container {
-      max-width: 1200px;
-      width: 100%;
-      margin: var(--space-lg) auto;
-      padding: 0 var(--space-lg);
-      box-sizing: border-box;
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      gap: var(--space-xl);
-      padding-bottom: 40px;
-    }
+    /* ==================== SELECTED-TARGET CHIPS ==================== */
+    .tgt-count-row { display: flex; align-items: center; justify-content: space-between; }
+    .cnt { font-family: var(--font-tech); font-weight: 700; font-size: .72rem; letter-spacing: .05em; text-transform: uppercase; color: var(--color-primary-light); }
+    /* Wadah chip (chip individual dibuat app.js = pill primary; kita menata WADAH-nya). */
+    #targetChipContainer.chiprow { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; min-height: 56px;
+      background: var(--color-bg); border: 1px solid var(--color-border); padding: 11px;
+      clip-path: polygon(0 8px, 8px 0, calc(100% - 8px) 0, 100% 8px, 100% calc(100% - 8px), calc(100% - 8px) 100%, 8px 100%, 0 calc(100% - 8px)); }
+    #chipPlaceholder, .chip-ph { color: var(--color-text-muted); font-size: .84rem; align-self: center; }
 
-    .admin-grid {
-      display: grid;
-      grid-template-columns: minmax(360px, 440px) 1fr;
-      grid-template-areas:
-        "target table"
-        "password table";
-      gap: var(--space-xl);
-      align-items: start;
-    }
+    /* ==================== ACTIVE-TARGET TABLE → HUD CARDS ==================== */
+    /* refreshAdminTable() menghasilkan <table> (dgn data-label). Kita render sbg
+       kartu HUD di semua lebar — mobile-first. Markup/logika app.js tak diubah. */
+    #adminTargetTable.admin-table-wrap { overflow: visible; max-height: none; padding: 0; }
+    .admin-table { width: 100%; border-collapse: collapse; }
+    .admin-table, .admin-table tbody { display: block; width: 100%; }
+    .admin-table thead { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); border: 0; }
+    .admin-table tr { display: block; position: relative; margin: 11px 14px; padding: 12px 13px 13px;
+      background: var(--color-bg); border: 1px solid var(--color-border);
+      clip-path: polygon(0 8px, 8px 0, calc(100% - 8px) 0, 100% 8px, 100% calc(100% - 8px), calc(100% - 8px) 100%, 8px 100%, 0 calc(100% - 8px)); }
+    .admin-table td { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; padding: 8px 0;
+      border-bottom: 1px dashed color-mix(in srgb, var(--color-border) 80%, transparent); }
+    .admin-table td:last-child { border-bottom: 0; }
+    .admin-table td::before { content: attr(data-label); flex: 0 0 auto; font-family: var(--font-tech); font-size: .64rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .08em; color: var(--color-text-muted); padding-top: 3px; }
+    .admin-table td .cell-val { text-align: right; min-width: 0; font-family: var(--font-tech); font-weight: 600; color: var(--color-text); }
+    .admin-table td .cell-val strong { color: var(--color-text); }
+    /* Kolom Pemenang: label di atas, daftar penuh rata kiri */
+    .admin-table td[data-label="Pemenang"] { flex-direction: column; align-items: stretch; gap: 6px; }
+    .admin-table td[data-label="Pemenang"] .cell-val { text-align: left; }
+    /* Angka besar untuk nomor peserta di dalam daftar fate (app.js pakai <strong>) */
+    .admin-table td[data-label="Kategori"] .cell-val strong { font-family: var(--font-number); font-size: 1.05rem; color: var(--color-primary-light); }
+    /* Kolom Aksi: tombol Hapus full-width */
+    .admin-table td[data-label="Aksi"] { display: block; padding-bottom: 0; }
+    .admin-table td[data-label="Aksi"]::before { display: none; }
+    .admin-table td[data-label="Aksi"] .btn { width: 100%; min-height: 44px; }
+    .admin-table td.empty-row { display: block; text-align: center; padding: 26px 12px; color: var(--color-text-muted); font-family: var(--font-tech); }
+    .admin-table td.empty-row::before { display: none; }
+    .admin-table tr:hover td { background: transparent; }
+    /* Status chip HUD (override style.css .admin-status) */
+    .admin-status { font-family: var(--font-tech); font-weight: 700; font-size: .62rem; letter-spacing: .07em; text-transform: uppercase;
+      padding: 4px 9px; display: inline-flex; align-items: center; gap: 5px; border-radius: 0;
+      clip-path: polygon(5px 0, 100% 0, calc(100% - 5px) 100%, 0 100%); }
+    .admin-status.pending { color: #22c55e; background: rgba(34, 197, 94, .12); border: 1px solid rgba(34, 197, 94, .35); }
+    .admin-status.executed { color: var(--color-text-muted); background: rgba(128, 140, 160, .1); border: 1px solid var(--color-border); }
+    .admin-status.skipped { color: var(--color-accent); background: rgba(var(--color-accent-rgb), .12); border: 1px solid rgba(var(--color-accent-rgb), .4); }
 
-    .card-target { grid-area: target; }
-    .card-table { grid-area: table; }
-    .card-password { grid-area: password; }
+    /* ==================== BOTTOM ACTION BAR ==================== */
+    /* Action-bar tetap di bawah layar (fixed), lebar mengikuti shell & center di desktop. */
+    .abar { position: fixed; left: 0; right: 0; bottom: 0; margin: 0 auto; max-width: 760px; z-index: 30;
+      padding: 12px 14px calc(12px + env(safe-area-inset-bottom, 0)); border-top: 1px solid color-mix(in srgb, var(--color-border) 85%, transparent);
+      background: linear-gradient(0deg, var(--color-bg-secondary), color-mix(in srgb, var(--color-bg-secondary) 82%, transparent)); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
 
-    /* Nilai sel tabel dibungkus satu wadah agar saat mode kartu (mobile) tidak
-       pecah jadi banyak flex-item. */
-    .admin-table .cell-val { display: block; }
+    /* ==================== LOGIN PASSWORD EYE ==================== */
+    .pwrap { position: relative; width: 100%; }
+    .pwrap .fin { padding-right: 42px; }
+    .pwrap .eye { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); width: 34px; height: 34px; display: grid; place-items: center;
+      cursor: pointer; background: none; border: none; color: var(--color-text-muted); font-size: 1.05rem; }
 
-    .admin-card {
-      background: var(--color-surface);
-      border-radius: var(--radius-xl);
-      border: 1px solid var(--color-border);
-      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
-      overflow: hidden;
-      transition: box-shadow 0.2s ease;
-    }
+    /* ==================== PESERTA PICKER MODAL ==================== */
+    /* Dipertahankan sebagai .modal-overlay (openModal/closeModal → .active). */
+    #pesertaListModal.modal-overlay { background: rgba(6, 9, 16, .82); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
+    #pesertaListModal .modal.admin-picker { width: 100%; max-width: 480px; height: 82vh; display: flex; flex-direction: column; overflow: hidden;
+      background: linear-gradient(160deg, var(--color-surface), color-mix(in srgb, var(--color-surface) 86%, var(--color-bg)));
+      border: 1.5px solid rgba(var(--color-primary-rgb), .5); border-radius: 0;
+      clip-path: polygon(0 14px, 14px 0, calc(100% - 20px) 0, 100% 20px, 100% calc(100% - 14px), calc(100% - 14px) 100%, 20px 100%, 0 calc(100% - 14px));
+      box-shadow: 0 26px 64px -22px rgba(0, 0, 0, .75), 0 0 40px rgba(var(--color-primary-rgb), .14); }
+    #pesertaListModal .picker-head { position: static; backdrop-filter: none; -webkit-backdrop-filter: none; padding: 13px 16px; }
+    .search-wrap { flex-shrink: 0; padding: 12px 14px 6px; }
+    .plist { flex: 1; min-height: 0; overflow-y: auto; padding: 6px 14px 14px; }
+    .plist::-webkit-scrollbar { width: 6px; }
+    .plist::-webkit-scrollbar-thumb { background: rgba(var(--color-primary-rgb), .5); border-radius: 3px; }
+    #pesertaListModal .picker-bar { position: static; }
 
-    .admin-card:hover {
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
-    }
+    /* Scrollbar halaman */
+    body.admin-hud ::-webkit-scrollbar { width: 8px; height: 8px; }
+    body.admin-hud ::-webkit-scrollbar-thumb { background: rgba(var(--color-primary-rgb), .4); border-radius: 4px; }
 
-    .admin-card-header {
-      padding: 16px 20px;
-      border-bottom: 1px solid var(--color-border-light);
-      background: var(--color-bg-secondary);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .admin-card-header h2 {
-      font-family: 'Outfit', sans-serif;
-      font-size: 1.1rem;
-      font-weight: 800;
-      margin: 0;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      color: var(--color-text);
-    }
-
-    .admin-card-body {
-      padding: 20px;
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-    }
-
-    .form-group {
-      display: flex;
-      flex-direction: column;
-    }
-
-    .form-group label {
-      font-size: 0.85rem;
-      font-weight: 700;
-      color: var(--color-text);
-      margin-bottom: 6px;
-    }
-
-    .form-control {
-      width: 100%;
-      min-height: 44px;
-      padding: 10px 14px;
-      border-radius: var(--radius-md);
-      border: 1px solid var(--color-border);
-      background: var(--color-surface);
-      color: var(--color-text);
-      font-size: 0.95rem;
-      box-sizing: border-box;
-      transition: border-color 0.2s ease, box-shadow 0.2s ease;
-    }
-
-    .form-control:focus {
-      outline: none;
-      border-color: var(--color-primary);
-      box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.15);
-    }
-
-    .target-chip-box {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      min-height: 54px;
-      background: var(--color-bg);
-      border: 1px solid var(--color-border);
-      border-radius: var(--radius-md);
-      padding: 10px;
-      box-sizing: border-box;
-    }
-
-    /* Table styling */
-    .admin-table-wrap {
-      width: 100%;
-      overflow-x: auto;
-      -webkit-overflow-scrolling: touch;
-      max-height: 480px;
-    }
-
-    .admin-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.88rem;
-      white-space: nowrap;
-    }
-
-    .admin-table th {
-      padding: 14px 16px;
-      text-align: left;
-      font-weight: 700;
-      color: var(--color-text);
-      background: var(--color-bg-secondary);
-      border-bottom: 2px solid var(--color-border);
-      position: sticky;
-      top: 0;
-      z-index: 2;
-    }
-
-    .admin-table td {
-      padding: 14px 16px;
-      border-bottom: 1px solid var(--color-border-light);
-      color: var(--color-text);
-      vertical-align: middle;
-    }
-
-    .admin-table tr:hover td {
-      background: rgba(var(--color-primary-rgb), 0.03);
-    }
-
-    /* ==================== RESPONSIVE / MOBILE ==================== */
-
-    /* Tablet & bawah: satu kolom dengan urutan berguna — Target → Tabel → Password. */
-    @media (max-width: 960px) {
-      .admin-grid {
-        grid-template-columns: 1fr;
-        grid-template-areas:
-          "target"
-          "table"
-          "password";
-        gap: 16px;
-      }
-
-      .admin-container {
-        padding: 0 14px;
-        margin: 14px auto;
-      }
-    }
-
-    /* HP: header ringkas + tabel target berubah jadi KARTU (tanpa scroll samping). */
     @media (max-width: 640px) {
-      .admin-header { padding: 10px 14px; }
-      .header-title-group { gap: 10px; }
-      .admin-page-title { font-size: 1.1rem; }
-      .btn-back-dashboard { padding: 8px 12px; font-size: 0.8rem; }
-
-      .admin-container { padding: 0 10px; margin: 10px auto; }
-      .admin-card-body { padding: 14px; }
-      .admin-card-header { padding: 12px 14px; }
-      .admin-card-header h2 { font-size: 1rem; }
-
-      /* Tabel → kartu bertumpuk (pola responsive-table) */
-      #adminTargetTable.admin-table-wrap { max-height: none; overflow: visible; }
-      .admin-table { white-space: normal; font-size: 0.9rem; }
-      .admin-table thead { /* sembunyikan header secara visual, tetap aksesibel */
-        position: absolute; width: 1px; height: 1px;
-        margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); border: 0;
-      }
-      .admin-table, .admin-table tbody { display: block; width: 100%; }
-      .admin-table tr {
-        display: block;
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius-md);
-        background: var(--color-surface);
-        padding: 4px 12px 10px;
-        margin: 12px 0;
-      }
-      .admin-table tr:hover td { background: transparent; }
-      .admin-table td {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        gap: 14px;
-        padding: 10px 0;
-        border: none;
-        border-bottom: 1px dashed var(--color-border-light);
-        white-space: normal;
-      }
-      .admin-table td:last-child { border-bottom: none; }
-      .admin-table td::before {
-        content: attr(data-label);
-        flex: 0 0 auto;
-        font-size: 0.7rem;
-        font-weight: 800;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-        color: var(--color-text-muted);
-        padding-top: 2px;
-      }
-      .admin-table td .cell-val { text-align: right; min-width: 0; }
-      /* Kolom Pemenang: label di atas, daftar penuh di bawah (rata kiri) */
-      .admin-table td[data-label="Pemenang"] { flex-direction: column; align-items: stretch; gap: 6px; }
-      .admin-table td[data-label="Pemenang"] .cell-val { text-align: left; }
-      /* Kolom Aksi: tombol Hapus full-width, mudah ditekan */
-      .admin-table td[data-label="Aksi"] { display: block; padding-bottom: 2px; }
-      .admin-table td[data-label="Aksi"]::before { display: none; }
-      .admin-table td[data-label="Aksi"] .btn { width: 100%; min-height: 42px; }
-      /* Baris kosong */
-      .admin-table td.empty-row { display: block; text-align: center; }
-      .admin-table td.empty-row::before { display: none; }
-
-      /* Modal peserta: nyaris layar penuh + target sentuh lebih besar */
       #pesertaListModal.modal-overlay { padding: 8px; }
-      #pesertaListModal .modal { width: 100% !important; height: 92vh !important; max-height: 92vh !important; max-width: none !important; }
-      #pesertaListContainer .btn-small { min-height: 40px; padding: 8px 14px; font-size: 0.8rem; }
-
-      /* Login modal: tak terlalu jauh dari atas */
-      #adminLoginModal { margin: 28px auto !important; width: 92% !important; }
+      #pesertaListModal .modal.admin-picker { max-width: none; height: 92vh; }
     }
-
-    /* HP kecil */
-    @media (max-width: 380px) {
-      .admin-page-title { font-size: 1rem; }
-      .btn-back-dashboard { font-size: 0.75rem; }
-      .admin-card-header h2 { font-size: 0.95rem; }
-    }
-
-    /* Premium Scrollbar */
-    ::-webkit-scrollbar {
-      width: 8px;
-      height: 8px;
-    }
-
-    ::-webkit-scrollbar-track {
-      background: var(--color-bg);
-    }
-
-    ::-webkit-scrollbar-thumb {
-      background: rgba(148, 163, 184, 0.4) !important;
-      border-radius: 4px;
-    }
+    @media (prefers-reduced-motion: reduce) { *, body.admin-hud { transition: none !important; } }
   </style>
 </head>
 
-<body>
+<body class="admin-hud">
 
-  <!-- HEADER -->
-  <header class="admin-header">
-    <div class="header-title-group">
-      <a href="/dashboard" class="btn-back-dashboard">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-          stroke-linecap="round" stroke-linejoin="round">
-          <line x1="19" y1="12" x2="5" y2="12"></line>
-          <polyline points="12 19 5 12 12 5"></polyline>
+  <!-- ==================== LOGIN (client prompt → /api/admin/unlock) ==================== -->
+  <div id="adminLoginModal" class="admin-login">
+    <div class="admin-login-panel">
+      <span class="cnr tl"></span><span class="cnr tr"></span><span class="cnr bl"></span><span class="cnr br"></span>
+      <div class="lock">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="11" width="18" height="11" rx="2"></rect>
+          <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
         </svg>
-        Kembali ke Dashboard
-      </a>
-      <h1 class="admin-page-title">Panel Kontrol Target</h1>
-    </div>
-  </header>
-
-  <!-- LOGIN BOX (CLIENT SIDE SECURE PROMPT) -->
-  <div id="adminLoginModal"
-    style="max-width: 400px; width: 90%; margin: 60px auto; padding: 24px; background: var(--color-surface); border-radius: var(--radius-xl); border: 1px solid var(--color-border); box-shadow: var(--shadow-xl); text-align: center; display: block; box-sizing: border-box;">
-    <h2 style="font-family:'Outfit'; font-weight:700; margin:0 0 10px 0; color:var(--color-text);">🔒 Masuk Panel Admin
-    </h2>
-    <p style="font-size:0.85rem; color:var(--color-text-muted); margin-bottom:20px;">Panel ini khusus dev. Masukkan
-      <strong>password panel admin</strong> (berbeda dari password login operator).</p>
-
-    <div id="adminLoginError"
-      style="color: #EF4444; font-size: 0.85rem; font-weight: 600; margin-bottom: 15px; display: none;">
-      ❌ Password panel admin salah.
-    </div>
-
-    <div class="form-group" style="text-align: left; margin-bottom: 20px;">
-      <label for="adminPassword">Password Admin</label>
-      <div style="position: relative;">
-        <input type="password" id="adminPassword" class="form-control" placeholder="Password panel admin"
-          style="padding-right: 44px;" onkeydown="if(event.key === 'Enter') handleAdminLogin()" />
-        <button type="button" onclick="togglePasswordVisibility()" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; font-size: 1.1rem; cursor: pointer; padding: 6px; opacity: 0.8;" title="Lihat/Sembunyikan Password">
-          👁️
-        </button>
       </div>
-    </div>
+      <div class="ltitle">MASUK PANEL ADMIN</div>
+      <p class="lnote">Khusus dev. Masukkan <b>password panel admin</b> — berbeda dari password login operator.</p>
 
-    <button class="btn btn-primary" id="adminLoginBtn" onclick="handleAdminLogin()"
-      style="width: 100%; justify-content: center; min-height: 44px; font-weight: 700;">
-      Masuk
-    </button>
+      <div id="adminLoginError" class="admin-login-err">❌ Password panel admin salah.</div>
+
+      <div class="fld admin-login-fld">
+        <span class="flbl">Password Admin</span>
+        <div class="pwrap">
+          <input type="password" id="adminPassword" class="fin" placeholder="Password panel admin"
+            onkeydown="if(event.key === 'Enter') handleAdminLogin()" />
+          <button type="button" class="eye" onclick="togglePasswordVisibility()" title="Lihat/Sembunyikan Password">👁️</button>
+        </div>
+      </div>
+
+      <button type="button" class="mbtn" id="adminLoginBtn" onclick="handleAdminLogin()">Masuk</button>
+    </div>
   </div>
 
-  <!-- CONTAINER (HIDDEN UNTIL LOGIN) -->
+  <!-- ==================== PANEL (tersembunyi hingga unlock) ==================== -->
   <div id="adminPanelWrapper" style="display: none;">
-    <div class="admin-container">
+    <div class="admin-shell">
 
-      <div class="admin-grid">
+      <!-- Header sticky -->
+      <header class="ahead">
+        <a href="/dashboard" class="iconbtn" title="Kembali ke Dashboard">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="19" y1="12" x2="5" y2="12"></line>
+            <polyline points="12 19 5 12 12 5"></polyline>
+          </svg>
+        </a>
+        <div class="htxt">
+          <div class="ht">Panel Kontrol Target</div>
+          <div class="hs">Komando Pasukan Khusus</div>
+        </div>
+        <div class="crest">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3c-1.5 3-4 3-4 6 0 1.4.8 2.2 1 3.4"></path>
+            <path d="M12 3c1.5 3 4 3 4 6 0 1.4-.8 2.2-1 3.4"></path>
+            <circle cx="9.5" cy="10" r="1"></circle>
+            <circle cx="14.5" cy="10" r="1"></circle>
+            <path d="M12 15v4"></path>
+          </svg>
+        </div>
+      </header>
 
-        <!-- CARD: Configure Target (grid-area: target) -->
-        <section class="admin-card card-target">
-          <div class="admin-card-header">
-            <h2>🎯 TARGET</h2>
-          </div>
-          <div class="admin-card-body">
+      <!-- Body scroll -->
+      <div class="admin-body">
 
-            <div class="form-group">
-              <label for="adminCluster">Filter Kategori Target</label>
-              <select id="adminCluster" class="form-control">
-                <option value="Semua">Semua Kategori</option>
-              </select>
-            </div>
+        <!-- 🎯 Konfigurasi Target -->
+        <section class="mc">
+          <div class="mc-head"><span class="tab"></span><span class="em">🎯</span><h3>Konfigurasi Target</h3></div>
+          <div class="mc-body">
 
-            <div class="form-group">
-              <label for="adminPrize">Hadiah yang Ditargetkan</label>
-              <select id="adminPrize" class="form-control" onchange="onAdminPrizeChange()">
-                <option value="">— Pilih hadiah —</option>
-              </select>
-              <!-- Nomor ronde tak lagi diinput manual; ia DITURUNKAN otomatis dari ronde
-                   hadiah terpilih. Input tersembunyi ini hanya cermin (dipakai kode lama). -->
+            <div class="fld">
+              <span class="flbl">Hadiah yang Ditargetkan</span>
+              <span class="selwrap">
+                <select id="adminPrize" class="fin" onchange="onAdminPrizeChange()">
+                  <option value="">— Pilih hadiah —</option>
+                </select>
+              </span>
+              <!-- Nomor ronde tak diinput manual; DITURUNKAN otomatis dari hadiah terpilih.
+                   Input tersembunyi ini cermin yg dipakai kode lama. -->
               <input type="hidden" id="adminRonde" value="1" />
-              <p id="adminPrizeHint"
-                style="font-size:0.78rem; color:var(--color-text-muted); margin:6px 0 0 0;">
-                Target menempel pada <strong>hadiah</strong>, bukan nomor ronde. Bila operator memindah
-                hadiah ke ronde lain, target ikut otomatis — pemenang tetap keluar untuk hadiah itu.
-              </p>
+              <p id="adminPrizeHint" class="hint">Target menempel pada <b>hadiah</b>, bukan nomor ronde. Bila operator
+                memindah hadiah ke ronde lain, target ikut otomatis — pemenang tetap keluar untuk hadiah itu.</p>
             </div>
 
-            <div class="form-group">
-              <label>
-                Daftar Pemenang yang Ditargetkan
-                <span id="targetChipCount"
-                  style="font-size:0.8rem; font-weight:700; color:var(--color-primary); margin-left:5px;">(0
-                  dipilih)</span>
-              </label>
+            <button type="button" class="mbtn dash" onclick="openPesertaListModal(null)">🔍 Cari &amp; Pilih Nama Peserta</button>
 
-              <!-- Trigger select list modal -->
-              <button type="button" class="btn btn-outline" onclick="openPesertaListModal(null)"
-                style="width: 100%; justify-content: center; min-height: 44px; margin-bottom: 10px; border-style: dashed; font-weight: 600;">
-                🔍 Cari & Pilih Nama Peserta
-              </button>
-
-              <div id="targetChipContainer" class="target-chip-box">
-                <span id="chipPlaceholder"
-                  style="color:var(--color-text-muted); font-size:0.85rem; align-self:center;">Belum ada target
-                  dipilih...</span>
-              </div>
-
-              <p style="font-size: 0.78rem; color: var(--color-text-muted); margin: 8px 0 0 0; text-align: center;">
-                Target yang Anda simpan di sini akan keluar secara otomatis saat spin ronde tersebut dijalankan.
-              </p>
+            <div class="tgt-count-row">
+              <span class="flbl">Target Dipilih</span>
+              <span class="cnt" id="targetChipCount">(0 dipilih)</span>
             </div>
 
-            <button class="btn btn-primary" id="saveAdminTargetBtn"
-              style="width: 100%; justify-content: center; min-height: 46px; font-weight: 700; margin-top: 5px;">
-              Simpan Target Ronde
-            </button>
+            <div id="targetChipContainer" class="chiprow">
+              <span id="chipPlaceholder" class="chip-ph">Belum ada target dipilih…</span>
+            </div>
+
+            <p class="hint" style="text-align:center;">Target yang Anda simpan akan keluar otomatis saat spin ronde tersebut dijalankan.</p>
 
           </div>
         </section>
 
-        <!-- CARD: Saved Target Table (grid-area: table) -->
-        <section class="admin-card card-table">
-          <div class="admin-card-header">
-            <h2>📋 Daftar Target Aktif</h2>
-          </div>
-          <div class="admin-card-body" style="padding: 0;">
-
+        <!-- 📋 Daftar Target Aktif -->
+        <section class="mc">
+          <div class="mc-head"><span class="tab"></span><span class="em">📋</span><h3>Daftar Target Aktif</h3></div>
+          <div class="mc-body mc-body-flush">
             <div id="adminTargetTable" class="admin-table-wrap">
               <table class="admin-table">
                 <thead>
@@ -487,72 +355,71 @@
                     <th>Hadiah (Ronde)</th>
                     <th>Target Pemenang</th>
                     <th>Status</th>
-                    <th style="text-align: center;">Aksi</th>
+                    <th>Aksi</th>
                   </tr>
                 </thead>
                 <tbody id="adminTargetBody">
                   <tr>
-                    <td colspan="5" class="empty-row"
-                      style="padding: 30px; text-align: center; color: var(--color-text-muted);">Belum ada target</td>
+                    <td colspan="5" class="empty-row">Belum ada target</td>
                   </tr>
                 </tbody>
               </table>
             </div>
-
           </div>
         </section>
 
-        <!-- CARD: Security & Password (grid-area: password) -->
-        <section class="admin-card card-password">
-          <div class="admin-card-header">
-            <h2>🔒 Ubah Password Panel Admin (khusus Dev)</h2>
-          </div>
-          <div class="admin-card-body">
-            <p style="font-size:0.78rem; color:var(--color-text-muted); margin:0 0 6px 0;">
-              Password ini hanya untuk membuka panel admin — berbeda dari password login operator (diatur di Pengaturan).
-            </p>
-            <div class="form-group">
-              <label for="currentAdminPassword">Password Panel Admin Saat Ini</label>
-              <input type="password" id="currentAdminPassword" class="form-control" placeholder="Password panel admin sekarang" />
+        <!-- 🔒 Password Panel Admin (collapsible) -->
+        <details class="mc">
+          <summary class="mc-head mc-summary">
+            <span class="tab"></span><span class="em">🔒</span><h3>Password Panel Admin</h3><span class="mc-caret">▾</span>
+          </summary>
+          <div class="mc-body">
+            <p class="hint">Hanya untuk membuka panel admin — berbeda dari password login operator (diatur di Pengaturan).</p>
+            <div class="fld">
+              <span class="flbl">Password Saat Ini</span>
+              <input type="password" id="currentAdminPassword" class="fin" placeholder="Password panel admin sekarang" />
             </div>
-            <div class="form-group">
-              <label for="newAdminPassword">Password Panel Admin Baru</label>
-              <input type="password" id="newAdminPassword" class="form-control" placeholder="Minimal 4 karakter" />
+            <div class="fld">
+              <span class="flbl">Password Baru</span>
+              <input type="password" id="newAdminPassword" class="fin" placeholder="Minimal 4 karakter" />
             </div>
-            <button class="btn btn-outline" id="changePasswordBtn" style="width:100%; justify-content:center; min-height:44px; font-weight:700;">
-              Ubah Password Panel Admin
-            </button>
+            <button type="button" class="mbtn outline" id="changePasswordBtn">Ubah Password Panel Admin</button>
           </div>
-        </section>
+        </details>
 
+      </div>
+
+      <!-- Aksi utama sticky -->
+      <div class="abar">
+        <button type="button" class="mbtn" id="saveAdminTargetBtn">Simpan Target Ronde</button>
       </div>
 
     </div>
   </div>
 
-  <!-- PESERTA LIST MODAL OVERLAY -->
+  <!-- ==================== PESERTA PICKER MODAL ==================== -->
   <div class="modal-overlay" id="pesertaListModal">
-    <div class="modal"
-      style="max-width: 480px; width: 92%; height: 82vh; display: flex; flex-direction: column; background: var(--color-surface); border-radius: var(--radius-xl); overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.3);">
-      <div class="modal-header"
-        style="display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--color-border-light);">
-        <h2 style="font-family:'Outfit'; font-size:1.15rem; font-weight:700; margin:0; color:var(--color-text);">Pilih Nama Target</h2>
-        <button class="modal-close" onclick="closeModal('pesertaListModal')"
-          style="font-size: 1.5rem; border: none; background: transparent; cursor: pointer; color: var(--color-text-muted); padding: 4px 8px;">&times;</button>
-      </div>
-      <div class="modal-body"
-        style="padding: 16px 20px; overflow: hidden; display: flex; flex-direction: column; gap: 12px; flex: 1;">
-        <input type="text" id="searchPesertaInput" class="form-control" placeholder="Ketik nama atau ID peserta..."
-          onkeyup="filterPesertaList()" style="min-height: 44px;" />
-
-        <div id="pesertaListContainer"
-          style="overflow-y: auto; flex: 1; border: 1px solid var(--color-border-light); border-radius: var(--radius-md); padding: 8px; background: var(--color-bg);">
-          <!-- List will be populated dynamically -->
+    <div class="modal admin-picker">
+      <div class="ahead picker-head">
+        <div class="htxt">
+          <div class="ht">Pilih Nama Target</div>
+          <div class="hs">Cari lalu tekan Pilih</div>
         </div>
+        <button type="button" class="iconbtn" onclick="closeModal('pesertaListModal')" title="Tutup">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
       </div>
-      <div class="modal-footer"
-        style="padding: 14px 20px; display: flex; justify-content: flex-end; border-top: 1px solid var(--color-border-light);">
-        <button class="btn btn-primary" onclick="closeModal('pesertaListModal')" style="min-height: 40px; padding: 0 20px;">Selesai Pilih</button>
+      <div class="search-wrap">
+        <input type="text" id="searchPesertaInput" class="fin" placeholder="🔍 Ketik nama atau ID peserta..." onkeyup="filterPesertaList()" />
+      </div>
+      <div id="pesertaListContainer" class="plist">
+        <!-- Diisi dinamis oleh filterPesertaList() -->
+      </div>
+      <div class="abar picker-bar">
+        <button type="button" class="mbtn" onclick="closeModal('pesertaListModal')">Selesai Pilih</button>
       </div>
     </div>
   </div>
@@ -560,7 +427,7 @@
   <datalist id="pesertaDatalist"></datalist>
   <div id="toastContainer" class="toast-container"></div>
 
-  <script src="app.js?v=2026.08.15.3"></script>
+  <script src="app.js?v=2026.08.20.4"></script>
 </body>
 
 </html>
