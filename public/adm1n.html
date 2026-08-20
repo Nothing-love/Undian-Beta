@@ -57,6 +57,32 @@
               mask-image: radial-gradient(120% 100% at 50% 30%, #000 12%, transparent 92%);
     }
 
+    /* === Latar MENGIKUTI Dashboard (gambar latar operator) ===
+       Saat operator memasang gambar latar (app.js applyEventSettings → body.has-bg +
+       --bg-image/--bg-opacity), tampilkan gambar itu PERSIS seperti Dashboard (cover,
+       opacity = --bg-opacity) + scrim atas/bawah. Ditaruh di ::before MASING-MASING
+       container (layar LOGIN & PANEL), BUKAN body: #adminPanelWrapper = scroll-container
+       yang jadi layer komposit opak → kalau di body::before, gambar tertutup. z-index:-1
+       → di belakang konten (panel/kartu punya bg sendiri, gambar tampil di sela-selanya).
+       Tanpa gambar → tetap HUD glow + grid (body::before). */
+    body.admin-hud.has-bg { background: var(--color-bg); }
+    /* Sembunyikan grid HUD saat ada gambar latar (seperti Dashboard yang skip grid). */
+    body.admin-hud.has-bg::before { opacity: 0; }
+    body.admin-hud.has-bg #adminLoginModal::before,
+    body.admin-hud.has-bg #adminPanelWrapper::before {
+      content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+      background-image: var(--bg-image, none);
+      background-size: cover; background-position: center; background-repeat: no-repeat;
+      opacity: var(--bg-opacity, 0.15);
+    }
+    body.admin-hud.has-bg #adminLoginModal::after,
+    body.admin-hud.has-bg #adminPanelWrapper::after {
+      content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+      background: linear-gradient(to bottom,
+        rgba(2, 6, 23, 0.55) 0%, rgba(2, 6, 23, 0.12) 13%, rgba(2, 6, 23, 0) 28%,
+        rgba(2, 6, 23, 0) 66%, rgba(2, 6, 23, 0.20) 83%, rgba(2, 6, 23, 0.50) 100%);
+    }
+
     /* ==================== LOGIN ==================== */
     /* #adminLoginModal ditampilkan default; handleAdminLogin() menyembunyikannya
        (display:none inline) setelah unlock — jadi cukup CSS display:flex di sini. */
@@ -95,7 +121,10 @@
     /* Scroll container MANDIRI (fixed full-viewport) → tak bergantung pada body/html
        yang di style.css di-set overflow:hidden + height:100% (utk panggung Dashboard).
        Ini yang bikin admin bisa digulir dgn andal di HP. */
-    #adminPanelWrapper { position: fixed; inset: 0; z-index: 1; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; }
+    /* Catatan: JANGAN pakai -webkit-overflow-scrolling:touch di sini — ia memaksa
+       layer komposit opak yang MENUTUPI gambar latar (body::before) di belakangnya.
+       overflow-y:auto sudah mulus di iOS modern. */
+    #adminPanelWrapper { position: fixed; inset: 0; z-index: 1; overflow-y: auto; overflow-x: hidden; }
     .admin-shell { min-height: 100%; max-width: 760px; margin: 0 auto; }
 
     .ahead { position: sticky; top: 0; z-index: 20; flex-shrink: 0; display: flex; align-items: center; gap: 11px;
@@ -431,7 +460,7 @@
   <datalist id="pesertaDatalist"></datalist>
   <div id="toastContainer" class="toast-container"></div>
 
-  <script src="app.js?v=2026.08.20.5"></script>
+  <script src="app.js?v=2026.08.21.1"></script>
 </body>
 
 </html>

@@ -385,10 +385,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     setSettingsDirty(false);
   }
 
-  // Jika ini halaman admin, inisialisasi panel admin
+  // Jika ini halaman admin: bila sesi MASIH ter-unlock (cookie 24 jam) — mis. halaman
+  // ter-reload sendiri / tab HP di-discard lalu dibuka lagi — langsung buka panel,
+  // JANGAN paksa login ulang (ini yang bikin "selalu kembali ke login"). GET /api/admin
+  // balas 200 bila unlocked, 403 bila terkunci.
   const adminRondeInput = document.getElementById('adminRonde');
   if (adminRondeInput && !adminRondeInput.isDummy) {
-    openAdminLogin();
+    fetch('/api/admin', { headers: { 'Accept': 'application/json' } })
+      .then(r => {
+        if (r.ok) {
+          const lb = document.getElementById('adminLoginModal');
+          if (lb) lb.style.display = 'none';
+          openAdminPanel();
+        } else {
+          openAdminLogin();
+        }
+      })
+      .catch(() => openAdminLogin());
   }
   
   updateUI();
@@ -615,8 +628,20 @@ async function syncStateWithServer() {
     updateUI();
     if (typeof updatePrizeSidebar === 'function') updatePrizeSidebar();
     if (typeof updatePesertaDatalist === 'function') updatePesertaDatalist();
-    if (typeof refreshAdminTable === 'function') refreshAdminTable();
-    if (typeof populateAdminPrizeSelect === 'function' && document.getElementById('adminPrize')) populateAdminPrizeSelect();
+    // Anti-KEDIP panel admin: sinkron 2s sering ber-"changed" untuk hal lain (mis.
+    // peserta/undian). Bangun-ulang tabel & dropdown HANYA bila data admin-nya benar
+    // berubah → hilangkan kedip & jaga pilihan/scroll operator saat mengonfigurasi.
+    const _adminSig = JSON.stringify({
+      t: APP.adminTargets,
+      r: APP.currentRonde,
+      p: (APP.settings.prizes || []).map(p => [p && p.id, p && p.name, p && p.ronde, p && p.count, p && p.jenis, p && p.grup, p && p.kelompok]),
+      h: (APP.hasilUndian || []).length
+    });
+    if (_adminSig !== APP._lastAdminRenderSig) {
+      APP._lastAdminRenderSig = _adminSig;
+      if (typeof refreshAdminTable === 'function') refreshAdminTable();
+      if (typeof populateAdminPrizeSelect === 'function' && document.getElementById('adminPrize')) populateAdminPrizeSelect();
+    }
     if (typeof renderPrizeSettings === 'function') renderPrizeSettings();
   } catch (e) {
     // Ignore network drop
