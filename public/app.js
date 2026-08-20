@@ -3092,13 +3092,24 @@ function openAdminLogin() {
   document.getElementById('adminLoginError').style.display = 'none';
   
   const loginBox = document.getElementById('adminLoginModal');
-  if (loginBox) loginBox.style.display = 'block';
-  
+  // 'flex' (bukan 'block') agar sesuai CSS HUD → panel login TER-TENGAH (block bikin
+  // ia mepet ke kiri). Pemanggil lain menyembunyikan via display:'none'.
+  if (loginBox) loginBox.style.display = 'flex';
+
   const wrapper = document.getElementById('adminPanelWrapper');
   if (wrapper) wrapper.style.display = 'none';
   openModal('adminLoginModal');
   setTimeout(() => document.getElementById('adminPassword').focus(), 100);
 }
+
+// Kunci panel admin (kembali ke layar login). Karena panel kini otomatis terbuka
+// selama sesi masih unlock, tombol ini memberi jalan SENGAJA untuk keluar/mengunci.
+window.lockAdminPanel = async function() {
+  try {
+    await fetch('/api/admin/lock', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+  } catch (e) { /* luring: tetap tampilkan layar login */ }
+  openAdminLogin();
+};
 
 async function handleAdminLogin() {
   const passwordInput = document.getElementById('adminPassword');
