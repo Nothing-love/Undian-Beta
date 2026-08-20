@@ -20,7 +20,7 @@
   <!-- Canvas Confetti -->
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
 
-  <link rel="stylesheet" href="style.css?v=2026.08.19.7" />
+  <link rel="stylesheet" href="style.css?v=2026.08.20.7" />
 </head>
 
 <body class="hud">
@@ -266,12 +266,14 @@
       var s=maxPx, g=0;
       el.style.setProperty('font-size', s+'px','important');
       // Tata letak biasa: pas ke maxW (banner tumbuh ikut teks). Layout KUSTOM: pas ke KOTAK (clientWidth) → teks tak terpotong.
-      function over(){ return cst ? (el.scrollWidth > el.clientWidth) : (el.scrollWidth > maxW); }
+      function over(){ return cst ? (el.scrollWidth > el.clientWidth || el.scrollHeight > el.clientHeight) : (el.scrollWidth > maxW); }
       while(over() && s>minPx && g<220){ s-=1; el.style.setProperty('font-size', s+'px','important'); g++; }
     }
+    function _remPx(v, fb){ try{ var s=getComputedStyle(document.documentElement).getPropertyValue(v).trim(); var n=parseFloat(s); if(!n) return fb; return s.indexOf('rem')>=0 ? n*16 : n; }catch(e){ return fb; } }
     function fitAll(){
-      fit(document.getElementById('eventTitle'), 50, 16, 1200);
-      fit(document.getElementById('eventSubtitle'), 22, 10, 1040);
+      // Ukuran MAKS = pilihan user (Setting → Ukuran Judul/Sub-judul, rem→px). Auto-fit hanya MENGECILKAN bila teks luber.
+      fit(document.getElementById('eventTitle'), _remPx('--title-size-event', 50), 12, 1200);
+      fit(document.getElementById('eventSubtitle'), _remPx('--subtitle-size-event', 22), 8, 1040);
     }
     window.__fitTitles = fitAll;
     var raf = function(){ requestAnimationFrame(fitAll); };

@@ -375,6 +375,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (inputTitle && !inputTitle.isDummy) {
     openSettingsModal();
     initLayoutEditor();
+    // Indikator dirty (HUD Setting Fase 3): tandai "belum disimpan" saat ada perubahan input.
+    const _scont = document.querySelector('.settings-container');
+    if (_scont) {
+      const _mark = () => setSettingsDirty(true);
+      _scont.addEventListener('input', _mark);
+      _scont.addEventListener('change', _mark);
+    }
+    setSettingsDirty(false);
   }
 
   // Jika ini halaman admin, inisialisasi panel admin
@@ -1225,6 +1233,7 @@ function bindEvents() {
       }
       updateThemePreview(theme);
       applyTheme(theme);
+      if (typeof setSettingsDirty === 'function') setSettingsDirty(true);
     });
   });
 
@@ -3704,6 +3713,21 @@ function importAdminConfig() {
   }
 }
 
+// Indikator status simpan (dirty) — HUD Setting (Fase 3). UI-only: hanya MENCERMINKAN
+// keadaan tersimpan/belum di chip #saveStat + save bar; tak mengubah cara/isi penyimpanan.
+function setSettingsDirty(dirty) {
+  const chip = document.getElementById('saveStat');
+  if (chip) {
+    chip.classList.toggle('ok', !dirty);
+    chip.classList.toggle('warn', !!dirty);
+    const txt = chip.querySelector('.stxt');
+    if (txt) txt.textContent = dirty ? 'Perubahan belum disimpan' : 'Tersimpan';
+  }
+  const bar = document.querySelector('.floating-save-bar');
+  if (bar) bar.classList.toggle('dirty', !!dirty);
+}
+window.setSettingsDirty = setSettingsDirty;
+
 // ===================== SETTINGS MODAL HANDLERS =====================
 function saveEventSettings() {
   const title = document.getElementById('inputEventTitle') ? document.getElementById('inputEventTitle').value.trim() : '';
@@ -3711,6 +3735,8 @@ function saveEventSettings() {
 
   if (title) APP.settings.eventTitle = title;
   APP.settings.eventSubtitle = subtitle;
+  // Nama Brand/Instansi (brand-word header dashboard, Fase 1) — field baru Fase 3.
+  if (document.getElementById('inputBrandName')) APP.settings.brandName = document.getElementById('inputBrandName').value.trim();
 
   if (document.getElementById('inputFontFamily')) APP.settings.fontFamily = document.getElementById('inputFontFamily').value;
   if (document.getElementById('inputTextTransform')) APP.settings.textTransform = document.getElementById('inputTextTransform').value;
@@ -3746,6 +3772,7 @@ function saveEventSettings() {
   applyEventSettings();
   saveSettings();
   closeModal('settingsModal');
+  if (typeof setSettingsDirty === 'function') setSettingsDirty(false);
   showToast('Pengaturan berhasil disimpan!', 'success');
 }
 
@@ -3956,6 +3983,7 @@ function openSettingsModal() {
   // Populate current values
   if (document.getElementById('inputEventTitle')) document.getElementById('inputEventTitle').value = APP.settings.eventTitle || '';
   if (document.getElementById('inputEventSubtitle')) document.getElementById('inputEventSubtitle').value = APP.settings.eventSubtitle || '';
+  if (document.getElementById('inputBrandName')) document.getElementById('inputBrandName').value = APP.settings.brandName || '';
 
   if (document.getElementById('inputFontFamily')) document.getElementById('inputFontFamily').value = APP.settings.fontFamily || 'Outfit, sans-serif';
   if (document.getElementById('inputTextTransform')) document.getElementById('inputTextTransform').value = APP.settings.textTransform || 'uppercase';

@@ -4079,7 +4079,7 @@ body.hud .prize-adaptive .prize-card-img::after {
 }
 body.hud .prize-adaptive .prize-card-img img { position: relative; z-index: 1; filter: drop-shadow(0 16px 22px rgba(0,0,0,.7)); }
 body.hud .prize-adaptive .prize-card-name {
-  font-family: var(--font-number); font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--color-text);
+  font-family: var(--prize-font-family, var(--font-number)); font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--prize-title-color, var(--color-text));
 }
 body.hud .prize-adaptive .prize-card-count {
   display: inline-flex; align-items: center; gap: 8px; height: 48px; padding: 0 22px; margin-top: 8px; border: none;
@@ -4366,7 +4366,7 @@ body.hud.has-bg .idle-title { color: #f3f6fa !important; text-shadow: 0 3px 20px
 body.hud.has-bg .idle-sub { color: #e6edf5 !important; }
 body.hud.has-bg .hud-brand b { color: #f3f6fa !important; }
 body.hud.has-bg .prize-title-txt { color: #f3f6fa !important; }
-body.hud.has-bg .prize-adaptive .prize-card-name { color: #f3f6fa !important; }
+body.hud.has-bg .prize-adaptive .prize-card-name { color: var(--prize-title-color, #f3f6fa) !important; text-shadow: 0 2px 10px rgba(0,0,0,.9), 0 0 4px rgba(0,0,0,.7) !important; }
 
 /* Judul: aksen terang + shadow tebal agar terbaca di atas gambar — TAPI banner tetap gaya KONSEP
    (tint primary + border primary + glow), BUKAN kotak gelap. Sub-judul: warna & banner ikut konsep
@@ -4457,11 +4457,11 @@ body.hud #winnerModal .winner-card-number {
 /* Nama: Rajdhani terang (matikan gradient bila ada) */
 body.hud #winnerModal .winner-card-name {
   font-family: var(--font-tech) !important; font-weight: 700 !important; letter-spacing: .02em !important; text-transform: uppercase !important;
-  color: #eaf0f8 !important; -webkit-text-fill-color: #eaf0f8 !important; background: none !important; text-shadow: 0 1px 8px rgba(0,0,0,.5) !important;
+  color: var(--reel-number-color, #eaf0f8) !important; -webkit-text-fill-color: var(--reel-number-color, #eaf0f8) !important; background: none !important; text-shadow: 0 1px 8px rgba(0,0,0,.5) !important;
 }
 /* Klasifikasi (breadcrumb lengkap): Rajdhani muted */
 body.hud #winnerModal .winner-card-cluster {
-  font-family: var(--font-tech) !important; font-weight: 600 !important; letter-spacing: .04em !important; text-transform: uppercase !important; color: #9fb0c2 !important;
+  font-family: var(--font-tech) !important; font-weight: 600 !important; letter-spacing: .04em !important; text-transform: uppercase !important; color: var(--winner-number-color, #9fb0c2) !important;
 }
 /* Tombol × gugur */
 body.hud #winnerModal .btn-disqualify { background: rgba(220,38,38,.92) !important; border-radius: 3px !important; color: #fff !important; }
@@ -4570,4 +4570,317 @@ body.hud .hud-confirm-ok {
   box-shadow: 0 8px 22px -8px rgba(var(--color-primary-rgb),.7) !important;
 }
 body.hud .hud-confirm-ok:hover { filter: brightness(1.08) !important; }
+
+/* ==================== HUD SETTING — port konsep d88b998a (Fase 3; CSS-only, id/handler/fungsi TETAP) ====================
+   Scope: body.setting-page → tak bleed ke dashboard/modal (kelas .btn/.form-control/.status-tag dipakai bersama).
+   Tema = AKSEN via token; gelap/terang adaptif. Panel bersudut + corner-bracket + font Bebas/Rajdhani/Teko/Inter (selaras Dashboard). */
+
+body.setting-page {
+  background:
+    radial-gradient(62% 60% at 50% 0%, rgba(var(--color-primary-rgb),.09), transparent 60%),
+    var(--color-bg) !important;
+}
+/* Halaman Setting = kanvas BERSIH (konsep): matikan overlay gambar-latar acara (has-bg body::before/::after). */
+body.setting-page::before, body.setting-page::after { display: none !important; content: none !important; background: none !important; }
+/* Halaman Setting: TAMPILKAN background upload operator + scrim gelap agar form tetap terbaca (permintaan user 2026-08-20). */
+body.setting-page.has-bg {
+  background:
+    linear-gradient(rgba(8,11,18,.82), rgba(8,11,18,.88)),
+    var(--bg-image, none) center center / cover fixed no-repeat,
+    var(--color-bg) !important;
+}
+
+/* ---- Header bar ---- */
+body.setting-page .settings-header {
+  background: linear-gradient(160deg, var(--color-surface), color-mix(in srgb, var(--color-surface) 82%, var(--color-bg))) !important;
+  border-bottom: 1px solid rgba(var(--color-primary-rgb),.45) !important;
+  box-shadow: 0 8px 26px -18px rgba(0,0,0,.7) !important;
+}
+body.setting-page .header-title-group { gap: 14px !important; }
+body.setting-page .btn-back-dashboard {
+  background: var(--color-bg) !important; border: 1px solid var(--color-border) !important; border-radius: 0 !important;
+  color: var(--color-text-secondary) !important; font-family: var(--font-tech) !important; font-weight: 700 !important;
+  font-size: .78rem !important; letter-spacing: .08em !important; text-transform: uppercase !important;
+  clip-path: polygon(7px 0,100% 0,100% calc(100% - 7px),calc(100% - 7px) 100%,0 100%,0 7px);
+}
+body.setting-page .btn-back-dashboard:hover { color: var(--color-text) !important; border-color: rgba(var(--color-primary-rgb),.5) !important; transform: none !important; }
+body.setting-page .set-crest {
+  width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; flex-shrink: 0;
+  background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--color-surface) 80%, #000), var(--color-bg) 72%);
+  box-shadow: 0 0 0 2px rgba(var(--color-primary-rgb),.8), 0 0 14px rgba(var(--color-primary-rgb),.4);
+}
+body.setting-page .set-crest svg { width: 60%; height: 60%; color: var(--color-primary-light); }
+body.setting-page .settings-page-title {
+  font-family: var(--font-display) !important; font-weight: 400 !important; font-size: 1.7rem !important;
+  letter-spacing: .04em !important; line-height: 1 !important;
+  background: none !important; -webkit-text-fill-color: var(--color-text) !important; color: var(--color-text) !important;
+}
+body.setting-page .settings-page-title small {
+  display: block; font-family: var(--font-tech); font-weight: 600; font-size: .64rem; letter-spacing: .32em;
+  text-transform: uppercase; color: var(--color-text-muted); margin-top: 3px; -webkit-text-fill-color: var(--color-text-muted);
+}
+body.setting-page .settings-header-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+/* ---- Status chips (DB status #uploadStatusText + #saveStat) ---- */
+body.setting-page .status-tag, body.setting-page .schip {
+  display: inline-flex !important; align-items: center; gap: 7px;
+  font-family: var(--font-tech) !important; font-weight: 600 !important; font-size: .72rem !important;
+  letter-spacing: .06em !important; text-transform: uppercase !important; padding: 5px 11px !important;
+  background: var(--color-bg) !important; border: 1px solid var(--color-border) !important; border-radius: 0 !important;
+  color: var(--color-text-secondary) !important;
+  clip-path: polygon(6px 0,100% 0,calc(100% - 6px) 100%,0 100%);
+}
+body.setting-page .status-tag.warning, body.setting-page .schip.warn { color: #f5b731 !important; border-color: rgba(245,183,49,.45) !important; }
+body.setting-page .status-tag.success, body.setting-page .schip.ok { color: #22c55e !important; border-color: rgba(34,197,94,.45) !important; }
+body.setting-page .schip .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; box-shadow: 0 0 7px currentColor; }
+
+/* ---- Cards / panels (bevel + border primary + corner-bracket) ---- */
+body.setting-page .settings-card {
+  position: relative;
+  background: linear-gradient(160deg, var(--color-surface), color-mix(in srgb, var(--color-surface) 86%, var(--color-bg))) !important;
+  border: 1.5px solid rgba(var(--color-primary-rgb),.4) !important; border-radius: 0 !important;
+  clip-path: polygon(0 14px,14px 0,calc(100% - 20px) 0,100% 20px,100% calc(100% - 14px),calc(100% - 14px) 100%,20px 100%,0 calc(100% - 14px));
+  box-shadow: 0 16px 40px -22px rgba(0,0,0,.5), 0 0 22px rgba(var(--color-primary-rgb),.10) !important;
+}
+body.setting-page .settings-card:hover { border-color: rgba(var(--color-primary-rgb),.55) !important; box-shadow: 0 18px 42px -22px rgba(0,0,0,.55), 0 0 26px rgba(var(--color-primary-rgb),.16) !important; }
+body.setting-page .settings-card::before, body.setting-page .settings-card::after {
+  content: ""; position: absolute; width: 13px; height: 13px; border: 2px solid var(--color-primary);
+  filter: drop-shadow(0 0 3px rgba(var(--color-primary-rgb),.55)); pointer-events: none; z-index: 3;
+}
+body.setting-page .settings-card::before { top: 11px; left: 11px; border-right: 0; border-bottom: 0; }
+body.setting-page .settings-card::after { bottom: 11px; right: 11px; border-left: 0; border-top: 0; }
+body.setting-page .settings-card-header {
+  background: transparent !important;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent) !important;
+}
+body.setting-page .settings-card-header h2 {
+  font-family: var(--font-tech) !important; font-weight: 700 !important; font-size: 1.02rem !important;
+  letter-spacing: .09em !important; text-transform: uppercase !important; color: var(--color-text) !important;
+}
+body.setting-page .settings-card-header h2 svg { color: var(--color-primary-light) !important; }
+/* tab miring sebelum judul kartu (konsep .card-head .tab) */
+body.setting-page .settings-card-header h2::before {
+  content: ""; width: 5px; height: 20px; flex-shrink: 0; background: var(--color-primary);
+  clip-path: polygon(0 0,100% 15%,100% 85%,0 100%); box-shadow: 0 0 8px rgba(var(--color-primary-rgb),.6);
+}
+
+/* ---- Form controls ---- */
+body.setting-page .form-control, body.setting-page .input-modern {
+  background: var(--color-bg) !important; color: var(--color-text) !important; border: 1px solid var(--color-border) !important;
+  border-radius: 0 !important; font-family: var(--font-ui) !important;
+  clip-path: polygon(7px 0,100% 0,100% calc(100% - 7px),calc(100% - 7px) 100%,0 100%,0 7px);
+  transition: border-color .15s, box-shadow .15s;
+}
+body.setting-page .form-control:focus, body.setting-page .input-modern:focus {
+  border-color: var(--color-primary) !important; box-shadow: 0 0 0 2px rgba(var(--color-primary-rgb),.22) !important; outline: none !important;
+}
+body.setting-page select.form-control, body.setting-page select.input-modern {
+  appearance: none; -webkit-appearance: none; padding-right: 30px !important; cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2 4l4 4 4-4' stroke='%237f93a8' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important; background-position: right 11px center !important; background-size: 11px !important;
+}
+body.setting-page label { font-family: var(--font-tech) !important; letter-spacing: .03em; }
+body.setting-page .settings-card-body h3 {
+  font-family: var(--font-number) !important; font-weight: 600 !important; font-size: 1rem !important;
+  letter-spacing: .07em !important; text-transform: uppercase !important; color: var(--color-primary-light) !important;
+}
+/* Range sliders */
+body.setting-page input[type=range] {
+  -webkit-appearance: none; appearance: none; height: 6px; border-radius: 3px; outline: none;
+  background: linear-gradient(90deg, var(--color-primary) 0 55%, var(--color-border) 55%) !important;
+}
+body.setting-page input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--color-primary-light);
+  border: 2px solid var(--color-surface); box-shadow: 0 0 8px rgba(var(--color-primary-rgb),.6); cursor: pointer;
+}
+body.setting-page input[type=range]::-moz-range-thumb {
+  width: 16px; height: 16px; border-radius: 50%; background: var(--color-primary-light); border: 2px solid var(--color-surface); cursor: pointer;
+}
+/* Color inputs (jangan kena clip-path .form-control) */
+body.setting-page input[type=color] {
+  clip-path: none !important; border: 1px solid var(--color-border) !important; border-radius: 4px !important;
+  background: none !important; padding: 0 !important;
+}
+
+/* ---- Buttons ---- */
+body.setting-page .btn { border-radius: 0 !important; }
+body.setting-page .btn-primary {
+  font-family: var(--font-number) !important; font-weight: 600 !important; font-size: 1.05rem !important;
+  letter-spacing: .08em !important; text-transform: uppercase !important; color: #fff !important; border: 0 !important;
+  background: linear-gradient(180deg, var(--color-primary-light), var(--color-primary) 60%, var(--color-primary-dark)) !important;
+  clip-path: polygon(9px 0,100% 0,calc(100% - 9px) 100%,0 100%);
+  box-shadow: 0 6px 16px -6px rgba(var(--color-primary-rgb),.6) !important;
+}
+body.setting-page .btn-primary:hover { filter: brightness(1.07) !important; }
+body.setting-page .btn-outline, body.setting-page .btn-secondary {
+  background: transparent !important; border: 1px solid rgba(var(--color-primary-rgb),.55) !important; color: var(--color-primary-light) !important;
+  font-family: var(--font-tech) !important; font-weight: 700 !important; letter-spacing: .07em !important; text-transform: uppercase !important;
+  box-shadow: none !important; border-radius: 0 !important;
+  clip-path: polygon(7px 0,100% 0,100% calc(100% - 7px),calc(100% - 7px) 100%,0 100%,0 7px);
+}
+body.setting-page .btn-outline:hover, body.setting-page .btn-secondary:hover { border-color: var(--color-primary) !important; color: var(--color-text) !important; }
+body.setting-page .btn-remove-rule { color: #ef4444 !important; }
+
+/* ---- Upload dropzones ---- */
+body.setting-page .logo-upload-area, body.setting-page .upload-area {
+  background: var(--color-bg) !important; border: 2px dashed color-mix(in srgb, var(--color-primary) 40%, var(--color-border)) !important;
+  border-radius: 0 !important;
+  clip-path: polygon(0 9px,9px 0,calc(100% - 9px) 0,100% 9px,100% calc(100% - 9px),calc(100% - 9px) 100%,9px 100%,0 calc(100% - 9px));
+}
+body.setting-page .logo-upload-area:hover, body.setting-page .upload-area:hover { border-color: var(--color-primary) !important; background: var(--color-bg) !important; }
+
+/* ---- Theme swatches (konsep .sw2) ---- */
+body.setting-page .theme-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 10px; }
+body.setting-page .theme-swatch {
+  background: var(--color-bg) !important; border: 1px solid var(--color-border) !important; border-radius: 0 !important;
+  color: var(--color-text-secondary) !important; padding: 10px !important; text-align: left !important;
+  display: flex !important; flex-direction: column !important; gap: 7px !important;
+  clip-path: polygon(0 7px,7px 0,calc(100% - 7px) 0,100% 7px,100% 100%,0 100%);
+}
+body.setting-page .theme-swatch:hover { border-color: color-mix(in srgb, var(--color-text) 30%, transparent) !important; }
+body.setting-page .theme-swatch.active {
+  border-color: var(--color-primary) !important;
+  box-shadow: 0 0 0 2px rgba(var(--color-primary-rgb),.3), 0 0 14px rgba(var(--color-primary-rgb),.2) !important;
+}
+body.setting-page .theme-swatch .swatch-colors { display: flex; gap: 4px; }
+body.setting-page .theme-swatch .swatch-colors span { width: 15px !important; height: 15px !important; border-radius: 3px !important; box-shadow: inset 0 0 0 1px rgba(128,128,128,.25); }
+body.setting-page .theme-swatch .swatch-label { font-family: var(--font-tech) !important; font-weight: 700 !important; font-size: .78rem !important; letter-spacing: .03em; color: var(--color-text) !important; }
+body.setting-page .theme-swatch .swatch-badge { font-family: var(--font-tech) !important; font-size: .6rem !important; color: var(--color-text-muted) !important; text-transform: uppercase; letter-spacing: .04em; background: none !important; padding: 0 !important; }
+
+/* ---- Prize/round rows ---- */
+body.setting-page .prize-setting-item {
+  background: var(--color-bg) !important; border: 1px solid var(--color-border) !important; border-radius: 0 !important;
+  clip-path: polygon(0 8px,8px 0,calc(100% - 8px) 0,100% 8px,100% 100%,0 100%);
+}
+
+/* ---- Custom colors panel ---- */
+body.setting-page #customColorSection {
+  background: var(--color-bg) !important; border: 1px solid var(--color-border) !important; border-radius: 0 !important;
+  clip-path: polygon(0 8px,8px 0,calc(100% - 8px) 0,100% 8px,100% calc(100% - 8px),calc(100% - 8px) 100%,8px 100%,0 calc(100% - 8px));
+}
+
+/* ---- Floating save bar + dirty state ---- */
+body.setting-page .floating-save-bar {
+  background: linear-gradient(160deg, var(--color-surface), color-mix(in srgb, var(--color-surface) 80%, var(--color-bg))) !important;
+  border: 1px solid rgba(var(--color-primary-rgb),.5) !important; border-radius: 0 !important;
+  backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
+  clip-path: polygon(0 12px,12px 0,calc(100% - 12px) 0,100% 12px,100% calc(100% - 12px),calc(100% - 12px) 100%,12px 100%,0 calc(100% - 12px));
+  box-shadow: 0 20px 46px -20px rgba(0,0,0,.75), 0 0 22px rgba(var(--color-primary-rgb),.14) !important;
+  transition: border-color .3s, box-shadow .3s;
+}
+body.setting-page .floating-save-bar.dirty {
+  border-color: var(--color-primary) !important;
+  box-shadow: 0 20px 46px -18px rgba(0,0,0,.8), 0 0 26px rgba(var(--color-primary-rgb),.42) !important;
+}
+body.setting-page .save-hint {
+  display: inline-flex; align-items: center; gap: 8px; white-space: nowrap;
+  font-family: var(--font-tech); font-weight: 600; font-size: .74rem; letter-spacing: .06em; text-transform: uppercase; color: var(--color-text-muted);
+  max-width: 0; overflow: hidden; opacity: 0; transition: max-width .35s ease, opacity .3s;
+}
+body.setting-page .save-hint .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--color-primary); box-shadow: 0 0 9px var(--color-primary); flex-shrink: 0; }
+body.setting-page .floating-save-bar.dirty .save-hint { max-width: 260px; opacity: 1; }
+body.setting-page .floating-save-bar.dirty #saveSettingsBtn { animation: sbpulse 2s ease-in-out infinite; }
+@keyframes sbpulse { 0%,100% { box-shadow: 0 6px 16px -6px rgba(var(--color-primary-rgb),.6); } 50% { box-shadow: 0 9px 24px -4px rgba(var(--color-primary-rgb),.95); } }
+
+/* ---- Footer ---- */
+body.setting-page .settings-foot {
+  text-align: center; font-family: var(--font-tech); font-weight: 600; letter-spacing: .3em; text-transform: uppercase;
+  font-size: .72rem; color: var(--color-text-muted); padding: 4px 0 6px;
+}
+body.setting-page .settings-foot b { color: var(--color-primary-light); font-weight: 700; }
+
+@media (prefers-reduced-motion: reduce) { body.setting-page .floating-save-bar.dirty #saveSettingsBtn { animation: none; } }
+
+/* ---- Kartu Identitas & Branding: RAPATKAN (kompak) agar batas bawah kolom kiri ~rata dgn Keamanan ---- */
+body.setting-page #brandingCard .settings-card-body { gap: 20px !important; padding: 16px 20px !important; }
+body.setting-page #brandingCard .form-group { margin: 0 !important; }
+body.setting-page #brandingCard label { margin-bottom: 4px !important; }
+body.setting-page #brandingCard .form-control { padding-top: 7px !important; padding-bottom: 7px !important; }
+body.setting-page #brandingCard .settings-grid { gap: 10px !important; margin-top: 4px !important; margin-bottom: 6px !important; }
+body.setting-page #brandingCard .settings-card-body > div[style*="border-top"] { padding-top: 10px !important; margin-top: 6px !important; margin-bottom: 8px !important; }
+body.setting-page #brandingCard h3 { margin-bottom: 8px !important; }
+body.setting-page #brandingCard .logo-upload-area { min-height: 52px !important; padding: 8px !important; }
+
+/* ==================== EDITOR TATA LETAK → gaya konsep d88b998a (HUD) ==================== */
+body.setting-page .le-root { gap: 12px !important; }
+body.setting-page .le-toolbar { gap: 9px !important; }
+body.setting-page .le-check {
+  font-family: var(--font-tech) !important; font-weight: 600 !important; font-size: .74rem !important;
+  letter-spacing: .05em !important; text-transform: uppercase !important; color: var(--color-text-secondary) !important;
+}
+body.setting-page .le-preset {
+  background: var(--color-bg) !important; border: 1px solid var(--color-border) !important; border-radius: 0 !important;
+  color: var(--color-text) !important; font-family: var(--font-tech) !important; font-weight: 600 !important;
+  clip-path: polygon(6px 0,100% 0,100% calc(100% - 6px),calc(100% - 6px) 100%,0 100%,0 6px);
+}
+body.setting-page .le-preset:focus { border-color: var(--color-primary) !important; box-shadow: 0 0 0 2px rgba(var(--color-primary-rgb),.22) !important; }
+/* kanvas: gelap sinematik + glow primary + bevel + kisi halus */
+body.setting-page .le-canvas-wrap {
+  max-width: none !important; border: 1px solid rgba(var(--color-primary-rgb),.4) !important; border-radius: 0 !important;
+  background: radial-gradient(60% 80% at 50% 40%, rgba(var(--color-primary-rgb),.12), transparent 60%), linear-gradient(160deg, color-mix(in srgb, var(--color-bg) 86%, #000), var(--color-bg)) !important;
+  clip-path: polygon(0 10px,10px 0,calc(100% - 10px) 0,100% 10px,100% calc(100% - 10px),calc(100% - 10px) 100%,10px 100%,0 calc(100% - 10px));
+  box-shadow: inset 0 0 50px rgba(0,0,0,.45) !important;
+}
+body.setting-page .le-canvas::before {
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--color-text) 7%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--color-text) 7%, transparent) 1px, transparent 1px) !important;
+  background-size: 5% 8.9% !important;
+}
+/* item: kotak HUD border primary */
+body.setting-page .le-item {
+  border: 1px solid rgba(var(--color-primary-rgb),.35) !important; border-radius: 0 !important;
+  background: color-mix(in srgb, var(--color-surface) 70%, transparent) !important; color: var(--color-text-secondary) !important;
+}
+body.setting-page .le-item:hover { border-color: rgba(var(--color-primary-rgb),.7) !important; }
+body.setting-page .le-item.le-selected {
+  border: 1.5px dashed var(--color-primary-light) !important; color: var(--color-text) !important;
+  background: color-mix(in srgb, var(--color-primary) 14%, transparent) !important;
+  box-shadow: 0 0 18px rgba(var(--color-primary-rgb),.25) !important;
+}
+body.setting-page .le-label { font-family: var(--font-tech) !important; font-weight: 700 !important; letter-spacing: .08em !important; color: var(--color-text-secondary) !important; }
+body.setting-page .le-content { font-family: var(--font-tech) !important; text-transform: uppercase !important; letter-spacing: .03em !important; }
+/* handle resize: kotak surface + border primary-light */
+body.setting-page .le-handle { background: var(--color-surface) !important; border: 1.5px solid var(--color-primary-light) !important; border-radius: 0 !important; }
+body.setting-page .le-rot { background: var(--color-primary) !important; border-color: var(--color-primary-light) !important; }
+body.setting-page .le-guide-v, body.setting-page .le-guide-h { border-color: var(--color-primary-light) !important; }
+/* panel properti: HUD */
+body.setting-page .le-panel {
+  background: var(--color-bg) !important; border: 1px solid var(--color-border) !important; border-radius: 0 !important;
+  clip-path: polygon(0 8px,8px 0,calc(100% - 8px) 0,100% 8px,100% calc(100% - 8px),calc(100% - 8px) 100%,8px 100%,0 calc(100% - 8px));
+}
+body.setting-page .le-panel-title { font-family: var(--font-tech) !important; font-weight: 700 !important; text-transform: uppercase !important; letter-spacing: .06em !important; color: var(--color-text) !important; }
+body.setting-page .le-row-label { font-family: var(--font-tech) !important; text-transform: uppercase !important; letter-spacing: .03em; color: var(--color-text-secondary) !important; font-size: .72rem !important; }
+body.setting-page .le-in {
+  background: var(--color-bg) !important; border: 1px solid var(--color-border) !important; border-radius: 0 !important; color: var(--color-text) !important;
+  clip-path: polygon(5px 0,100% 0,100% calc(100% - 5px),calc(100% - 5px) 100%,0 100%,0 5px);
+}
+body.setting-page .le-in:focus { border-color: var(--color-primary) !important; box-shadow: 0 0 0 2px rgba(var(--color-primary-rgb),.22) !important; }
+body.setting-page .le-row-checks { border-top-color: rgba(var(--color-primary-rgb),.25) !important; }
+
+/* ==================== JUDUL & SUB-JUDUL DASHBOARD: SETELAN USER MENANG (Fase 3 lanjutan) ====================
+   User memilih "setelan menang PENUH": WARNA + FONT + FORMAT judul/sub-judul mengikuti Setting
+   (--title-color-event / --subtitle-color-event / --font-event / --text-transform-event). UKURAN diatur skrip
+   auto-fit di dashboard.html (mulai dari ukuran pilihan user). Bingkai banner HUD (tint+border) & shadow-teks
+   (keterbacaan) TETAP — hanya font/warna/format yang dikembalikan ke kontrol user. Selector setinggi mungkin
+   (.has-bg .stage-custom) agar menang atas SEMUA override HUD sebelumnya (v2/v3/v7/v9/v10). */
+body.hud #eventTitle,
+body.hud.has-bg #eventTitle,
+body.hud.has-bg #stage.stage-custom #eventTitle {
+  font-family: var(--font-event, var(--font-display)) !important;
+  color: var(--title-color-event, var(--color-primary-light)) !important;
+  text-transform: var(--text-transform-event, uppercase) !important;
+}
+body.hud #eventSubtitle,
+body.hud.has-bg #eventSubtitle,
+body.hud.has-bg #stage.stage-custom #eventSubtitle {
+  font-family: var(--font-event, var(--font-tech)) !important;
+  color: var(--subtitle-color-event, var(--color-text-secondary)) !important;
+  text-transform: var(--text-transform-event, uppercase) !important;
+}
+
+/* Remap warna Popup Pemenang (permintaan user 2026-08-20): nama pemenang -> --reel-number-color
+   ("Warna Pemenang") & kategori -> --winner-number-color ("Warna Kategori") diterapkan langsung
+   pada aturan .winner-card-name / .winner-card-cluster di blok HUD POPUP PEMENANG (baris ~4458/4463).
+   Badge #N (.winner-card-number) kembali ke default. CSS-only; id field & logika app.js tak diubah. */
 
