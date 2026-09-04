@@ -20,10 +20,28 @@
   <!-- Canvas Confetti -->
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
 
-  <link rel="stylesheet" href="style.css?v=2026.08.20.7" />
+  <link rel="stylesheet" href="style.css?v=2026.09.04.3" />
 </head>
 
-<body class="hud">
+<body class="hud is-hydrating">
+
+  <div id="bootOverlay" class="boot-overlay" role="status" aria-live="polite">
+    <div class="boot-overlay-card">Memuat panggung…</div>
+  </div>
+  <noscript>
+    <style>
+      body.is-hydrating .boot-overlay { display: none !important; }
+      body.is-hydrating #stage,
+      body.is-hydrating #appFooter,
+      body.is-hydrating .dash-tools,
+      body.is-hydrating .fullscreen-toggle { visibility: visible !important; }
+    </style>
+  </noscript>
+  <script>
+    setTimeout(function () {
+      document.body.classList.remove('is-hydrating');
+    }, 8000);
+  </script>
 
   <!-- ===================== UPLOAD SCREEN ===================== -->
   <!-- ===================== STAGE: kanvas desain 1920x1080 yang diskalakan agar identik di semua layar (Fase 0) ===================== -->
@@ -65,7 +83,7 @@
         <p id="eventSubtitle" class="event-subtitle" data-stage-item="subtitle">Aplikasi Undian Digital</p>
         <div class="header-right" data-stage-item="stats">
           <div class="header-stats" id="headerStats">
-            <span class="stat-badge" id="pesertaBadge">
+            <span class="stat-badge" id="pesertaBadge" role="button" tabindex="0" title="Daftar peserta" aria-label="Lihat daftar peserta">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
                 <circle cx="9" cy="7" r="4" />
@@ -75,27 +93,15 @@
               <b id="pesertaCount">0</b><small>Peserta Aktif</small>
             </span>
           </div>
-          <a href="/setting" class="btn-icon" title="Pengaturan">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="3" />
-              <path
-                d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
-            </svg>
-          </a>
-          <button id="resetUndianBtn" class="btn-icon" title="Reset Undian">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
-              <path d="M16 3h5v5" />
-              <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
-              <path d="M8 21H3v-5" />
-            </svg>
-          </button>
         </div>
       </div>
     </header>
 
+    <template id="legacy-skip" hidden> 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+      </div>
+    </header>
+
+    </template>
     <!-- MAIN CONTENT -->
     <main id="mainContent">
       <!-- SIDEBAR: Prize -->
@@ -189,6 +195,35 @@
     <span class="footer-brand">Powered by Satsiber Kopassus</span>
   </footer>
 
+  <!-- Tombol operator (Pengaturan / Reset / Keluar) DI LUAR #stage agar tidak ikut skala panggung. -->
+  <div class="dash-tools" role="toolbar" aria-label="Alat operator">
+    <a href="/setting" class="btn-icon" title="Pengaturan" aria-label="Pengaturan">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3" />
+        <path
+          d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l.06-.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h.09a1.65 1.65 0 0 0-1.51 1z" />
+      </svg>
+    </a>
+    <button type="button" id="resetUndianBtn" class="btn-icon" title="Reset Undian" aria-label="Reset undian">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+        <path d="M16 3h5v5" />
+        <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+        <path d="M8 21H3v-5" />
+      </svg>
+    </button>
+    <button type="button" class="btn-icon" data-action="logout" title="Keluar" aria-label="Keluar">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+        <polyline points="16 17 21 12 16 7" />
+        <line x1="21" y1="12" x2="9" y2="12" />
+      </svg>
+    </button>
+  </div>
+
   <!-- Tombol Layar Penuh Proyektor (Fase 4) — overlay DI LUAR #stage, tak ikut diskalakan. -->
   <button type="button" id="fullscreenBtn" class="fullscreen-toggle" title="Layar penuh proyektor (F)" aria-label="Layar penuh">
     <svg class="fs-icon-enter" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M16 3h3a2 2 0 0 1 2 2v3"/><path d="M8 21H5a2 2 0 0 1-2-2v-3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
@@ -251,27 +286,43 @@
     </div>
   </div>
 
-  <script src="app.js?v=2026.08.19.3"></script>
+  <script src="app.js?v=2026.09.04.1"></script>
 
   <!-- Fit judul & sub-judul ke SATU baris (auto-kecilkan font utk kalimat panjang) — UI-only, tak sentuh logika undian. -->
   <script>
   (function(){
     var _stg = document.getElementById('stage');
     function _custom(){ return !!(_stg && _stg.classList.contains('stage-custom')); }
-    function fit(el, maxPx, minPx, maxW){
+    function fit(el, sizePx, minPx, maxW){
       if(!el) return;
-      el.style.setProperty('white-space','nowrap','important');
+      // HIBRID (user 2026-08-21): HORMATI ukuran pilihan user (slider Setting = ukuran nyata, bukan sekadar batas).
+      // Teks panjang MEMBUNGKUS sampai maks 2 baris pada ukuran itu; baru auto-KECIL bila MASIH luber (>2 baris).
+      // Kata sangat panjang dipecah (break-word) agar tak menonjol keluar kotak. overflow:visible → baris ke-2 terlihat.
+      el.style.setProperty('white-space','normal','important');
+      el.style.setProperty('overflow-wrap','break-word','important');
+      el.style.setProperty('overflow','visible','important');
       var cst = _custom();
-      if(!cst) el.style.setProperty('max-width','none','important'); else el.style.removeProperty('max-width');
-      var s=maxPx, g=0;
+      // Custom: kotak (clientWidth) yang membatasi bungkus. Biasa: bungkus dalam maxW (banner tumbuh vertikal, bukan mengecil).
+      if(!cst) el.style.setProperty('max-width', maxW+'px','important'); else el.style.removeProperty('max-width');
+      var MAXLINES = 2, s = sizePx, g = 0;
+      // Hitung baris ter-RENDER via Range.getClientRects (dikelompokkan per posisi 'top') — paling ANDAL:
+      // mengukur baris NYATA hasil pembungkusan word-boundary (tak terpengaruh quirk flex/scrollHeight).
+      function renderedLines(){
+        el.style.setProperty('font-size', s+'px','important');
+        try{
+          var range=document.createRange(); range.selectNodeContents(el);
+          var rects=range.getClientRects(), tops={}, n=0;
+          for(var i=0;i<rects.length;i++){ var k=Math.round(rects[i].top); if(!(k in tops)){ tops[k]=1; n++; } }
+          return n||1;
+        }catch(e){ return 1; }
+      }
+      // Kecilkan hanya bila teks BENAR-BENAR ter-render lebih dari 2 baris pada ukuran ini.
+      while(renderedLines() > MAXLINES && s > minPx && g < 300){ s -= 1; g++; }
       el.style.setProperty('font-size', s+'px','important');
-      // Tata letak biasa: pas ke maxW (banner tumbuh ikut teks). Layout KUSTOM: pas ke KOTAK (clientWidth) → teks tak terpotong.
-      function over(){ return cst ? (el.scrollWidth > el.clientWidth || el.scrollHeight > el.clientHeight) : (el.scrollWidth > maxW); }
-      while(over() && s>minPx && g<220){ s-=1; el.style.setProperty('font-size', s+'px','important'); g++; }
     }
     function _remPx(v, fb){ try{ var s=getComputedStyle(document.documentElement).getPropertyValue(v).trim(); var n=parseFloat(s); if(!n) return fb; return s.indexOf('rem')>=0 ? n*16 : n; }catch(e){ return fb; } }
     function fitAll(){
-      // Ukuran MAKS = pilihan user (Setting → Ukuran Judul/Sub-judul, rem→px). Auto-fit hanya MENGECILKAN bila teks luber.
+      // Ukuran = pilihan user (Setting → Ukuran Judul/Sub-judul, rem→px). HIBRID: hormati ukuran, wrap maks 2 baris, kecilkan hanya bila masih luber.
       fit(document.getElementById('eventTitle'), _remPx('--title-size-event', 50), 12, 1200);
       fit(document.getElementById('eventSubtitle'), _remPx('--subtitle-size-event', 22), 8, 1040);
     }

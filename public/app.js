@@ -24,6 +24,25 @@ document.getElementById = function(id) {
 };
 // --- END SAFE ELEMENT PATCH ---
 
+function isDom(el) {
+  return !!(el && el.nodeType === 1 && !el.isDummy);
+}
+
+function finishHydrate() {
+  document.body.classList.remove('is-hydrating');
+}
+
+async function handleLogout() {
+  const ok = await showCustomConfirm(
+    'Keluar',
+    'Keluar dari sesi operator? Dashboard dan pengaturan akan membutuhkan login lagi.',
+    'Keluar',
+    'Batal'
+  );
+  if (!ok) return;
+  window.location.href = '/logout';
+}
+
 /* ============================================================
    DORPRIZE â€” Aplikasi Undian Digital Profesional
    Core Application Logic
@@ -295,19 +314,23 @@ function applyLayout(layout) {
     set('right', 'auto');
     set('bottom', 'auto');
     set('width', (it.w * SW) + 'px');
-    set('height', (it.h * SH) + 'px');
+    // Judul & sub-judul di DASHBOARD (punya __fitTitles): BANNER TINGGI FLEKSIBEL — tinggi kotak jadi
+    // MINIMUM & banner TUMBUH mengikuti teks (maks 2 baris) sehingga kalimat panjang TAK TERPOTONG.
+    // Ukuran font dari slider Setting (via __fitTitles), BUKAN isi-kotak (fitTextToBox) → slider Ukuran
+    // Judul/Sub-judul kini BERFUNGSI. Halaman lain (tanpa __fitTitles): perilaku lama (isi-kotak).
+    var useSlider = (id === 'title' || id === 'subtitle') && typeof window.__fitTitles === 'function';
+    if (useSlider) set('height', 'auto'); else set('height', (it.h * SH) + 'px');
     // Netralkan batas ukuran CSS dasar agar kotak PERSIS seukuran yang diatur
     // (kalau tidak, max-width/height mengklem & item tampak lebih kecil/meleset).
     set('min-width', '0');
-    set('min-height', '0');
+    set('min-height', useSlider ? ((it.h * SH) + 'px') : '0');
     set('max-width', 'none');
     set('max-height', 'none');
     set('opacity', String(it.opacity != null ? it.opacity : 1));
     set('z-index', String(it.z != null ? it.z : 10));
     set('transform', it.rot ? `rotate(${it.rot}deg)` : 'none');
-    // Judul & sub-judul: skalakan teks agar MENGISI kotak (ukuran kotak = ukuran
-    // teks). Tanpa ini, font tetap (2.4rem/1.15rem) tampak kecil di kotak besar.
-    if (id === 'title' || id === 'subtitle') fitTextToBox(el);
+    // Ukuran teks judul/sub-judul: __fitTitles (slider + wrap maks 2 baris) di dashboard; fitTextToBox (isi-kotak) di halaman lain.
+    if (id === 'title' || id === 'subtitle') { if (useSlider) window.__fitTitles(); else fitTextToBox(el); }
   });
 }
 window.applyLayout = applyLayout;
@@ -357,6 +380,8 @@ window.initLayoutEditor = initLayoutEditor;
 
 // ===================== INITIALIZATION =====================
 document.addEventListener('DOMContentLoaded', async () => {
+  const hydrateTimer = setTimeout(finishHydrate, 8000);
+  try {
   loadSettings();
   loadAdminSettings();
   checkRemoteAccess();
@@ -408,6 +433,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   // Start 2-second background live sync for all connected devices
   startLiveSync();
+  } finally {
+    clearTimeout(hydrateTimer);
+    finishHydrate();
+  }
 });
 
 APP.lastSyncTs = 0;
@@ -1170,6 +1199,24 @@ function bindEvents() {
 
   addEvent('downloadTemplateBtn', 'click', generateTemplate);
 
+  document.querySelectorAll('[data-action="logout"]').forEach((el) => {
+    el.addEventListener('click', (e) => {
+      e.preventDefault();
+      handleLogout();
+    });
+  });
+
+  const pesertaBadge = document.getElementById('pesertaBadge');
+  if (isDom(pesertaBadge)) {
+    pesertaBadge.addEventListener('click', () => openPesertaListModal());
+    pesertaBadge.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        openPesertaListModal();
+      }
+    });
+  }
+
   const clusterSelect = document.getElementById('clusterSelect');
   if (clusterSelect) {
     clusterSelect.addEventListener('change', e => {
@@ -1268,7 +1315,7 @@ function bindEvents() {
 
   // Reset Undian Button
   const resetBtn = document.getElementById('resetUndianBtn');
-  if (resetBtn) {
+  if (isDom(resetBtn)) {
     resetBtn.addEventListener('click', async () => {
       if (APP.dataPeserta.length === 0) {
         showToast('Belum ada data peserta yang dimuat.', 'warning');
@@ -3200,17 +3247,20 @@ function openAdminPanel() {
 // ditarget (ronde yang sudah lewat tak bisa dirig lagi). Label: nama — Ronde N (kuota).
 function populateAdminPrizeSelect() {
   const sel = document.getElementById('adminPrize');
-  if (!sel) return;
+  if (!isDom(sel)) return;
   const prev = sel.value;
 
-  const prizes = (APP.settings.prizes || [])
-    .filter(p => p && (parseInt(p.ronde) || 1) >= (APP.currentRonde || 1))
+  const allPrizes = (APP.settings.prizes || []).filter(p => p);
+  const prizes = allPrizes
+    .filter(p => (parseInt(p.ronde) || 1) >= (APP.currentRonde || 1))
     .slice()
     .sort((a, b) => (parseInt(a.ronde) || 1) - (parseInt(b.ronde) || 1) ||
                     String(a.name || '').localeCompare(String(b.name || '')));
 
   if (prizes.length === 0) {
-    sel.innerHTML = '<option value="">— Belum ada hadiah (atur di Pengaturan) —</option>';
+    sel.innerHTML = allPrizes.length === 0
+      ? '<option value="">— Belum ada hadiah (atur di Pengaturan) —</option>'
+      : '<option value="">— Tidak ada hadiah untuk ronde ini atau berikutnya —</option>';
     sel.value = '';
     onAdminPrizeChange();
     return;
@@ -3236,9 +3286,10 @@ window.populateAdminPrizeSelect = populateAdminPrizeSelect;
 // validasi & kode lama) lalu tampilkan ronde efektif + filter kategori hadiah tsb.
 window.onAdminPrizeChange = function() {
   const sel = document.getElementById('adminPrize');
+  if (!isDom(sel)) return;
   const hiddenRonde = document.getElementById('adminRonde');
   const hint = document.getElementById('adminPrizeHint');
-  const prize = sel ? findPrizeById(sel.value) : null;
+  const prize = findPrizeById(sel.value);
 
   // Segarkan tampilan "N / slot" tiap kali hadiah (dan kuotanya) berubah.
   if (typeof updateTargetChipCount === 'function') updateTargetChipCount();
@@ -3341,9 +3392,9 @@ window.removeTargetChip = function(btn) {
 
 function updateTargetChipCount() {
   const container = document.getElementById('targetChipContainer');
-  const count = container ? container.querySelectorAll('.target-chip').length : 0;
+  const count = isDom(container) ? container.querySelectorAll('.target-chip').length : 0;
   const el = document.getElementById('targetChipCount');
-  if (!el) return;
+  if (!isDom(el)) return;
   // Tampilkan kuota hadiah terpilih (N / slot) agar operator tahu batas pemenang.
   const prizeSel = document.getElementById('adminPrize');
   const selPrize = prizeSel ? findPrizeById(prizeSel.value) : null;
@@ -3354,34 +3405,59 @@ function updateTargetChipCount() {
 // ===================== PESERTA LIST MODAL =====================
 
 window.openPesertaListModal = function(btnEl) {
-  // Wajib pilih hadiah dulu → daftar peserta lalu disaring sesuai KATEGORI & KUOTA hadiah.
   const prizeSel = document.getElementById('adminPrize');
-  if (prizeSel && !prizeSel.value) {
+  if (isDom(prizeSel) && !prizeSel.value) {
     showToast('Pilih hadiah target terlebih dahulu, agar peserta bisa disaring sesuai kategori & kuota hadiah.', 'warning');
     return;
   }
-  document.getElementById('searchPesertaInput').value = '';
+  fillFilterClusterSelect();
+  const search = document.getElementById('searchPesertaInput');
+  if (isDom(search)) search.value = '';
   filterPesertaList();
   openModal('pesertaListModal');
 };
 
+function fillFilterClusterSelect() {
+  const sel = document.getElementById('filterClusterSelect');
+  if (!isDom(sel)) return;
+  const current = sel.value || 'Semua';
+  const options = (APP.availableClusters && APP.availableClusters.length)
+    ? APP.availableClusters
+    : [...new Set([
+        ...(APP.uniqueJenis || []),
+        ...(APP.uniqueGrup || []),
+        ...(APP.uniqueKelompok || [])
+      ].filter(Boolean))];
+  sel.innerHTML = '<option value="Semua">Semua</option>' +
+    options.map(c => '<option value="' + c + '">' + c + '</option>').join('');
+  sel.value = [...sel.options].some(o => o.value === current) ? current : 'Semua';
+}
+
 window.filterPesertaList = function() {
-  const q = document.getElementById('searchPesertaInput').value.toLowerCase();
+  const searchEl = document.getElementById('searchPesertaInput');
+  const q = isDom(searchEl) ? String(searchEl.value || '').toLowerCase() : '';
+  const modalCluster = document.getElementById('filterClusterSelect');
   const adminCluster = document.getElementById('adminCluster');
-  const filterCluster = adminCluster ? adminCluster.value : 'Semua';
+  const filterCluster = isDom(modalCluster)
+    ? (modalCluster.value || 'Semua')
+    : (isDom(adminCluster) ? (adminCluster.value || 'Semua') : 'Semua');
   // Hadiah terpilih → saring peserta agar HANYA yang cocok KATEGORI (jenis/grup/kelompok)
   // hadiah itu yang tampil (penegakan final tetap di saveAdminTarget).
   const _prizeSel = document.getElementById('adminPrize');
-  const _selPrize = _prizeSel ? findPrizeById(_prizeSel.value) : null;
+  const _selPrize = isDom(_prizeSel) ? findPrizeById(_prizeSel.value) : null;
   const _prizeRule = _selPrize ? { jenis: _selPrize.jenis || 'Semua', grup: _selPrize.grup || 'Semua', kelompok: _selPrize.kelompok || 'Semua' } : null;
   const container = document.getElementById('pesertaListContainer');
+  if (!isDom(container)) return;
   
   // Get all previous winners so we can mark them
   const prevWinners = getAllPreviousWinners();
   
   // Get currently selected targets
   const chipContainer = document.getElementById('targetChipContainer');
-  const selectedIds = chipContainer ? Array.from(chipContainer.querySelectorAll('.target-chip')).map(c => c.dataset.id) : [];
+  const selectedIds = isDom(chipContainer)
+    ? Array.from(chipContainer.querySelectorAll('.target-chip')).map(c => c.dataset.id)
+    : [];
+  const isPicker = isDom(chipContainer);
   
   // Get all pending targets from adminTargets → label hadiah (bukan sekadar ronde)
   const pendingTargets = {};
@@ -3432,6 +3508,8 @@ window.filterPesertaList = function() {
       actionHtml = '<span style="color:#2563EB; font-size:0.75rem; font-weight:600;">Sudah Menang</span>';
     } else if (targetedLabel !== undefined) {
       actionHtml = `<span style="color:#D97706; font-size:0.75rem; font-weight:600;">Target: ${targetedLabel}</span>`;
+    } else if (!isPicker) {
+      actionHtml = '<span style="color:var(--color-text-muted); font-size:0.75rem;">' + (p.status || 'Belum Diundi') + '</span>';
     } else if (isSelected) {
       actionHtml = '<button class="btn btn-small" style="padding:6px 12px; font-size:0.75rem; background:var(--color-bg-tertiary); color:var(--color-text-muted); border:1px solid var(--color-border);" disabled>Terpilih</button>';
     } else {
@@ -3457,6 +3535,7 @@ window.filterPesertaList = function() {
 };
 
 window.selectPesertaFromList = function(id) {
+  if (!isDom(document.getElementById('targetChipContainer'))) return;
   const p = APP.dataPeserta.find(x => x.id === id);
   const displayName = p ? p.nama : id;
   addTargetChip(id);

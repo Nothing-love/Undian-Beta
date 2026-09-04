@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Halaman tidak ditemukan — DOORPRIZE</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600&family=Rajdhani:wght@500;600;700&family=Teko:wght@500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --color-primary:#DC2626; --color-primary-light:#F04444; --color-primary-dark:#B01B1B; --color-primary-rgb:220,38,38;
+      --color-bg:#0A0E15; --color-surface:#111826;
+      --color-text:#E9EEF6; --color-text-muted:#7F93A8; --color-border:#1F2A3A;
+      --font-display:'Bebas Neue','Oswald',sans-serif; --font-tech:'Rajdhani','Segoe UI',sans-serif;
+      --font-ui:'Inter','Segoe UI',sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 20px;
+      font-family: var(--font-ui); color: var(--color-text);
+      background:
+        radial-gradient(58% 78% at 50% 30%, rgba(var(--color-primary-rgb),.13), transparent 60%),
+        linear-gradient(160deg, #05080d, var(--color-bg));
+    }
+    .box {
+      position: relative; z-index: 2; width: 100%; max-width: 420px; padding: 46px 38px 34px; text-align: center;
+      background: linear-gradient(160deg, var(--color-surface), #0c121d);
+      border: 1.5px solid rgba(var(--color-primary-rgb),.5);
+      clip-path: polygon(0 20px, 20px 0, calc(100% - 26px) 0, 100% 26px, 100% calc(100% - 20px), calc(100% - 20px) 100%, 26px 100%, 0 calc(100% - 26px));
+      box-shadow: 0 26px 64px -22px rgba(0,0,0,.75), 0 0 44px rgba(var(--color-primary-rgb),.16);
+    }
+    .eyebrow { font-family: var(--font-tech); font-weight: 600; font-size: .72rem; letter-spacing: .32em; text-transform: uppercase; color: var(--color-primary-light); margin-bottom: 8px; }
+    h1 { font-family: var(--font-display); font-weight: 400; font-size: 3rem; line-height: 1; letter-spacing: .06em; color: var(--color-primary-light);
+      text-shadow: 0 0 28px rgba(var(--color-primary-rgb),.5); margin: 0 0 10px; }
+    p { font-family: var(--font-tech); font-weight: 600; font-size: .95rem; color: var(--color-text-muted); margin: 0 0 26px; }
+    a.home {
+      display: inline-block; padding: 12px 28px; text-decoration: none; color: #fff;
+      font-family: var(--font-tech); font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+      background: linear-gradient(180deg, var(--color-primary-light), var(--color-primary) 55%, var(--color-primary-dark));
+      clip-path: polygon(14px 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 14px 100%, 0 50%);
+    }
+    .foot { margin-top: 24px; font-family: var(--font-tech); font-weight: 600; font-size: .64rem; letter-spacing: .28em; text-transform: uppercase; color: var(--color-text-muted); }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <div class="eyebrow">Sistem Undian Digital</div>
+    <h1>404</h1>
+    <p>Halaman yang dicari tidak ditemukan.</p>
+    <a class="home" href="/">Kembali ke beranda</a>
+    <div class="foot">DOORPRIZE</div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mobile Preview — DOORPRIZE (dev)</title>
+<style>
+  :root { --panel:#141b2a; --line:#2a3550; --txt:#e6edf5; --muted:#8ea0b5; --accent:#e11d2a; }
+  * { box-sizing: border-box; }
+  html,body { margin:0; height:100%; }
+  body { background:#070a10; color:var(--txt); font-family: system-ui,'Segoe UI',Roboto,sans-serif;
+         display:flex; flex-direction:column; }
+  #bar { flex:0 0 auto; display:flex; flex-wrap:wrap; gap:12px; align-items:center; padding:8px 14px;
+         background:linear-gradient(180deg,#0e1420,#0a0f18); border-bottom:1px solid var(--line); }
+  #bar .grp { display:flex; align-items:center; gap:6px; }
+  #bar label { font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); }
+  #bar b.brand { font-size:13px; letter-spacing:.12em; color:var(--accent); text-transform:uppercase; }
+  select,button { background:var(--panel); color:var(--txt); border:1px solid var(--line); border-radius:8px;
+                  padding:6px 10px; font-size:13px; cursor:pointer; }
+  button:hover,select:hover { border-color:#3b4a6b; }
+  .hint { font-size:11px; color:var(--muted); }
+  #meta { margin-left:auto; font-size:12px; color:var(--muted); font-variant-numeric:tabular-nums;
+          white-space:nowrap; }
+  #stageWrap { flex:1 1 auto; overflow:auto; display:flex; align-items:flex-start; justify-content:center;
+               padding:22px; }
+  #phone { position:relative; background:#05070c; border:2px solid #2b3550; border-radius:36px; padding:14px;
+           box-shadow:0 30px 80px -20px rgba(0,0,0,.85), inset 0 0 0 1px rgba(255,255,255,.03);
+           transform-origin: top center; flex:0 0 auto; }
+  #screen { position:relative; background:#000; border-radius:22px; overflow:hidden; }
+  iframe { border:0; display:block; background:#fff; }
+</style>
+</head>
+<body>
+  <div id="bar">
+    <b class="brand">📱 Mobile Preview</b>
+    <div class="grp"><label>Halaman</label>
+      <select id="page">
+        <option value="/adm1n">Admin (adm1n)</option>
+        <option value="/setting">Setting</option>
+        <option value="/dashboard">Dashboard</option>
+        <option value="/login">Login</option>
+      </select>
+    </div>
+    <div class="grp"><label>Perangkat</label><select id="device"></select></div>
+    <div class="grp">
+      <button id="rotate" title="Putar orientasi">⟳ Putar</button>
+      <button id="reload" title="Muat ulang iframe">↻ Reload</button>
+    </div>
+    <span class="hint">Media query anak = lebar iframe → uji mobile sungguhan.</span>
+    <span id="meta"></span>
+  </div>
+  <div id="stageWrap">
+    <div id="phone"><div id="screen"><iframe id="fr" title="preview" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"></iframe></div></div>
+  </div>
+<script>
+  var DEVICES = [
+    {n:'iPhone SE — 375×667', w:375, h:667},
+    {n:'iPhone 12/13/14 — 390×844', w:390, h:844},
+    {n:'Pixel 5 — 393×851', w:393, h:851},
+    {n:'Galaxy S8 — 360×740', w:360, h:740},
+    {n:'iPhone 14 Pro Max — 430×932', w:430, h:932},
+    {n:'Kecil — 320×568', w:320, h:568}
+  ];
+  var $ = function(s){ return document.querySelector(s); };
+  var pageSel=$('#page'), devSel=$('#device'), fr=$('#fr'), phone=$('#phone'), screen=$('#screen'), meta=$('#meta'), bar=$('#bar');
+  var landscape=false, devIdx=1;
+  DEVICES.forEach(function(d,i){ var o=document.createElement('option'); o.value=i; o.textContent=d.n; devSel.appendChild(o); });
+  devSel.value=devIdx;
+
+  function apply(){
+    var d=DEVICES[devIdx];
+    var w= landscape ? d.h : d.w;
+    var h= landscape ? d.w : d.h;
+    fr.style.width=w+'px'; fr.style.height=h+'px';
+    screen.style.width=w+'px'; screen.style.height=h+'px';
+    var barH=bar.getBoundingClientRect().height;
+    var availH=window.innerHeight - barH - 48;
+    var availW=window.innerWidth - 48;
+    var phoneW=w+32, phoneH=h+32;
+    var scale=Math.min(1, availH/phoneH, availW/phoneW);
+    phone.style.transform='scale('+scale.toFixed(3)+')';
+    meta.textContent = w+' × '+h+' px' + (scale<1 ? ('  ·  '+Math.round(scale*100)+'%') : '') + (landscape?'  · landscape':'');
+  }
+  function load(){ var b=pageSel.value; fr.src = b + (b.indexOf('?')>-1?'&':'?') + 'mp=' + Date.now(); }
+  pageSel.onchange=load;
+  devSel.onchange=function(){ devIdx=+devSel.value; apply(); };
+  $('#rotate').onclick=function(){ landscape=!landscape; apply(); };
+  $('#reload').onclick=load;
+  window.addEventListener('resize', apply);
+  apply(); load();
+</script>
+</body>
+</html>

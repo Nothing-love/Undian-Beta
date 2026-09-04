@@ -55,7 +55,7 @@ Nilai default ini dipakai **hanya bila** belum diatur lewat `.env` atau file
 - **Password panel adm1n** → halaman **/adm1n** (butuh password lama), atau `ADMIN_PANEL_PASSWORD` di `.env`.
 
 Perubahan lewat UI disimpan ke `data/auth_state.json` (server-only, tidak di-commit).
-Nilai `.env` menjadi *fallback* bila file itu belum ada.
+Setelah file itu ada, password di `.env` **tidak menimpa** `auth_state.json` — `.env` hanya *fallback* bila file belum berisi password. Server menuliskan peringatan di konsol bila keduanya berbeda.
 
 ---
 

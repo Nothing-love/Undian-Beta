@@ -501,6 +501,21 @@ function writeAuthPatch(patch) {
   return next;
 }
 
+function warnAuthEnvMismatch() {
+  const auth = readAuthState();
+  const envLogin = String(process.env.ADMIN_PASSWORD || '').trim();
+  const envPanel = String(process.env.ADMIN_PANEL_PASSWORD || '').trim();
+  const fileLogin = auth && typeof auth.loginPassword === 'string' ? auth.loginPassword.trim() : '';
+  const filePanel = auth && typeof auth.adminPassword === 'string' ? auth.adminPassword.trim() : '';
+  if (envLogin && fileLogin && envLogin !== fileLogin) {
+    console.warn('⚠️ ADMIN_PASSWORD di .env berbeda dari data/auth_state.json. Password login yang dipakai adalah yang di auth_state.json (ubah lewat Pengaturan). Nilai .env diabaikan.');
+  }
+  if (envPanel && filePanel && envPanel !== filePanel) {
+    console.warn('⚠️ ADMIN_PANEL_PASSWORD di .env berbeda dari data/auth_state.json. Password panel yang dipakai adalah yang di auth_state.json (ubah lewat /adm1n). Nilai .env diabaikan.');
+  }
+}
+warnAuthEnvMismatch();
+
 function isValidNewPassword(value) {
   return typeof value === 'string' && value.trim().length >= 4 && value.length <= 128;
 }
@@ -520,6 +535,9 @@ function requireAdminUnlocked(req, res, next) {
 
 app.use((req, res, next) => {
   if (!req.path.endsWith('.html')) return next();
+  if (req.path === '/_mobile-preview.html') {
+    return requireAuth(req, res, () => res.sendFile(path.join(PUBLIC_DIR, '_mobile-preview.html')));
+  }
   const cleanPath = req.path.slice(0, -5);
   if (['/login', '/dashboard', '/setting', '/adm1n'].includes(cleanPath)) {
     return res.redirect(cleanPath);
@@ -800,7 +818,9 @@ app.post('/api/state', requireAuth, (req, res) => {
 
 app.use((req, res) => {
   if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'API endpoint tidak ditemukan.' });
-  return res.status(404).send('Not Found');
+  return res.status(404).sendFile(path.join(PUBLIC_DIR, '404.html'), (err) => {
+    if (err) res.status(404).type('text/plain').send('Not Found');
+  });
 });
 
 app.use((error, req, res, next) => {

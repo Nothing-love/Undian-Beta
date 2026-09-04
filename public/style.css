@@ -4426,6 +4426,13 @@ body.hud #winnerModal .modal-winner {
 body.hud #winnerModal .winner-modal-overlay-tint {
   background: radial-gradient(130% 85% at 50% 118%, rgba(0,0,0,.55), transparent 60%), linear-gradient(180deg, rgba(0,0,0,.08), rgba(0,0,0,.42)) !important;
 }
+/* Header band: dark backing di belakang judul+sub-judul agar SELALU terbaca di atas latar pemenang APA PUN
+   (preset gelap = tak terlihat; gambar custom terang = pelindung kontras). Fade ke transparan di bawah subtitle. */
+body.hud #winnerModal .winner-header-area {
+  position: relative;
+  padding-bottom: 12px !important;
+  background: linear-gradient(180deg, rgba(4,7,14,.96) 0%, rgba(4,7,14,.94) 72%, rgba(4,7,14,.86) 88%, rgba(4,7,14,0) 100%) !important;
+}
 
 /* Judul: Bebas Neue putih + glow primary (matikan gradient emas). Garis hias samping dihilangkan (konsep bersih). */
 body.hud #winnerModal .winner-title-wrap::before,
@@ -4434,12 +4441,13 @@ body.hud #winnerModal .winner-title {
   font-family: var(--font-display) !important; font-weight: 400 !important; letter-spacing: .06em !important;
   background: none !important; -webkit-background-clip: border-box !important; background-clip: border-box !important;
   -webkit-text-fill-color: #fff !important; color: #fff !important;
-  text-shadow: 0 0 26px rgba(var(--color-primary-rgb),.6), 0 3px 10px rgba(0,0,0,.55) !important;
+  text-shadow: 0 0 26px rgba(var(--color-primary-rgb),.6), 0 3px 12px rgba(0,0,0,.85) !important;
 }
 /* Sub-judul: Rajdhani aksen primary (bukan pill emas) */
 body.hud #winnerModal .winner-subtitle {
   background: none !important; box-shadow: none !important; border-radius: 0 !important; padding: 2px 0 !important; margin: 8px auto 2px !important;
   font-family: var(--font-tech) !important; font-weight: 700 !important; letter-spacing: .16em !important; color: var(--color-primary-light) !important;
+  text-shadow: 0 2px 8px rgba(0,0,0,.8) !important;
 }
 body.hud #winnerModal .winner-subtitle #winnerRonde { color: #fff !important; }
 
@@ -4878,9 +4886,81 @@ body.hud.has-bg #stage.stage-custom #eventSubtitle {
   color: var(--subtitle-color-event, var(--color-text-secondary)) !important;
   text-transform: var(--text-transform-event, uppercase) !important;
 }
+/* PAKSA SUB-JUDUL TERBACA di mode latar-gambar (sinematik) — permintaan user 2026-08-21 (QA Fase 5).
+   Warna sub-judul dari Setting bisa gelap (mis. #070fed) → tak terbaca di banner gelap proyektor.
+   Saat .has-bg, sub-judul dipaksa tint terang (JUDUL tak diubah). Selector setara blok di atas
+   (stage-custom 2,3,1 & biasa 1,2,1) + source-order lebih akhir → menang. Non-has-bg tetap hormati
+   warna user (stage adaptif = tetap terbaca). */
+body.hud.has-bg #eventSubtitle,
+body.hud.has-bg #stage.stage-custom #eventSubtitle {
+  color: #dbe4ee !important;
+  -webkit-text-fill-color: #dbe4ee !important;
+  text-shadow: 0 2px 10px rgba(0,0,0,.85), 0 0 3px rgba(0,0,0,.7) !important;
+}
 
-/* Remap warna Popup Pemenang (permintaan user 2026-08-20): nama pemenang -> --reel-number-color
-   ("Warna Pemenang") & kategori -> --winner-number-color ("Warna Kategori") diterapkan langsung
-   pada aturan .winner-card-name / .winner-card-cluster di blok HUD POPUP PEMENANG (baris ~4458/4463).
-   Badge #N (.winner-card-number) kembali ke default. CSS-only; id field & logika app.js tak diubah. */
+body.hud.is-hydrating #stage,
+body.hud.is-hydrating #appFooter,
+body.hud.is-hydrating .dash-tools,
+body.hud.is-hydrating .fullscreen-toggle {
+  visibility: hidden;
+}
+.boot-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-bg, #0a0e15);
+  color: var(--color-text, #e9eef6);
+}
+body.hud:not(.is-hydrating) .boot-overlay { display: none !important; }
+.boot-overlay-card {
+  font-family: var(--font-tech, 'Rajdhani', sans-serif);
+  font-weight: 700;
+  font-size: 1.05rem;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: var(--color-primary-light, #f04444);
+  text-shadow: 0 0 22px rgba(var(--color-primary-rgb, 220, 38, 38), .45);
+}
+
+.dash-tools {
+  position: fixed;
+  top: 8px;
+  right: 8px;
+  z-index: 500;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
+body.hud .dash-tools .btn-icon {
+  width: 30px;
+  height: 30px;
+  opacity: 0.7;
+}
+body.hud .dash-tools .btn-icon svg {
+  width: 14px;
+  height: 14px;
+}
+body.hud .dash-tools .btn-icon:hover,
+body.hud .dash-tools .btn-icon:focus-visible {
+  opacity: 1;
+}
+body.hud.has-bg .dash-tools .btn-icon {
+  background: rgba(9,12,19,.55) !important;
+  border-color: rgba(var(--color-primary-rgb),.5) !important;
+  color: #eaf0f8 !important;
+}
+body.hud.has-bg .dash-tools .btn-icon svg {
+  color: #eaf0f8 !important;
+  stroke: #eaf0f8 !important;
+}
+
+body.hud #pesertaBadge { cursor: pointer; }
+body.hud #pesertaBadge:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
 

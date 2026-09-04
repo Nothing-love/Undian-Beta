@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600&family=Rajdhani:wght@500;600;700&family=Teko:wght@500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=2026.08.19.4">
+  <link rel="stylesheet" href="style.css?v=2026.09.04.1">
   <style>
     /* Login pintu masuk — bahasa desain HUD (tema komando/gelap-merah, senada Dashboard).
        app.js tak jalan di sini (pra-login) → set token tema komando inline. UI-only. */
@@ -102,7 +102,7 @@
     <h1>DOORPRIZE</h1>
     <div class="login-sub">Masuk Operator</div>
     <div class="error-msg" id="errorMsg">Username atau Password salah!</div>
-    <form action="/login" method="POST">
+    <form action="/login" method="POST" id="loginForm" novalidate>
       <div class="form-group">
         <label for="username">Username</label>
         <input type="text" id="username" name="username" class="form-control" required autofocus>
@@ -116,9 +116,25 @@
     <div class="login-foot">Powered by <b>Satsiber Kopassus</b></div>
   </div>
   <script>
-    if (window.location.search.includes('error=1')) {
-      document.getElementById('errorMsg').style.display = 'block';
-    }
+    (function () {
+      var form = document.getElementById('loginForm');
+      var err = document.getElementById('errorMsg');
+      if (form && err) {
+        form.addEventListener('submit', function (e) {
+          var user = (document.getElementById('username').value || '').trim();
+          var pass = document.getElementById('password').value || '';
+          if (!user || !pass) {
+            e.preventDefault();
+            err.textContent = 'Username dan password wajib diisi.';
+            err.style.display = 'block';
+          }
+        });
+      }
+      if (window.location.search.includes('error=1') && err) {
+        err.textContent = 'Username atau Password salah!';
+        err.style.display = 'block';
+      }
+    })();
   </script>
 </body>
 </html>
