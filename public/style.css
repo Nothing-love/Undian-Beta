@@ -4600,9 +4600,10 @@ body.hud.has-bg .pcat-name { text-shadow: 0 2px 8px rgba(0,0,0,.85); }
 /* Katalog tanpa foto (HUD): judul sorotan lebih besar + panel bersudut ala pedestal. */
 body.hud .pcat-noimg .pcat-hero {
   border-color: rgba(var(--color-primary-rgb),.45);
-  /* Dari warna tema saja (tanpa campuran hitam) → cerah di tema terang, gelap di tema gelap. */
-  background: radial-gradient(90% 85% at 50% 0%, rgba(var(--color-primary-rgb),.26), transparent 72%),
-              linear-gradient(180deg, var(--color-surface), color-mix(in srgb, var(--color-bg) 70%, var(--color-surface)));
+  /* TRANSPARAN: panel memakai latar panel hadiah yang sama dengan daftar di bawahnya,
+     jadi warna nama hadiah (Pengaturan) selalu kontras — dulu latar = warna permukaan
+     tema (putih di tema terang) → nama putih (mode gambar latar) tak terbaca. */
+  background: radial-gradient(90% 85% at 50% 0%, rgba(var(--color-primary-rgb),.22), transparent 72%);
   clip-path: polygon(0 15px,15px 0,100% 0,100% calc(100% - 15px),calc(100% - 15px) 100%,0 100%);
 }
 body.hud .pcat-noimg .pcat-title { font-size: 44px; height: 98px; }
