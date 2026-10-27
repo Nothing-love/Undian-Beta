@@ -18,11 +18,14 @@ target pemenang (khusus developer).
   bergiliran + daftar ringkas yang menggulir sendiri (tidak menumpuk walau gambar berbeda-beda).
   Hadiah tanpa foto tampil sebagai ikon 🎁 besar; ronde tanpa foto sama sekali menampilkan
   nama hadiah sebagai judul sorotan & daftar yang lebih panjang.
-- **Anti-duplikat** pemenang + sinkronisasi multi-perangkat (polling tiap 2 detik).
+- **Undian dihitung di server** (`draw.js`): anti-duplikat, ronde yang sudah diundi ditolak
+  (aman walau SPIN ditekan dari dua perangkat), sinkronisasi multi-perangkat (polling tiap 2 detik).
+- Target pemenang (panel adm1ndev) **tak pernah dikirim ke layar undian** — hanya panel yang
+  sudah di-unlock yang bisa membacanya; target menempel pada HADIAH, ikut ke ronde mana pun hadiah dipindah.
 - Impor peserta via **Excel**, ekspor hasil ke **Excel** (ada tombol Download Template).
 - Kustomisasi **tema, logo, background**, dan **tata letak panggung** (geser & ubah ukuran).
 - **Modal pemenang** dengan konfeti; nama panjang menyesuaikan otomatis (tak terpotong).
-- **Panel adm1n** (khusus dev) untuk mengatur target pemenang per ronde.
+- **Panel adm1ndev** (khusus dev) untuk mengatur target pemenang per ronde.
 
 ---
 
@@ -50,7 +53,7 @@ Folder `data/` dan `public/uploads/` dibuat otomatis saat server pertama kali ja
 | Akses | Halaman | Username | Password default |
 |---|---|---|---|
 | **Login operator** | `/login` | `admin` | `admin2026` |
-| **Panel Admin** (target pemenang, khusus dev) | `/adm1n` | — | `admin2026` |
+| **Panel Admin** (target pemenang, khusus dev) | `/adm1ndev` | — | `admin2026` |
 
 Nilai default ini dipakai **hanya bila** belum diatur lewat `.env` atau file
 `data/auth_state.json`. Disarankan membuat password login & panel **berbeda**.
@@ -58,7 +61,7 @@ Nilai default ini dipakai **hanya bila** belum diatur lewat `.env` atau file
 ### Cara mengganti kredensial
 - **Username** → set `ADMIN_USERNAME` di `.env`.
 - **Password login** → menu **Pengaturan** di aplikasi (butuh password lama), atau `ADMIN_PASSWORD` di `.env`.
-- **Password panel adm1n** → halaman **/adm1n** (butuh password lama), atau `ADMIN_PANEL_PASSWORD` di `.env`.
+- **Password panel adm1ndev** → halaman **/adm1ndev** (butuh password lama), atau `ADMIN_PANEL_PASSWORD` di `.env`.
 
 Perubahan lewat UI disimpan ke `data/auth_state.json` (server-only, tidak di-commit).
 Setelah file itu ada, password di `.env` **tidak menimpa** `auth_state.json` — `.env` hanya *fallback* bila file belum berisi password. Server menuliskan peringatan di konsol bila keduanya berbeda.
@@ -88,7 +91,7 @@ Item berikut **di-gitignore** dan dibuat otomatis / lokal di server:
 ## 🧭 Alur Kerja Singkat
 1. **Login** → **Pengaturan** → upload Excel peserta (atau Download Template dulu).
 2. Atur **hadiah per ronde** (nama, jumlah pemenang, kategori).
-3. *(Opsional, khusus dev)* buka **/adm1n** → atur target pemenang per ronde.
+3. *(Opsional, khusus dev)* buka **/adm1ndev** → atur target pemenang per ronde.
 4. **Dashboard** → tekan **SPIN**. Ekspor hasil ke Excel kapan saja.
 
 ---
@@ -109,10 +112,11 @@ sh update.sh
 ## 🧱 Struktur Proyek
 ```
 server.js              # Backend Express (API, auth, sinkronisasi)
+draw.js                # Mesin undian server (pemenang, target, gugur, reset)
 public/
   dashboard.html       # Layar undian (SPIN)
   setting.html         # Pengaturan (peserta, hadiah, tema, tata letak)
-  adm1n.html           # Panel target pemenang (khusus dev)
+  adm1ndev.html        # Panel target pemenang (khusus dev)
   login.html
   app.js               # Logika klien (undian, UI, sinkronisasi)
   stage-layout.js      # Editor tata letak panggung

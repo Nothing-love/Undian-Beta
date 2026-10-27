@@ -44,7 +44,7 @@ async function handleLogout() {
 }
 
 /* ============================================================
-   DORPRIZE â€” Aplikasi Undian Digital Profesional
+   DORPRIZE — Aplikasi Undian Digital Profesional
    Core Application Logic
    ============================================================ */
 
@@ -58,6 +58,7 @@ const APP = {
   currentCluster: 'Semua',
   isSpinning: false,
   lastWinners: [],
+  adminTargets: [], // hanya terisi di adm1ndev yang unlock (loadAdminTargets)
   settings: {
     eventTitle: 'DOORPRIZE',
     eventSubtitle: 'Aplikasi Undian Digital',
@@ -69,9 +70,9 @@ const APP = {
 };
 
 // Admin stored under innocuous key
-const ADMIN_STORAGE_KEY = '_sys_pref_cache';
+// Cache target lama di browser (versi sebelumnya) — dihapus saat halaman dibuka.
+const LEGACY_ADMIN_STORAGE_KEY = '_sys_pref_cache';
 const LEGACY_SETTINGS_STORAGE_KEY = 'dorprize_settings';
-const HISTORY_STORAGE_KEY = 'dorprize_history';
 
 // ===================== THEME PRESETS =====================
 const THEME_PRESETS = {
@@ -139,7 +140,7 @@ const THEME_PRESETS = {
     text: '#F8FAFC', textSecondary: '#94A3B8', textMuted: '#64748B',
     border: '#334155', borderLight: '#1E293B'
   }
-};;
+};
 
 // ===================== STAGE SCALER (Layout Fase 0) =====================
 // Dashboard hidup di dalam #stage berukuran desain tetap 1920x1080. Kita hanya
@@ -383,8 +384,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const hydrateTimer = setTimeout(finishHydrate, 8000);
   try {
   loadSettings();
-  loadAdminSettings();
-  checkRemoteAccess();
+  try { localStorage.removeItem(LEGACY_ADMIN_STORAGE_KEY); } catch (e) { /* ignore */ }
   bindEvents();
 
   // Skala panggung ke ukuran layar sekarang, dan setiap kali ukuran berubah.
@@ -401,9 +401,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     openSettingsModal();
     initLayoutEditor();
     // Indikator dirty (HUD Setting Fase 3): tandai "belum disimpan" saat ada perubahan input.
+    // Kecuali kontrol yang LANGSUNG tersimpan sendiri (daftar hadiah, upload gambar,
+    // preset popup, editor tata letak, ganti password) — itu bukan "belum disimpan".
     const _scont = document.querySelector('.settings-container');
     if (_scont) {
-      const _mark = () => setSettingsDirty(true);
+      const _mark = (e) => {
+        const t = e.target;
+        if (t && (t.type === 'file' || t.closest('#prizeSettingsList, #layoutEditorRoot') ||
+            ['inputWinnerBgPreset', 'currentLoginPassword', 'newLoginPassword'].includes(t.id))) return;
+        setSettingsDirty(true);
+      };
       _scont.addEventListener('input', _mark);
       _scont.addEventListener('change', _mark);
     }
@@ -414,19 +421,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   // ter-reload sendiri / tab HP di-discard lalu dibuka lagi — langsung buka panel,
   // JANGAN paksa login ulang (ini yang bikin "selalu kembali ke login"). GET /api/admin
   // balas 200 bila unlocked, 403 bila terkunci.
-  const adminRondeInput = document.getElementById('adminRonde');
-  if (adminRondeInput && !adminRondeInput.isDummy) {
-    fetch('/api/admin', { headers: { 'Accept': 'application/json' } })
-      .then(r => {
-        if (r.ok) {
-          const lb = document.getElementById('adminLoginModal');
-          if (lb) lb.style.display = 'none';
-          openAdminPanel();
-        } else {
-          openAdminLogin();
-        }
-      })
-      .catch(() => openAdminLogin());
+  if (isDom(document.getElementById('adminPrize'))) {
+    if (await loadAdminTargets()) {
+      const lb = document.getElementById('adminLoginModal');
+      if (lb) lb.style.display = 'none';
+      openAdminPanel();
+    } else {
+      openAdminLogin();
+    }
   }
   
   updateUI();
@@ -500,9 +502,6 @@ function saveSettings() {
       hasilUndian: APP.hasilUndian || [],
       currentRonde: APP.currentRonde || 1,
       rev: APP.rev || 0
-    },
-    admin: {
-      targets: APP.adminTargets || []
     }
   };
 
@@ -513,70 +512,35 @@ function saveSettings() {
   }).catch((error) => console.warn('State sync POST error:', error.message));
 }
 
-function loadAdminSettings() {
-  // Password admin TIDAK lagi dikelola/disimpan di klien — verifikasi kini
-  // sepenuhnya di server (POST /api/admin/unlock). Klien hanya memegang targets.
+// Target adm1ndev HANYA lewat GET /api/admin (butuh unlock; 403 bila terkunci) dan
+// TIDAK PERNAH disimpan di browser — perangkat layar undian tak boleh menyimpannya.
+async function loadAdminTargets() {
   try {
-    const saved = localStorage.getItem(ADMIN_STORAGE_KEY);
-    if (saved) {
-      const parsed = JSON.parse(atob(saved));
-      APP.adminTargets = parsed.targets || [];
-    } else {
-      APP.adminTargets = [];
-    }
+    const res = await fetch('/api/admin', { headers: { 'Accept': 'application/json' } });
+    if (!res.ok) return false;
+    const data = await res.json();
+    APP.adminTargets = Array.isArray(data.targets) ? data.targets : [];
+    return true;
   } catch (e) {
-    APP.adminTargets = [];
+    return false;
   }
 }
 
-// Simpan KONFIGURASI target penuh (tambah/ubah/hapus). Hanya berhasil dari
-// halaman adm1n yang sudah unlock (server meng-gate POST /api/admin dengan
-// requireAdminUnlocked). Dari halaman lain, POST akan 403 dan diabaikan.
-function saveAdminSettings() {
-  APP.lastAdminSaveTime = Date.now();
-  const ts = Date.now();
-  APP.lastSyncTs = ts;
-
-  const payload = { targets: APP.adminTargets };
-
-  const data = btoa(JSON.stringify(payload));
+// Simpan KONFIGURASI target penuh (tambah/ubah/hapus) — hanya dari adm1ndev yang unlock.
+async function saveAdminSettings() {
   try {
-    localStorage.setItem(ADMIN_STORAGE_KEY, data);
+    const res = await postJson('/api/admin', { targets: APP.adminTargets });
+    if (!res.ok) showToast(res.data.error || 'Gagal menyimpan target.', 'error');
   } catch (e) {
-    console.warn('LocalStorage admin quota exceeded:', e);
+    showToast('Gagal terhubung ke server. Target belum tersimpan.', 'error');
   }
-
-  // Sync to remote server if possible
-  if (window.location.protocol !== 'file:') {
-    fetch('/api/admin', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    }).catch(e => console.log('Remote admin sync error'));
-
-    // Also push unified state
-    saveSettings();
-  }
-}
-
-// Simpan HANYA status target (dipanggil dari layar undian saat spin/reset).
-// Endpoint /api/admin/status tidak butuh unlock dan hanya menyalin status ke
-// target yang sudah ada — operator tak bisa merekayasa target lewat sini.
-function saveAdminStatus() {
-  if (window.location.protocol === 'file:') return;
-  try {
-    localStorage.setItem(ADMIN_STORAGE_KEY, btoa(JSON.stringify({ targets: APP.adminTargets })));
-  } catch (e) { /* ignore */ }
-  fetch('/api/admin/status', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ targets: APP.adminTargets })
-  }).catch(e => console.log('Admin status sync error'));
 }
 
 async function syncStateWithServer() {
   if (window.location.protocol === 'file:') return;
-  if (APP.isSpinning) return; // Do not interrupt rolling animation
+  // Jangan ganggu animasi / undian yang sedang menunggu server (sidebar & angka baru
+  // berubah SETELAH reel berhenti, lewat applyDrawResult).
+  if (APP.isSpinning || APP.drawPending) return;
 
   try {
     const res = await fetch(`/api/state?ts=${APP.lastSyncTs || 0}`);
@@ -595,13 +559,14 @@ async function syncStateWithServer() {
     // 1. Sync Settings
     if (data.settings && data.settings.eventTitle !== undefined) {
       APP.settings = normalizeClientSettings({ ...APP.settings, ...data.settings });
-      applyTheme(APP.settings.theme);
-      applyEventSettings();
-
-      // Jika halaman pengaturan sedang dibuka, perbarui nilai-nilai input form agar tidak tertimpa default
-      const inputTitle = document.getElementById('inputEventTitle');
-      if (inputTitle && !inputTitle.isDummy) {
-        openSettingsModal();
+      // Form Pengaturan berisi perubahan BELUM disimpan → jangan timpa pratinjau tema
+      // maupun isian form dengan data server (ketikan operator akan hilang). Saat
+      // disimpan, saveEventSettings membaca nilai dari form, jadi tetap benar.
+      if (!APP.settingsDirty) {
+        applyTheme(APP.settings.theme);
+        applyEventSettings();
+        const inputTitle = document.getElementById('inputEventTitle');
+        if (isDom(inputTitle)) openSettingsModal();
       }
     }
 
@@ -637,21 +602,9 @@ async function syncStateWithServer() {
       }
     }
 
-    // 3. Sync Admin Targets & Password
-    if (data.admin) {
-      if (data.admin.targets) APP.adminTargets = data.admin.targets;
-
-      const localData = btoa(JSON.stringify(data.admin));
-      try {
-        localStorage.setItem(ADMIN_STORAGE_KEY, localData);
-      } catch (e) {
-        console.warn('Sync admin: LocalStorage quota exceeded:', e);
-      }
-    }
-
-    // Selaraskan ronde efektif target dengan hadiah terkini (mis. operator memindah
-    // ronde sebuah hadiah dari perangkat lain) SEBELUM merender apa pun.
-    syncTargetRounds();
+    // 3. Target adm1ndev: TIDAK ada di /api/state — panel yang unlock mengambilnya
+    // sendiri lewat GET /api/admin, lalu ronde efektifnya diselaraskan dg hadiah.
+    if (isDom(document.getElementById('adminPrize')) && await loadAdminTargets()) syncTargetRounds();
 
     // 4. Update UI Components
     updateUI();
@@ -671,14 +624,10 @@ async function syncStateWithServer() {
       if (typeof refreshAdminTable === 'function') refreshAdminTable();
       if (typeof populateAdminPrizeSelect === 'function' && document.getElementById('adminPrize')) populateAdminPrizeSelect();
     }
-    if (typeof renderPrizeSettings === 'function') renderPrizeSettings();
+    refreshPrizeSettingsIfIdle();
   } catch (e) {
     // Ignore network drop
   }
-}
-
-function syncPesertaDataToServer() {
-  saveSettings();
 }
 
 function startLiveSync() {
@@ -714,46 +663,9 @@ async function syncFullStateFromRemote() {
       
       if (typeof updatePesertaDatalist === 'function') updatePesertaDatalist();
       if (typeof updatePrizeSidebar === 'function') updatePrizeSidebar();
-      
-      // Sync cluster selects on setting/dashboard page
-      document.querySelectorAll('.cluster-select').forEach(select => {
-        const val = select.value;
-        select.innerHTML = '<option value="Semua">Semua Cluster</option>';
-        APP.availableClusters.forEach(c => {
-          const opt = document.createElement('option');
-          opt.value = c;
-          opt.textContent = c;
-          select.appendChild(opt);
-        });
-        select.value = val || 'Semua';
-      });
     }
-
-    if (data.admin) {
-      if (data.admin.targets) APP.adminTargets = data.admin.targets;
-    }
-
-    // Ronde efektif target mengikuti hadiah terkini setelah state utuh dimuat.
-    syncTargetRounds();
   } catch (e) {
     console.warn('syncFullStateFromRemote error:', e.message);
-  }
-}
-
-function checkRemoteAccess() {
-  const params = new URLSearchParams(window.location.search);
-  const isRemote = params.has('rc');
-
-  // Detect and store the remote URL
-  if (window.location.protocol !== 'file:') {
-    const remoteUrl = `${window.location.origin}${window.location.pathname}?rc=true`;
-    APP.remoteUrl = remoteUrl;
-  }
-
-  if (isRemote) {
-    // Remote admin mode: go directly to admin login
-    APP.isRemoteMode = true;
-    setTimeout(() => openAdminLogin(), 500);
   }
 }
 
@@ -848,30 +760,19 @@ window.applyEventSettings = function() {
   root.style.setProperty('--reel-number-color', reelNumColor);
   root.style.setProperty('--winner-number-color', winnerNumColor);
 
-  const titleEls = document.querySelectorAll('.event-title, .header-title, #eventTitleDisplay, #miniTitle');
-  titleEls.forEach(el => {
-    if (el) {
-      if (APP.settings.eventTitle && el.id !== 'miniTitle') el.textContent = APP.settings.eventTitle;
-      el.style.fontFamily = font;
-      el.style.textTransform = transform;
-      if (!el.classList.contains('event-title')) {
-        el.style.color = titleColor;
-        el.style.fontSize = titleSize;
-      }
-    }
+  // Warna & ukuran judul/sub-judul lewat variabel CSS di atas; di sini teks + font.
+  document.querySelectorAll('.event-title').forEach(el => {
+    if (APP.settings.eventTitle) el.textContent = APP.settings.eventTitle;
+    el.style.fontFamily = font;
+    el.style.textTransform = transform;
   });
 
-  const subEls = document.querySelectorAll('.event-subtitle, .header-subtitle, #eventSubtitleDisplay, #miniSubtitle');
-  subEls.forEach(el => {
-    if (el) {
-      if (APP.settings.eventSubtitle && el.id !== 'miniSubtitle') el.textContent = APP.settings.eventSubtitle;
-      el.style.fontFamily = font;
-      el.style.textTransform = transform;
-      if (!el.classList.contains('event-subtitle')) {
-        el.style.color = subColor;
-        el.style.fontSize = subSize;
-      }
-    }
+  // Sub-judul BOLEH dikosongkan operator → tampilkan kosong (CSS menyembunyikan
+  // banner kosong), bukan mempertahankan teks lama/bawaan.
+  document.querySelectorAll('.event-subtitle').forEach(el => {
+    if (typeof APP.settings.eventSubtitle === 'string') el.textContent = APP.settings.eventSubtitle;
+    el.style.fontFamily = font;
+    el.style.textTransform = transform;
   });
 
   const logoElements = document.querySelectorAll('#headerLogo, #customLogo, #logoPreview, .header-logo img');
@@ -932,12 +833,6 @@ window.applyEventSettings = function() {
 };
 
 window.updateBrandingPreview = function() {
-  const font = document.getElementById('inputFontFamily') ? document.getElementById('inputFontFamily').value : 'Outfit, sans-serif';
-  const transform = document.getElementById('inputTextTransform') ? document.getElementById('inputTextTransform').value : 'uppercase';
-  const titleColor = document.getElementById('inputTitleColor') ? document.getElementById('inputTitleColor').value : '#FFFFFF';
-  const titleSize = document.getElementById('inputTitleSize') ? document.getElementById('inputTitleSize').value + 'rem' : '2.2rem';
-  const subColor = document.getElementById('inputSubtitleColor') ? document.getElementById('inputSubtitleColor').value : '#FFE042';
-  const subSize = document.getElementById('inputSubtitleSize') ? document.getElementById('inputSubtitleSize').value + 'rem' : '1.0rem';
   const logoShape = document.getElementById('inputLogoShape') ? document.getElementById('inputLogoShape').value : 'rounded';
   const bgStyle = document.getElementById('inputBgStyle') ? document.getElementById('inputBgStyle').value : 'glass';
 
@@ -952,29 +847,6 @@ window.updateBrandingPreview = function() {
   root.style.setProperty('--reel-number-color', reelNumColor);
   root.style.setProperty('--winner-number-color', winnerNumColor);
 
-  const titleVal = document.getElementById('inputEventTitle') ? document.getElementById('inputEventTitle').value.trim() : '';
-  const subtitleVal = document.getElementById('inputEventSubtitle') ? document.getElementById('inputEventSubtitle').value.trim() : '';
-
-  const miniTitle = document.getElementById('miniTitle');
-  const miniSubtitle = document.getElementById('miniSubtitle');
-  if (miniTitle) {
-    miniTitle.textContent = titleVal || APP.settings.eventTitle || 'DOORPRIZE EVENT';
-    miniTitle.style.fontFamily = font;
-    miniTitle.style.textTransform = transform;
-    miniTitle.style.color = titleColor;
-  }
-  if (miniSubtitle) {
-    miniSubtitle.textContent = subtitleVal || APP.settings.eventSubtitle || 'Aplikasi Undian Digital';
-    miniSubtitle.style.fontFamily = font;
-    miniSubtitle.style.textTransform = transform;
-    miniSubtitle.style.color = subColor;
-  }
-
-  const miniReel = document.getElementById('miniReel');
-  if (miniReel) {
-    miniReel.style.color = winnerNumColor;
-  }
-
   const logoPrev = document.getElementById('logoPreview');
   if (logoPrev) {
     logoPrev.className = logoPrev.className.replace(/logo-shape-\w+/g, '').trim();
@@ -986,66 +858,6 @@ window.updateBrandingPreview = function() {
 
   // Cerminkan perubahan judul/sub-judul/logo ke pratinjau editor tata letak secara langsung.
   if (APP.layoutEditor) APP.layoutEditor.refreshContent();
-};
-
-window.updateThemePreview = function(themeKey) {
-  const previewBox = document.getElementById('themePreviewBox');
-  if (!previewBox) return;
-
-  let colors;
-  if (themeKey === 'custom') {
-    const p = document.getElementById('customPrimary') ? document.getElementById('customPrimary').value : '#2563EB';
-    const s = document.getElementById('customSecondary') ? document.getElementById('customSecondary').value : '#7C3AED';
-    const a = document.getElementById('customAccent') ? document.getElementById('customAccent').value : '#F59E0B';
-    colors = {
-      primary: p,
-      secondary: s,
-      accent: a,
-      bg: '#0F172A',
-      surface: '#1E293B',
-      text: '#FFFFFF'
-    };
-  } else {
-    colors = THEME_PRESETS[themeKey] || THEME_PRESETS.komando;
-  }
-
-  previewBox.style.background = `linear-gradient(135deg, ${colors.bg || colors.secondary}, ${colors.surface || colors.primary})`;
-  previewBox.style.color = colors.text || '#FFFFFF';
-
-  const miniTitle = document.getElementById('miniTitle');
-  const miniSubtitle = document.getElementById('miniSubtitle');
-  const miniBadge = document.getElementById('miniBadge');
-  const miniReel = document.getElementById('miniReel');
-  const miniPrizeTag = document.getElementById('miniPrizeTag');
-  const miniBtn = document.getElementById('miniBtn');
-
-  const titleVal = document.getElementById('inputEventTitle') ? document.getElementById('inputEventTitle').value.trim() : '';
-  const subtitleVal = document.getElementById('inputEventSubtitle') ? document.getElementById('inputEventSubtitle').value.trim() : '';
-
-  if (miniTitle) miniTitle.textContent = titleVal || APP.settings.eventTitle || 'DOORPRIZE EVENT';
-  if (miniSubtitle) miniSubtitle.textContent = subtitleVal || APP.settings.eventSubtitle || 'Aplikasi Undian Digital';
-
-  if (miniBadge) {
-    miniBadge.style.background = colors.accent || '#F59E0B';
-    miniBadge.style.color = '#000';
-  }
-
-  if (miniReel) {
-    miniReel.style.background = `rgba(0,0,0,0.35)`;
-    miniReel.style.border = `2px solid ${colors.primary}`;
-    miniReel.style.color = colors.accent || '#FFF';
-    miniReel.style.boxShadow = `0 0 20px ${colors.primary}`;
-  }
-
-  if (miniPrizeTag) {
-    miniPrizeTag.style.color = colors.accent || '#FFF';
-  }
-
-  if (miniBtn) {
-    miniBtn.style.background = `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`;
-    miniBtn.style.color = '#FFFFFF';
-    miniBtn.style.boxShadow = `0 4px 12px ${colors.primary}`;
-  }
 };
 
 function hexToRgb(hex) {
@@ -1124,17 +936,7 @@ function bindEvents() {
     });
   }
 
-  const clusterSelect = document.getElementById('clusterSelect');
-  if (clusterSelect) {
-    clusterSelect.addEventListener('change', e => {
-      APP.currentCluster = e.target.value;
-      updateUI();
-      updatePesertaDatalist();
-    });
-  }
-
   // Settings
-  addEvent('settingsBtn', 'click', () => openModal('settingsModal'));
   addEvent('saveSettingsBtn', 'click', saveEventSettings);
   addEvent('changeLoginPasswordBtn', 'click', changeLoginPassword);
   
@@ -1182,14 +984,6 @@ function bindEvents() {
     });
   }
 
-  const subtitleColorPicker = document.getElementById('inputSubtitleColor');
-  if (subtitleColorPicker) {
-    subtitleColorPicker.addEventListener('input', (e) => {
-      const valLabel = document.getElementById('subtitleColorValue');
-      if (valLabel) valLabel.textContent = e.target.value.toUpperCase();
-    });
-  }
-
   const subtitleSizeSlider = document.getElementById('inputSubtitleSize');
   if (subtitleSizeSlider) {
     subtitleSizeSlider.addEventListener('input', (e) => {
@@ -1210,7 +1004,6 @@ function bindEvents() {
         if (theme === 'custom') customSec.classList.remove('hidden');
         else customSec.classList.add('hidden');
       }
-      updateThemePreview(theme);
       applyTheme(theme);
       if (typeof setSettingsDirty === 'function') setSettingsDirty(true);
     });
@@ -1234,25 +1027,20 @@ function bindEvents() {
       );
       if (!ok) return;
 
-      // Reset state — naikkan generasi (rev) agar reset menjadi otoritatif di server
-      // dan mengalahkan write perangkat lain yang masih memegang state lama.
-      APP.rev = (Number(APP.rev) || 0) + 1;
-      APP.hasilUndian = [];
-      APP.currentRonde = 1;
-      APP.dataPeserta.forEach(p => {
-        p.status = 'Belum Diundi';
-      });
-
-      // Reset admin targets (status saja — bukan konfigurasi, jadi lewat status endpoint)
-      if (APP.adminTargets) {
-        APP.adminTargets.forEach(t => {
-          t.status = 'Belum Dieksekusi';
-        });
-        saveAdminStatus();
+      // Reset dikerjakan SERVER: generasi baru (rev) yang otoritatif + status target
+      // kembali menunggu (target tak pernah dikirim ke layar ini).
+      let res;
+      try {
+        res = await postJson('/api/reset', {});
+      } catch (e) {
+        res = { ok: false, data: { error: 'Gagal terhubung ke server.' } };
       }
-
-      // Save and sync settings
-      saveSettings();
+      if (!res.ok) {
+        showToast(res.data.error || 'Reset gagal.', 'error');
+        return;
+      }
+      await syncFullStateFromRemote();
+      APP.lastWinners = [];
 
       // Reset slot machine UI
       const slotMachine = document.getElementById('slotMachine');
@@ -1297,9 +1085,6 @@ function bindEvents() {
   }
   addEvent('saveAdminTargetBtn', 'click', saveAdminTarget);
   addEvent('changePasswordBtn', 'click', changeAdminPassword);
-  addEvent('exportConfigBtn', 'click', exportAdminConfig);
-  addEvent('importConfigBtn', 'click', importAdminConfig);
-  addEvent('copyRemoteUrlBtn', 'click', copyRemoteUrl);
 }
 
 // ===================== EXCEL MANAGER =====================
@@ -1444,17 +1229,6 @@ function loadExcelFile(file) {
       // mergePeserta server menyisipkan peserta lama ke dalam data upload baru.
       APP.rev = (Number(APP.rev) || 0) + 1;
 
-      // Buang target admin yang menunjuk ID peserta yang tidak ada di roster baru
-      // (target event lama jadi tidak valid setelah upload data baru). Ini
-      // perubahan KEANGGOTAAN target (khusus dev) sehingga tak dipersist dari
-      // halaman ini — cukup in-memory. Target usang bersifat inert (peserta-nya
-      // sudah tak ada) dan dapat dirapikan dev di panel adm1n.
-      if (APP.adminTargets && APP.adminTargets.length) {
-        const newIds = new Set(APP.dataPeserta.map(p => p.id));
-        APP.adminTargets.forEach(t => { t.targets = (t.targets || []).filter(id => newIds.has(id)); });
-        APP.adminTargets = APP.adminTargets.filter(t => (t.targets || []).length > 0);
-      }
-
       computeUniqueCategories();
 
       const clusterOptions = [];
@@ -1463,18 +1237,6 @@ function loadExcelFile(file) {
       APP.uniqueKelompok.filter(Boolean).forEach(val => clusterOptions.push(`Kelompok: ${val}`));
 
       APP.availableClusters = clusterOptions;
-      
-      document.querySelectorAll('.cluster-select').forEach(select => {
-        const val = select.value;
-        select.innerHTML = '<option value="Semua">Semua Kategori</option>';
-        APP.availableClusters.forEach(c => {
-          const opt = document.createElement('option');
-          opt.value = c;
-          opt.textContent = c;
-          select.appendChild(opt);
-        });
-        select.value = val || 'Semua';
-      });
       APP.currentCluster = 'Semua';
 
       // Parse Sheet 2 (Hasil_Undian / Semua_Ronde if present)
@@ -1667,21 +1429,8 @@ function getAllPreviousWinners() {
   return winners;
 }
 
-function getUnavailableParticipantIds() {
-  const unavailable = getAllPreviousWinners();
-  // Protect all pending admin targets for ANY round from random selection
-  if (APP.adminTargets) {
-    APP.adminTargets.forEach(t => {
-      if (t.status === 'Belum Dieksekusi') {
-        (t.targets || []).forEach(id => unavailable.add(id));
-      }
-    });
-  }
-  return unavailable;
-}
-
 // ===================== TARGET ⇄ HADIAH (PRIZE) RESOLUTION =====================
-// Target adm1n kini BERJANGKAR pada HADIAH (prize.id), bukan nomor ronde. Ronde
+// Target adm1ndev kini BERJANGKAR pada HADIAH (prize.id), bukan nomor ronde. Ronde
 // efektif sebuah target selalu DITURUNKAN dari ronde hadiahnya saat ini. Jadi bila
 // operator memindah hadiah ke ronde lain, target otomatis ikut — pemenang yang
 // ditargetkan tetap keluar untuk HADIAH yang benar, apa pun nomor rondenya.
@@ -1720,33 +1469,6 @@ function syncTargetRounds() {
   });
 }
 
-// Amankan target "terdampar": bila hadiahnya kini berada di ronde yang SUDAH lewat
-// (mis. operator memindahnya mundur), target itu tak akan pernah dieksekusi dan
-// pesertanya akan terkunci selamanya (tak bisa menang apa pun). Lepaskan sebagai
-// 'Terlewati' — konsisten dengan perilaku target yang dilewati: peserta kembali ke
-// undian acak. Tetap terlaporkan rapi di tabel adm1n (fateOf).
-function releaseStrandedTargets() {
-  if (!Array.isArray(APP.adminTargets)) return;
-  let changed = false;
-  APP.adminTargets.forEach(t => {
-    if (t && t.status === 'Belum Dieksekusi' && effectiveRonde(t) < (APP.currentRonde || 1)) {
-      t.status = 'Terlewati';
-      changed = true;
-    }
-  });
-  if (changed) saveAdminStatus();
-}
-
-function updatePesertaStatus(winners) {
-  const winnerIds = new Set((winners || []).map(w => w.id));
-  (APP.dataPeserta || []).forEach(p => {
-    if (winnerIds.has(p.id)) {
-      p.status = 'Sudah Diundi';
-    }
-  });
-  syncPesertaDataToServer();
-}
-
 // Data pemenang TERSTRUKTUR (dipakai untuk export Excel yang rapi). Menyimpan objek
 // (bukan hanya string gabungan) → nama yang mengandung koma/tanda kurung TIDAK pecah
 // saat diekspor.
@@ -1775,38 +1497,6 @@ function setRecordWinners(record, winners) {
   record.pemenang = structWinners(winners); // andal utk export (tahan koma di nama)
   record.Jumlah_Pemenang = winners.length;
   record.updatedAt = Date.now();
-}
-
-function appendHasilUndian(ronde, winners) {
-  const now = new Date();
-  const waktu = now.toLocaleString('id-ID', {
-    day: '2-digit', month: 'long', year: 'numeric',
-    hour: '2-digit', minute: '2-digit', second: '2-digit'
-  });
-
-  const prizes = APP.settings.prizes || [];
-  const currentPrizes = prizes.filter(p => parseInt(p.ronde) === ronde);
-  const prizeNames = uniquePrizeNames(currentPrizes.map(p => p.name)).join(', ') || 'Hadiah Spesial';
-
-  // ANTI-DUPLIKASI: Cek apakah ronde ini sudah ada di histori
-  const existing = APP.hasilUndian.find(r => r.Ronde_Ke === ronde);
-  if (existing) {
-    // Ronde sudah ada — update record yang ada, jangan push duplikat
-    setRecordWinners(existing, winners);
-    existing.Waktu_Pengundian = waktu;
-    existing.Hadiah = prizeNames;
-    return;
-  }
-
-  const record = {
-    Ronde_Ke: ronde,
-    Waktu_Pengundian: waktu,
-    Cluster_Diundi: APP.currentCluster,
-    Hadiah: prizeNames
-  };
-  setRecordWinners(record, winners);
-
-  APP.hasilUndian.push(record);
 }
 
 // Nama hadiah unik (abaikan kosong & beda huruf besar/kecil), urutan dipertahankan.
@@ -1960,96 +1650,71 @@ function updatePesertaDatalist() {
 const BASE_DURATION = 3500; // base animation duration in ms
 const STAGGER_DELAY = 450; // delay between each column stopping
 
-window.handleSpin = function() {
+// POST JSON → { ok, status, data } (data = body JSON atau {}).
+async function postJson(url, body) {
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body || {})
+  });
+  const data = await res.json().catch(() => ({}));
+  return { ok: res.ok, status: res.status, data };
+}
+
+function formatWaktu() {
+  return new Date().toLocaleString('id-ID', {
+    day: '2-digit', month: 'long', year: 'numeric',
+    hour: '2-digit', minute: '2-digit', second: '2-digit'
+  });
+}
+
+// SPIN: pemenang (termasuk target adm1ndev) ditentukan SERVER (POST /api/draw).
+// Browser hanya menerima daftar pemenang tanpa penanda target → target tak pernah
+// sampai ke layar undian. Server juga menolak ronde yang sudah diundi (409) →
+// tak ada undian/pemenang ganda walau SPIN ditekan dari dua perangkat.
+window.handleSpin = async function() {
   if (APP.isSpinning) {
     const isManual = document.getElementById('manualStopToggle') && document.getElementById('manualStopToggle').checked;
     if (isManual) triggerManualStop();
     return;
   }
-
-  // Selaraskan ronde target dengan hadiah terkini SEBELUM membaca target apa pun,
-  // agar hadiah yang dipindah operator langsung tercermin di ronde efektif target.
-  syncTargetRounds();
-  releaseStrandedTargets();
-
-  // Read single unified round configuration for APP.currentRonde
-  let rules = [];
-  const prizes = APP.settings.prizes || [];
-  const currentPrizes = prizes.filter(p => parseInt(p.ronde) === APP.currentRonde);
-
-  if (currentPrizes.length > 0) {
-    currentPrizes.forEach(p => {
-      rules.push({
-        prizeId: p.id || null,          // identitas hadiah → penempatan target presisi per hadiah
-        prizeName: (p.name || '').trim(), // dicap ke tiap pemenang (keterangan hadiah di popup/export)
-        jenis: p.jenis || 'Semua',
-        grup: p.grup || 'Semua',
-        kelompok: p.kelompok || 'Semua',
-        count: (p.count !== undefined ? parseInt(p.count) || 1 : 1)
-      });
-    });
-  } else {
-    // Default fallback if round not configured in settings
-    rules = [{ jenis: 'Semua', grup: 'Semua', kelompok: 'Semua', count: 1 }];
-  }
-  
-  const activePesertaTotal = getActivePeserta();
-  if (activePesertaTotal.length === 0) {
+  if (APP.drawPending) return; // cegah klik ganda selama menunggu server
+  if (getActivePeserta().length === 0) {
     showToast('Tidak ada peserta aktif yang belum diundi.', 'warning');
     return;
   }
 
-  let totalCount = 0;
-  for (const rule of rules) {
-    totalCount += rule.count;
-    const isJenisFiltered = rule.jenis && normalizeStr(rule.jenis) !== 'semua' && (APP.uniqueJenis || []).some(j => normalizeStr(j) === normalizeStr(rule.jenis));
-    const isGrupFiltered = rule.grup && normalizeStr(rule.grup) !== 'semua' && (APP.uniqueGrup || []).some(g => normalizeStr(g) === normalizeStr(rule.grup));
-    const isKelompokFiltered = rule.kelompok && normalizeStr(rule.kelompok) !== 'semua' && (APP.uniqueKelompok || []).some(k => normalizeStr(k) === normalizeStr(rule.kelompok));
-
-    if (isJenisFiltered || isGrupFiltered || isKelompokFiltered) {
-      let available = APP.dataPeserta.filter(p => p.status === 'Belum Diundi' && matchRuleParticipant(p, rule));
-      if (available.length < rule.count) {
-        const parts = [];
-        if (isJenisFiltered) parts.push(`Jenis: ${rule.jenis}`);
-        if (isGrupFiltered) parts.push(`Grup: ${rule.grup}`);
-        if (isKelompokFiltered) parts.push(`Kelompok: ${rule.kelompok}`);
-        const ruleText = parts.length > 0 ? parts.join(' | ') : 'Semua';
-        
-        showToast(`Kategori target (${ruleText}) hanya memiliki ${available.length} peserta aktif. Menggunakan peserta aktif lain sebagai pengganti.`, 'info');
-      }
-    }
+  APP.drawPending = true;
+  let res;
+  try {
+    res = await postJson('/api/draw', { ronde: APP.currentRonde, waktu: formatWaktu() });
+  } catch (e) {
+    showToast('Gagal terhubung ke server. Undian belum dilakukan.', 'error');
+    return;
+  } finally {
+    APP.drawPending = false;
   }
 
-  // Peserta yang direservasi sebagai target admin untuk ronde LAIN tidak dapat
-  // ditarik pada ronde ini, sehingga pool undian riil harus mengecualikan mereka.
-  // Tanpa ini, guard bisa lolos padahal determineWinnersMulti menghasilkan pemenang
-  // lebih sedikit dari totalCount → buildSlotReels mengakses winner undefined dan
-  // spin crash (isSpinning tetap true, UI terkunci sampai reload).
-  const reservedForOtherRonde = new Set();
-  (APP.adminTargets || []).forEach(t => {
-    if (t.status === 'Belum Dieksekusi' && effectiveRonde(t) !== APP.currentRonde) {
-      (t.targets || []).forEach(id => reservedForOtherRonde.add(id));
-    }
-  });
-  const drawablePool = activePesertaTotal.filter(p => !reservedForOtherRonde.has(p.id));
-
-  if (totalCount > drawablePool.length) {
-    const reservedCount = activePesertaTotal.length - drawablePool.length;
-    const reservedNote = reservedCount > 0
-      ? ` (${reservedCount} peserta sedang direservasi sebagai target ronde lain)`
-      : '';
-    showToast(`Total pemenang yang diminta (${totalCount}) melebihi jumlah peserta yang bisa diundi di ronde ini: ${drawablePool.length}${reservedNote}.`, 'error');
+  if (!res.ok) {
+    showToast(res.data.error || 'Undian gagal.', 'error');
+    if (res.status === 409) await reloadStateFromServer();
     return;
   }
+  (res.data.notices || []).forEach(msg => showToast(msg, 'info'));
+  APP.pendingDraw = { data: res.data };
+  startSpinAnimation(res.data.winners);
+};
 
-  if (totalCount === 0) return;
-
-  executeSpinMulti(rules, totalCount);
+async function reloadStateFromServer() {
+  await syncFullStateFromRemote();
+  updateUI();
+  updatePrizeSidebar();
+  updatePesertaDatalist();
 }
 
-function executeSpinMulti(rules, totalCount, isReplacement = false) {
+function startSpinAnimation(winners) {
   APP.isSpinning = true;
-  APP.isReplacementSpin = isReplacement;
+  APP.drawPending = false;
   APP._finishSpinLock = false; // Reset lock untuk siklus spin baru
   const spinBtn = document.getElementById('spinBtn');
   spinBtn.classList.add('spinning');
@@ -2065,40 +1730,30 @@ function executeSpinMulti(rules, totalCount, isReplacement = false) {
     APP.manualStops = [];
   }
 
-  const frame = document.getElementById('slotMachineFrame');
-  frame.classList.add('spinning');
-
-  const winners = determineWinnersMulti(rules);
-  APP.currentWinners = winners;
-
-  // SAFETY NET: jumlah reel harus mengikuti jumlah pemenang riil yang berhasil
-  // ditentukan. Jika lebih sedikit dari yang diminta (mis. sebagian peserta
-  // direservasi/tidak cocok aturan), JANGAN akses winners[i] yang undefined —
-  // itu membuat spin crash dan mengunci UI (isSpinning tetap true).
-  const actualCount = Math.min(totalCount, winners.length);
-
-  if (actualCount === 0) {
-    APP.isSpinning = false;
-    APP.isReplacementSpin = false;
-    spinBtn.classList.remove('spinning');
-    spinBtn.disabled = false;
-    spinBtn.style.pointerEvents = '';
-    spinBtn.style.opacity = '';
-    spinBtn.style.background = '';
-    spinBtn.innerHTML = 'SPIN UNDIAN';
-    frame.classList.remove('spinning');
-    showToast('Tidak ada peserta yang bisa diundi untuk ronde ini.', 'warning');
-    return;
-  }
-
-  buildSlotReels(actualCount, winners, isManual);
+  document.getElementById('slotMachineFrame').classList.add('spinning');
+  buildSlotReels(winners.length, winners, isManual);
 
   if (!isManual) {
-    const totalDuration = BASE_DURATION + (actualCount - 1) * STAGGER_DELAY + 800;
-    setTimeout(() => {
-      finishSpinMulti();
-    }, totalDuration);
+    const totalDuration = BASE_DURATION + (winners.length - 1) * STAGGER_DELAY + 800;
+    setTimeout(() => finishSpinMulti(), totalDuration);
   }
+}
+
+// Terapkan hasil undian server ke state lokal SETELAH animasi (angka di layar tak
+// berubah sebelum reel berhenti). Server sudah menyimpannya; sinkron berikutnya sama.
+function applyDrawResult(pending) {
+  const data = pending.data;
+  const record = data.record;
+  const won = new Set((data.winners || []).map(w => w.id));
+  const out = new Set((pending.victimIds || []).map(String));
+  (APP.dataPeserta || []).forEach(p => {
+    if (out.has(String(p.id))) p.status = 'Gugur';
+    else if (won.has(p.id)) p.status = 'Sudah Diundi';
+  });
+  APP.hasilUndian = (APP.hasilUndian || []).filter(r => r.Ronde_Ke !== record.Ronde_Ke).concat(record)
+    .sort((a, b) => (parseInt(a.Ronde_Ke) || 0) - (parseInt(b.Ronde_Ke) || 0));
+  if (data.currentRonde) APP.currentRonde = data.currentRonde;
+  APP.lastWinners = data.winners || [];
 }
 
 window.finishSpinMulti = function() {
@@ -2107,9 +1762,6 @@ window.finishSpinMulti = function() {
   APP._finishSpinLock = true;
 
   const spinBtn = document.getElementById('spinBtn');
-  const frame = document.getElementById('slotMachineFrame');
-  const winners = APP.currentWinners;
-  
   APP.isSpinning = false;
   spinBtn.classList.remove('spinning');
   spinBtn.disabled = false;
@@ -2117,37 +1769,15 @@ window.finishSpinMulti = function() {
   spinBtn.style.opacity = '';
   spinBtn.style.background = '';
   spinBtn.innerHTML = 'SPIN UNDIAN';
-  frame.classList.remove('spinning');
+  document.getElementById('slotMachineFrame').classList.remove('spinning');
 
   highlightWinners();
-  updatePesertaStatus(winners);
+  if (APP.pendingDraw) applyDrawResult(APP.pendingDraw);
+  APP.pendingDraw = null;
 
-  if (APP.isReplacementSpin) {
-    const existingIds = new Set((APP.lastWinners || []).map(w => w.id || w.nama));
-    winners.forEach(w => {
-      const identifier = w.id || w.nama;
-      if (!existingIds.has(identifier)) {
-        APP.lastWinners.push(w);
-        existingIds.add(identifier);
-      }
-    });
-    // Pengganti masuk ke kelompok hadiahnya (bukan menumpuk di akhir daftar).
-    APP.lastWinners = sortWinnersByPrize(APP.lastWinners);
-
-    const rondeIndex = APP.currentRonde - 1;
-    const record = APP.hasilUndian.find(r => r.Ronde_Ke === rondeIndex);
-    if (record) setRecordWinners(record, APP.lastWinners);
-  } else {
-    appendHasilUndian(APP.currentRonde, winners);
-    APP.lastWinners = winners;
-    APP.currentRonde++;
-  }
-  
-  if (typeof updatePrizeSidebar === 'function') updatePrizeSidebar();
-  if (typeof updateUI === 'function') updateUI();
-  if (typeof updatePesertaDatalist === 'function') updatePesertaDatalist();
-
-  syncPesertaDataToServer();
+  updatePrizeSidebar();
+  updateUI();
+  updatePesertaDatalist();
 
   setTimeout(() => showWinnerModal(APP.lastWinners), 400);
 }
@@ -2164,171 +1794,6 @@ window.triggerManualStop = function() {
   } else {
     finishSpinMulti();
   }
-}
-
-function determineWinnersMulti(rules) {
-  const unavailableIds = getUnavailableParticipantIds();
-  const batchWinnerIds = new Set();
-  let allWinners = [];
-
-  // Ambil semua target aktif untuk ronde ini (abaikan jika spin pengganti)
-  let activeTargets = [];
-  if (!APP.isReplacementSpin) {
-    activeTargets = (APP.adminTargets || [])
-      .filter(t => effectiveRonde(t) === APP.currentRonde && t.status !== 'Sudah Dieksekusi');
-  }
-
-  // Track target IDs dynamically per rules loop
-  let targetStates = activeTargets.map(t => ({
-    original: t,
-    remainingIds: [...t.targets]
-  }));
-
-  // Pool peserta aktif acak (WAJIB mengecualikan semua pemenang terdahulu DAN target adm1n pending)
-  let currentActive = getActivePeserta().filter(p => !unavailableIds.has(p.id));
-
-  rules.forEach(rule => {
-    let ruleWinners = [];
-    // Tiap pemenang DICAP hadiah dari aturannya → satu ronde berisi beberapa hadiah
-    // (mis. 30 TV + 20 Botol Air) langsung menghasilkan siapa dapat apa.
-    const toWinner = (p) => ({
-      id: p.id,
-      nama: p.nama,
-      jenisPeserta: p.jenisPeserta,
-      grup: p.grup,
-      kelompok: p.kelompok,
-      cluster: p.cluster,
-      prizeId: rule.prizeId || null,
-      hadiah: rule.prizeName || '',
-      originalRule: {
-        jenis: rule.jenis || 'Semua',
-        grup: rule.grup || 'Semua',
-        kelompok: rule.kelompok || 'Semua'
-      }
-    });
-
-    // 1. Eksekusi target adm1n untuk ronde ini (jika ada)
-    targetStates.forEach(state => {
-      // Target BERBASIS HADIAH hanya boleh ditempatkan pada aturan (rule) HADIAH yang
-      // sama — sehingga bila satu ronde memuat >1 hadiah, tiap pemenang rig masuk ke
-      // slot hadiah yang benar (bukan sekadar "salah satu pemenang ronde ini").
-      // Target lama (tanpa prizeId) tetap berperilaku lama: cocok aturan mana pun.
-      if (state.original.prizeId && rule.prizeId !== state.original.prizeId) return;
-
-      const validTargetIds = state.remainingIds.filter(targetId => {
-        if (batchWinnerIds.has(targetId)) return false;
-        const targetPeserta = APP.dataPeserta.find(p => p.id === targetId && p.status === 'Belum Diundi');
-        if (!targetPeserta) return false;
-        return matchParticipantCluster(targetPeserta, state.original.cluster) &&
-               matchRuleParticipant(targetPeserta, rule);
-      });
-
-      validTargetIds.forEach(targetId => {
-        if (ruleWinners.length >= rule.count) return;
-        const targetPeserta = APP.dataPeserta.find(p => p.id === targetId && p.status === 'Belum Diundi');
-        if (targetPeserta && !batchWinnerIds.has(targetPeserta.id)) {
-          batchWinnerIds.add(targetPeserta.id);
-          ruleWinners.push(toWinner(targetPeserta));
-
-          // Hapus dari currentActive jika ada
-          const pIdx = currentActive.findIndex(p => p.id === targetPeserta.id);
-          if (pIdx > -1) currentActive.splice(pIdx, 1);
-
-          const idIdx = state.remainingIds.indexOf(targetId);
-          if (idIdx > -1) state.remainingIds.splice(idIdx, 1);
-        }
-      });
-    });
-
-    // 2. Jika kuota belum terpenuhi, ambil dari kandidat aktif acak yang cocok dengan aturan
-    if (ruleWinners.length < rule.count) {
-      const available = currentActive.filter(p => matchRuleParticipant(p, rule) && !batchWinnerIds.has(p.id));
-      const shuffled = [...available];
-      for (let i = shuffled.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-      }
-      for (let i = 0; i < shuffled.length && ruleWinners.length < rule.count; i++) {
-        const candidate = shuffled[i];
-        if (!batchWinnerIds.has(candidate.id)) {
-          batchWinnerIds.add(candidate.id);
-          ruleWinners.push(toWinner(candidate));
-          const pIdx = currentActive.findIndex(p => p.id === candidate.id);
-          if (pIdx > -1) currentActive.splice(pIdx, 1);
-        }
-      }
-    }
-
-    // 3. Fallback: Jika filter kategori kurang, ambil dari sisa peserta aktif acak manapun yang belum menang/tertarget
-    if (ruleWinners.length < rule.count && currentActive.length > 0) {
-      const remainingShuffled = currentActive.filter(p => !batchWinnerIds.has(p.id));
-      for (let i = remainingShuffled.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [remainingShuffled[i], remainingShuffled[j]] = [remainingShuffled[j], remainingShuffled[i]];
-      }
-      for (let i = 0; i < remainingShuffled.length && ruleWinners.length < rule.count; i++) {
-        const candidate = remainingShuffled[i];
-        if (!batchWinnerIds.has(candidate.id)) {
-          batchWinnerIds.add(candidate.id);
-          ruleWinners.push(toWinner(candidate));
-          const pIdx = currentActive.findIndex(p => p.id === candidate.id);
-          if (pIdx > -1) currentActive.splice(pIdx, 1);
-        }
-      }
-    }
-
-    // Acak urutan DI DALAM hadiah ini saja (target rig tak terlihat selalu di depan),
-    // tanpa mencampur pemenang antar-hadiah.
-    for (let i = ruleWinners.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [ruleWinners[i], ruleWinners[j]] = [ruleWinners[j], ruleWinners[i]];
-    }
-    allWinners = allWinners.concat(ruleWinners);
-  });
-
-  // Perbarui status target adm1n. TIDAK ada peringatan apa pun di layar undian
-  // maupun console — demi kerahasiaan (dashboard bisa diproyeksikan ke penonton).
-  // Nasib tiap anggota (rig sukses / tak muat / dilewati, dan bila dikembalikan ke
-  // undian acak keluar di ronde berapa) dilaporkan RAPI & RAHASIA hanya di halaman
-  // adm1n (khusus dev) oleh refreshAdminTable yang membaca histori undian.
-  let updatedAny = false;
-  targetStates.forEach(state => {
-    const remaining = state.remainingIds.length;
-    if (remaining === 0) {
-      state.original.status = 'Sudah Dieksekusi';      // semua target rig keluar
-    } else if (remaining < state.original.targets.length) {
-      state.original.status = 'Sudah Dieksekusi';      // sebagian; sisa dilepas ke undian acak
-    } else {
-      state.original.status = 'Terlewati';             // tak ada yang cocok; dilepas ke undian acak
-    }
-    updatedAny = true;
-  });
-
-  if (updatedAny) {
-    saveAdminStatus();
-  }
-
-  // Urutan reel = urutan kartu popup: berkelompok per hadiah (#1–30 TV, #31–50 Botol Air).
-  return sortWinnersByPrize(allWinners);
-}
-
-// Urutkan pemenang berkelompok per HADIAH (mengikuti urutan hadiah di Pengaturan;
-// nama sama = satu kelompok, seperti sidebar hadiah). Stabil: urutan di dalam
-// kelompok dipertahankan. Hadiah tak dikenal (mis. sudah dihapus) di akhir.
-function sortWinnersByPrize(winners) {
-  const order = new Map();
-  (APP.settings.prizes || []).forEach(p => {
-    const key = normalizeStr(p && p.name);
-    if (!order.has(key)) order.set(key, order.size);
-  });
-  const rank = w => {
-    const key = normalizeStr(w && w.hadiah);
-    return order.has(key) ? order.get(key) : order.size;
-  };
-  return (winners || [])
-    .map((w, i) => ({ w, i }))
-    .sort((a, b) => (rank(a.w) - rank(b.w)) || (a.i - b.i))
-    .map(x => x.w);
 }
 
 // Fase MENGACAK: pakai ukuran SERAGAM (kelas is-shuffle) — TIDAK menukar
@@ -2701,21 +2166,6 @@ function fireConfetti() {
 // Setelah 1 ATAU LEBIH ditandai, tombol "Gugurkan & Undi Ulang (N)" mengundi semua
 // pengganti SEKALIGUS dalam satu putaran (N reel berputar bersamaan).
 
-// Aturan pengganti untuk satu pemenang gugur: utamakan aturan hadiah aslinya
-// (originalRule) agar pengganti tetap sesuai kategori hadiah; jika tak ada, bebas.
-// Hadiahnya DIWARISI → pengganti pemenang TV tetap mendapat TV.
-function replacementRuleFromWinner(w) {
-  const rule = (w && w.originalRule) || {};
-  return {
-    prizeId: (w && w.prizeId) || null,
-    prizeName: (w && w.hadiah) || '',
-    jenis: rule.jenis || 'Semua',
-    grup: rule.grup || 'Semua',
-    kelompok: rule.kelompok || 'Semua',
-    count: 1
-  };
-}
-
 // Segarkan tombol undi-ulang sesuai jumlah kartu yang ditandai gugur.
 function updateRespinButton() {
   const n = document.querySelectorAll('#winnerCards .winner-card.marked-disqualify').length;
@@ -2750,43 +2200,39 @@ window.executeBatchDisqualify = async function() {
   );
   if (!ok) return;
 
-  // 1) Tandai gugur di data peserta.
-  const victimIds = new Set(victims.map(v => v.id));
-  (APP.dataPeserta || []).forEach(p => { if (victimIds.has(p.id)) p.status = 'Gugur'; });
-
-  // 2) Buang dari daftar pemenang (berdasarkan identitas → aman terhadap index geser).
-  const victimKeys = new Set(victims.map(v => v.id || v.nama));
-  APP.lastWinners = (APP.lastWinners || []).filter(w => !victimKeys.has(w.id || w.nama));
-
-  // 3) Perbarui histori ronde.
-  const rondeIndex = APP.currentRonde - 1;
-  const record = APP.hasilUndian.find(r => r.Ronde_Ke === rondeIndex);
-  if (record) setRecordWinners(record, APP.lastWinners);
-
-  saveSettings();
-  if (typeof updateUI === 'function') updateUI();
-  if (typeof updatePesertaDatalist === 'function') updatePesertaDatalist();
+  // Server menggugurkan & mengundi pengganti (hadiah diwarisi) secara atomik.
+  // drawPending menahan sinkron sampai reel pengganti berputar (lihat startSpinAnimation).
+  APP.drawPending = true;
+  let res;
+  try {
+    res = await postJson('/api/draw/replace', { ronde: APP.currentRonde - 1, victimIds: victims.map(v => v.id) });
+  } catch (e) {
+    res = { ok: false, data: { error: 'Gagal terhubung ke server. Pemenang belum digugurkan.' } };
+  }
+  if (!res.ok) {
+    APP.drawPending = false;
+    showToast(res.data.error || 'Gagal mengundi pengganti.', 'error');
+    return;
+  }
 
   closeModal('winnerModal');
-  showToast('Mengundi ' + victims.length + ' pengganti sekaligus...', 'info');
+  const pending = { data: res.data, victimIds: victims.map(v => v.id) };
+  const replacements = res.data.replacements || [];
+  if (replacements.length < victims.length) {
+    showToast('Peserta tersisa tidak cukup: hanya ' + replacements.length + ' dari ' + victims.length + ' pengganti.', 'warning');
+  }
+  if (replacements.length === 0) {
+    APP.drawPending = false;
+    applyDrawResult(pending);
+    updateUI();
+    updatePesertaDatalist();
+    if (APP.lastWinners.length > 0) showWinnerModal(APP.lastWinners);
+    return;
+  }
 
-  // 4) Undi N pengganti dalam SATU putaran (N reel serentak).
-  setTimeout(function() {
-    const rules = victims.map(replacementRuleFromWinner);
-    const need = rules.length;
-
-    const unavailableIds = getUnavailableParticipantIds();
-    const pool = getActivePeserta().filter(p => !unavailableIds.has(p.id));
-    if (pool.length === 0) {
-      showToast('Tidak ada peserta pengganti yang tersedia.', 'error');
-      if (APP.lastWinners.length > 0) showWinnerModal(APP.lastWinners);
-      return;
-    }
-    if (pool.length < need) {
-      showToast('Hanya ' + pool.length + ' peserta tersisa untuk ' + need + ' pengganti — sebagian slot mungkin kosong.', 'warning');
-    }
-    executeSpinMulti(rules, need, true);
-  }, 600);
+  showToast('Mengundi ' + replacements.length + ' pengganti sekaligus...', 'info');
+  APP.pendingDraw = pending;
+  setTimeout(() => startSpinAnimation(replacements), 600);
 };
 
 // ===================== PRIZE SIDEBAR & SETTINGS =====================
@@ -2795,7 +2241,10 @@ function updatePrizeSidebar() {
   const displayEl = document.getElementById('prizeDisplay');
 
   if (rondeNumber) rondeNumber.textContent = APP.currentRonde;
-  if (!displayEl) return;
+  // isDom, bukan sekadar truthy: getElementById di-patch mengembalikan objek DUMMY di
+  // halaman tanpa sidebar (Pengaturan/adm1ndev) — katalog memanggil querySelectorAll
+  // padanya → error yang menghentikan sinkron state (target adm1ndev tak termuat).
+  if (!isDom(displayEl)) return;
 
   const prizes = APP.settings.prizes || [];
   const roundPrizes = prizes.filter(p => parseInt(p.ronde) === APP.currentRonde);
@@ -2958,7 +2407,7 @@ function renderPrizeSettings() {
     let imgPreview = '';
     const imgStyle = 'width: 44px; height: 44px; flex-shrink: 0; border-radius: var(--radius-sm); object-fit: contain; border: 1px solid var(--color-border); background: var(--color-surface);';
     if (p.imageUrl) {
-      imgPreview = `<img src="${p.imageUrl}" style="${imgStyle}" />`;
+      imgPreview = `<img src="${escapeHtml(p.imageUrl)}" style="${imgStyle}" />`;
     } else {
       imgPreview = `<div style="${imgStyle} display:flex; align-items:center; justify-content:center; font-size:0.65rem; text-align:center; color:var(--color-text-muted); line-height:1.1;">No Image</div>`;
     }
@@ -2971,7 +2420,7 @@ function renderPrizeSettings() {
     if (APP.uniqueJenis) {
       APP.uniqueJenis.forEach(j => {
         const isSelected = normalizeStr(j) === normalizeStr(rJenis);
-        jenisOptions += `<option value="${j}" ${isSelected ? 'selected' : ''}>${j === '' ? '(Kosong)' : j}</option>`;
+        jenisOptions += `<option value="${escapeHtml(j)}" ${isSelected ? 'selected' : ''}>${escapeHtml(j)}</option>`;
       });
     }
 
@@ -2979,7 +2428,7 @@ function renderPrizeSettings() {
     if (APP.uniqueGrup) {
       APP.uniqueGrup.forEach(g => {
         const isSelected = normalizeStr(g) === normalizeStr(rGrup);
-        grupOptions += `<option value="${g}" ${isSelected ? 'selected' : ''}>${g === '' ? '(Kosong)' : g}</option>`;
+        grupOptions += `<option value="${escapeHtml(g)}" ${isSelected ? 'selected' : ''}>${escapeHtml(g)}</option>`;
       });
     }
 
@@ -2987,7 +2436,7 @@ function renderPrizeSettings() {
     if (APP.uniqueKelompok) {
       APP.uniqueKelompok.forEach(k => {
         const isSelected = normalizeStr(k) === normalizeStr(rKelompok);
-        kelompokOptions += `<option value="${k}" ${isSelected ? 'selected' : ''}>${k === '' ? '(Kosong)' : k}</option>`;
+        kelompokOptions += `<option value="${escapeHtml(k)}" ${isSelected ? 'selected' : ''}>${escapeHtml(k)}</option>`;
       });
     }
 
@@ -3000,7 +2449,7 @@ function renderPrizeSettings() {
             <input type="number" class="input-modern" style="width: 44px; height: 28px; padding: 0 2px; font-size: 0.85rem; text-align:center; font-weight:bold;" value="${p.ronde}" onchange="updatePrizeRonde('${p.id}', this.value)" min="1" title="Nomor Ronde" />
             <span style="font-size:0.75rem; font-weight:700; color:var(--color-primary);">Pemenang:</span>
             <input type="number" class="input-modern" style="width: 44px; height: 28px; padding: 0 2px; font-size: 0.85rem; text-align:center; font-weight:bold;" value="${p.count !== undefined ? p.count : 1}" onchange="updatePrizeCount('${p.id}', this.value)" min="1" max="100" title="Jumlah Pemenang" />
-            <input type="text" class="input-modern" style="flex:1; height: 28px; padding: 0 8px; font-size: 0.85rem; font-weight:600;" placeholder="Nama Hadiah (Contoh: Voucher Belanja)" value="${p.name || ''}" onchange="updatePrizeName('${p.id}', this.value)" />
+            <input type="text" class="input-modern" style="flex:1; height: 28px; padding: 0 8px; font-size: 0.85rem; font-weight:600;" placeholder="Nama Hadiah (Contoh: Voucher Belanja)" value="${escapeHtml(p.name || '')}" onchange="updatePrizeName('${p.id}', this.value)" />
           </div>
           <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
             <span style="font-size:0.75rem; font-weight:600; color:var(--color-text-muted);">Target Filter:</span>
@@ -3054,29 +2503,33 @@ window.updatePrizeCategory = function(id, field, value) {
 window.updatePrizeRonde = function(id, ronde) {
   const prize = APP.settings.prizes.find(p => p.id === id);
   if (prize) prize.ronde = parseInt(ronde) || 1;
-  // Target berjangkar-hadiah ikut berpindah ronde otomatis: pemenang yang ditargetkan
-  // tetap keluar untuk HADIAH ini, bukan untuk apa pun yang kebetulan di ronde lama.
-  syncTargetRounds();
+  // Target adm1ndev berjangkar ke HADIAH (prizeId) → ikut pindah ronde otomatis di
+  // server saat undian; tak ada yang perlu diubah di sini.
   saveSettings();
   updatePrizeSidebar();
-  if (typeof refreshAdminTable === 'function') refreshAdminTable();
-  if (typeof populateAdminPrizeSelect === 'function' && document.getElementById('adminPrize')) populateAdminPrizeSelect();
 };
 
 window.updatePrizeName = function(id, name) {
   const prize = APP.settings.prizes.find(p => p.id === id);
-  if (prize) prize.name = name;
+  if (!prize) return; // sudah dihapus dari perangkat lain
+  prize.name = name;
   saveSettings();
   if (APP.currentRonde == prize.ronde) updatePrizeSidebar();
 };
 
 window.removePrize = async function(id) {
   const prize = APP.settings.prizes.find((item) => item.id === id);
+  if (!prize) return;
+  // Hapus = permanen (termasuk foto di server) → konfirmasi agar tak terhapus tak sengaja.
+  const label = (prize.name || '').trim() || '(tanpa nama)';
+  const ok = await showCustomConfirm('Hapus Hadiah', 'Hapus hadiah "' + label + '" (Ronde ' + prize.ronde + ')' +
+    (prize.imageUrl ? ' beserta fotonya' : '') + '? Tindakan ini tidak bisa dibatalkan.', 'Hapus', 'Batal');
+  if (!ok) return;
   APP.settings.prizes = APP.settings.prizes.filter((item) => item.id !== id);
-  if (prize?.imageUrl) await deleteImageFromServer(prize.imageUrl);
+  if (prize.imageUrl) await deleteImageFromServer(prize.imageUrl);
   renderPrizeSettings();
   saveSettings();
-  if (prize && APP.currentRonde == prize.ronde) updatePrizeSidebar();
+  if (APP.currentRonde == prize.ronde) updatePrizeSidebar();
 };
 
 window.removePrizeImage = async function(id) {
@@ -3156,6 +2609,7 @@ async function handleAdminLogin() {
       if (loginBox) loginBox.style.display = 'none';
       if (errBox) errBox.style.display = 'none';
       passwordInput.value = '';
+      await loadAdminTargets();
       openAdminPanel();
     } else {
       if (errBox) {
@@ -3191,34 +2645,6 @@ function openAdminPanel() {
 
   const wrapper = document.getElementById('adminPanelWrapper');
   if (wrapper) wrapper.style.display = 'block';
-
-  const adminCluster = document.getElementById('adminCluster');
-  if (adminCluster) {
-    const hasClusters = APP.availableClusters && APP.availableClusters.length > 0;
-    const options = hasClusters 
-      ? APP.availableClusters 
-      : [...new Set(APP.dataPeserta.map(p => p.cluster).filter(c => c && c.trim()))];
-    
-    adminCluster.innerHTML = '<option value="Semua">Semua Kategori</option>' + 
-      options.map(c => '<option value="' + c + '">' + c + '</option>').join('');
-    adminCluster.value = 'Semua';
-  }
-
-  const remoteUrlText = document.getElementById('remoteUrlText');
-  if (remoteUrlText) {
-    const remoteAdminUrl = window.location.origin + '/adm1n';
-    APP.remoteUrl = remoteAdminUrl;
-    remoteUrlText.textContent = remoteAdminUrl;
-  }
-
-  const ipHintEl = document.getElementById('remoteIpHint');
-  if (ipHintEl && window.location.hostname && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-    const ipUrl = window.location.origin + '/adm1n';
-    ipHintEl.textContent = ipUrl;
-    ipHintEl.style.display = 'block';
-  }
-
-  openModal('adminModal');
 }
 
 // Isi dropdown Hadiah. Hanya hadiah pada ronde SEKARANG atau setelahnya yang bisa
@@ -3249,7 +2675,7 @@ function populateAdminPrizeSelect() {
       const ronde = parseInt(p.ronde) || 1;
       const count = parseInt(p.count) || 1;
       const nm = (p.name && p.name.trim()) ? p.name.trim() : '(Tanpa nama)';
-      return '<option value="' + p.id + '">' + nm + ' — Ronde ' + ronde + ' (' + count + ' pemenang)</option>';
+      return '<option value="' + escapeHtml(p.id) + '">' + escapeHtml(nm) + ' — Ronde ' + ronde + ' (' + count + ' pemenang)</option>';
     })
   );
   sel.innerHTML = opts.join('');
@@ -3287,30 +2713,15 @@ window.onAdminPrizeChange = function() {
   if (prize.grup && normalizeStr(prize.grup) !== 'semua') filters.push('Grup: ' + prize.grup);
   if (prize.kelompok && normalizeStr(prize.kelompok) !== 'semua') filters.push('Kelompok: ' + prize.kelompok);
   const filterNote = filters.length
-    ? ' • Hadiah ini khusus <strong>' + filters.join(' | ') + '</strong> — target harus cocok.'
+    ? ' • Hadiah ini khusus <strong>' + escapeHtml(filters.join(' | ')) + '</strong> — target harus cocok.'
     : '';
   const nm = (prize.name && prize.name.trim()) ? prize.name.trim() : '(Tanpa nama)';
 
   if (hint) {
-    hint.innerHTML = 'Hadiah <strong>' + nm + '</strong> kini di <strong>Ronde ' + ronde + '</strong> (' +
+    hint.innerHTML = 'Hadiah <strong>' + escapeHtml(nm) + '</strong> kini di <strong>Ronde ' + ronde + '</strong> (' +
       (parseInt(prize.count) || 1) + ' pemenang). Ronde mengikuti hadiah otomatis.' + filterNote;
   }
 };
-
-function copyRemoteUrl() {
-  const url = APP.remoteUrl || document.getElementById('remoteUrlText').textContent;
-  navigator.clipboard.writeText(url).then(() => {
-    showToast('URL remote berhasil disalin!', 'success');
-  }).catch(() => {
-    const el = document.getElementById('remoteUrlText');
-    const range = document.createRange();
-    range.selectNodeContents(el);
-    const sel = window.getSelection();
-    sel.removeAllRanges();
-    sel.addRange(range);
-    showToast('Silakan copy URL secara manual (Ctrl+C)', 'warning');
-  });
-}
 
 // Chip-based target system
 window.addTargetChip = function(id) {
@@ -3352,7 +2763,7 @@ window.addTargetChip = function(id) {
   chip.className = 'target-chip';
   chip.dataset.id = id;
   chip.style.cssText = 'display:inline-flex; align-items:center; gap:5px; background:var(--color-primary); color:#fff; padding:5px 10px; border-radius:20px; font-size:0.85rem; font-weight:500;';
-  chip.innerHTML = '<span>' + nama + '</span><button onclick="removeTargetChip(this)" title="Hapus" style="background:rgba(0,0,0,0.25);border:none;color:#fff;cursor:pointer;padding:0 2px;font-size:1rem;line-height:1;border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;">&times;</button>';
+  chip.innerHTML = '<span>' + escapeHtml(nama) + '</span><button onclick="removeTargetChip(this)" title="Hapus" style="background:rgba(0,0,0,0.25);border:none;color:#fff;cursor:pointer;padding:0 2px;font-size:1rem;line-height:1;border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;">&times;</button>';
   container.appendChild(chip);
   updateTargetChipCount();
 };
@@ -3407,7 +2818,7 @@ function fillFilterClusterSelect() {
         ...(APP.uniqueKelompok || [])
       ].filter(Boolean))];
   sel.innerHTML = '<option value="Semua">Semua</option>' +
-    options.map(c => '<option value="' + c + '">' + c + '</option>').join('');
+    options.map(c => '<option value="' + escapeHtml(c) + '">' + escapeHtml(c) + '</option>').join('');
   sel.value = [...sel.options].some(o => o.value === current) ? current : 'Semua';
 }
 
@@ -3415,10 +2826,7 @@ window.filterPesertaList = function() {
   const searchEl = document.getElementById('searchPesertaInput');
   const q = isDom(searchEl) ? String(searchEl.value || '').toLowerCase() : '';
   const modalCluster = document.getElementById('filterClusterSelect');
-  const adminCluster = document.getElementById('adminCluster');
-  const filterCluster = isDom(modalCluster)
-    ? (modalCluster.value || 'Semua')
-    : (isDom(adminCluster) ? (adminCluster.value || 'Semua') : 'Semua');
+  const filterCluster = isDom(modalCluster) ? (modalCluster.value || 'Semua') : 'Semua';
   // Hadiah terpilih → saring peserta agar HANYA yang cocok KATEGORI (jenis/grup/kelompok)
   // hadiah itu yang tampil (penegakan final tetap di saveAdminTarget).
   const _prizeSel = document.getElementById('adminPrize');
@@ -3436,10 +2844,12 @@ window.filterPesertaList = function() {
     ? Array.from(chipContainer.querySelectorAll('.target-chip')).map(c => c.dataset.id)
     : [];
   const isPicker = isDom(chipContainer);
-  
-  // Get all pending targets from adminTargets → label hadiah (bukan sekadar ronde)
+
+  // Label "Target: <hadiah>" HANYA di panel adm1ndev (mode picker). Daftar yang sama
+  // juga dibuka dari badge peserta di DASHBOARD (bisa diproyeksikan ke penonton) →
+  // di sana target rahasia TIDAK boleh tampil.
   const pendingTargets = {};
-  (APP.adminTargets || []).forEach(t => {
+  if (isPicker) (APP.adminTargets || []).forEach(t => {
     if (t.status !== 'Sudah Dieksekusi') {
       const label = t.prizeName || (t.prizeId ? 'Hadiah' : ('Ronde ' + effectiveRonde(t)));
       (t.targets || []).forEach(id => {
@@ -3485,20 +2895,20 @@ window.filterPesertaList = function() {
     } else if (p.status === 'Sudah Diundi') {
       actionHtml = '<span style="color:#2563EB; font-size:0.75rem; font-weight:600;">Sudah Menang</span>';
     } else if (targetedLabel !== undefined) {
-      actionHtml = `<span style="color:#D97706; font-size:0.75rem; font-weight:600;">Target: ${targetedLabel}</span>`;
+      actionHtml = `<span style="color:#D97706; font-size:0.75rem; font-weight:600;">Target: ${escapeHtml(targetedLabel)}</span>`;
     } else if (!isPicker) {
       actionHtml = '<span style="color:var(--color-text-muted); font-size:0.75rem;">' + (p.status || 'Belum Diundi') + '</span>';
     } else if (isSelected) {
       actionHtml = '<button class="btn btn-small" style="padding:6px 12px; font-size:0.75rem; background:var(--color-bg-tertiary); color:var(--color-text-muted); border:1px solid var(--color-border);" disabled>Terpilih</button>';
     } else {
-      actionHtml = `<button class="btn btn-small btn-primary" data-id="${p.id}" style="padding:6px 12px; font-size:0.75rem;" onclick="selectPesertaFromList(this.dataset.id)">Pilih</button>`;
+      actionHtml = `<button class="btn btn-small btn-primary" data-id="${escapeHtml(p.id)}" style="padding:6px 12px; font-size:0.75rem;" onclick="selectPesertaFromList(this.dataset.id)">Pilih</button>`;
     }
 
     html += `
       <div style="padding: 12px 8px; border-bottom: 1px solid var(--color-border-light); display: flex; justify-content: space-between; align-items: center; ${isDisabled ? 'opacity:0.65;' : ''}">
         <div style="font-size:0.85rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; margin-right:12px;">
-          <strong>${p.nama}</strong><br/>
-          <span style="color:var(--color-text-muted); font-size:0.75rem;">${metaStr}</span>
+          <strong>${escapeHtml(p.nama)}</strong><br/>
+          <span style="color:var(--color-text-muted); font-size:0.75rem;">${escapeHtml(metaStr)}</span>
         </div>
         ${actionHtml}
       </div>
@@ -3523,8 +2933,9 @@ window.selectPesertaFromList = function(id) {
 };
 
 function saveAdminTarget() {
-  const clusterSelect = document.getElementById('adminCluster');
-  const cluster = clusterSelect ? clusterSelect.value : 'Semua';
+  // Panel tak lagi punya filter kategori: penyaring kategori kini mengikuti filter
+  // HADIAH (jenis/grup/kelompok) yang divalidasi di bawah.
+  const cluster = 'Semua';
 
   // Target kini BERJANGKAR ke HADIAH (bukan nomor ronde). Ambil hadiah terpilih;
   // ronde efektif diturunkan dari ronde hadiah itu SAAT INI.
@@ -3590,17 +3001,11 @@ function saveAdminTarget() {
     return;
   }
 
-  // Validate: targets must exist in data for the selected cluster (or any if Semua)
-  const validPeserta = APP.dataPeserta.filter(p => matchParticipantCluster(p, cluster));
-  const validIds = validPeserta.map(p => p.id);
-
-  const notFound = targets.filter(t => !validIds.includes(t));
+  // Validate: targets must exist in data peserta
+  const validIds = new Set(APP.dataPeserta.map(p => p.id));
+  const notFound = targets.filter(t => !validIds.has(t));
   if (notFound.length > 0) {
-    const notFoundNames = notFound.map(id => {
-      const p = APP.dataPeserta.find(p => p.id === id);
-      return p ? p.nama : id;
-    });
-    showToast('Nama "' + notFoundNames.join(', ') + '" tidak ditemukan di kategori ' + cluster + '.', 'error');
+    showToast('Peserta "' + notFound.join(', ') + '" tidak ditemukan di data peserta.', 'error');
     return;
   }
 
@@ -3659,7 +3064,7 @@ function saveAdminTarget() {
 
 function refreshAdminTable() {
   const tbody = document.getElementById('adminTargetBody');
-  if (!tbody) return; // halaman non-adm1n (mis. dashboard) tak punya tabel ini
+  if (!tbody) return; // halaman non-adm1ndev (mis. dashboard) tak punya tabel ini
 
   syncTargetRounds(); // ronde efektif tiap target selalu mengikuti hadiahnya terkini
 
@@ -3699,14 +3104,14 @@ function refreshAdminTable() {
     const statusLabel = t.status === 'Sudah Dieksekusi' ? 'Sudah Dieksekusi' : (t.status === 'Terlewati' ? 'Terlewati' : 'Menunggu');
     const detailHtml = t.targets.map(id => {
       const f = fateOf(id, effRonde);
-      return '<div style="margin-bottom:6px; line-height:1.3;"><strong>' + f.nama + '</strong><br/>' +
+      return '<div style="margin-bottom:6px; line-height:1.3;"><strong>' + escapeHtml(f.nama) + '</strong><br/>' +
              '<span style="font-size:0.72rem; font-weight:600; color:' + f.color + ';">' + f.label + '</span></div>';
     }).join('');
     const rondeCell = prizeGone
-      ? '<strong>' + prizeLabel + '</strong><br/><span style="font-size:0.72rem; color:#DC2626;">⚠ Hadiah dihapus</span>'
-      : '<strong>' + prizeLabel + '</strong><br/><span style="font-size:0.72rem; color:var(--color-text-muted);">Ronde ' + effRonde + '</span>';
+      ? '<strong>' + escapeHtml(prizeLabel) + '</strong><br/><span style="font-size:0.72rem; color:#DC2626;">⚠ Hadiah dihapus</span>'
+      : '<strong>' + escapeHtml(prizeLabel) + '</strong><br/><span style="font-size:0.72rem; color:var(--color-text-muted);">Ronde ' + effRonde + '</span>';
     // data-label + pembungkus .cell-val: dipakai layout KARTU di layar HP (lihat CSS
-    // adm1n.html @media 640px). Di desktop tetap tampil sebagai tabel biasa.
+    // adm1ndev.html @media 640px). Di desktop tetap tampil sebagai tabel biasa.
     return '<tr>' +
       '<td data-label="Kategori"><div class="cell-val"><strong>' + (t.cluster || 'Semua') + '</strong></div></td>' +
       '<td data-label="Hadiah"><div class="cell-val">' + rondeCell + '</div></td>' +
@@ -3804,45 +3209,10 @@ async function changeLoginPassword() {
 }
 window.changeLoginPassword = changeLoginPassword;
 
-function exportAdminConfig() {
-  const config = btoa(JSON.stringify({
-    targets: APP.adminTargets
-  }));
-  const textarea = document.getElementById('configTextarea');
-  textarea.classList.remove('hidden');
-  textarea.value = config;
-  textarea.select();
-  navigator.clipboard.writeText(config).then(() => {
-    showToast('Config disalin ke clipboard!', 'success');
-  }).catch(() => {
-    showToast('Config siap dicopy dari textarea.', 'success');
-  });
-}
-
-function importAdminConfig() {
-  const textarea = document.getElementById('configTextarea');
-  textarea.classList.remove('hidden');
-  textarea.placeholder = 'Paste config di sini, lalu klik Import lagi...';
-
-  if (textarea.value.trim()) {
-    try {
-      const parsed = JSON.parse(atob(textarea.value.trim()));
-      APP.adminTargets = parsed.targets || [];
-      // Password panel admin kini server-only — tidak diimpor dari config.
-      saveAdminSettings();
-      refreshAdminTable();
-      textarea.value = '';
-      textarea.classList.add('hidden');
-      showToast('Config berhasil diimport!', 'success');
-    } catch (e) {
-      showToast('Format config tidak valid.', 'error');
-    }
-  }
-}
-
 // Indikator status simpan (dirty) — HUD Setting (Fase 3). UI-only: hanya MENCERMINKAN
 // keadaan tersimpan/belum di chip #saveStat + save bar; tak mengubah cara/isi penyimpanan.
 function setSettingsDirty(dirty) {
+  APP.settingsDirty = !!dirty;
   const chip = document.getElementById('saveStat');
   if (chip) {
     chip.classList.toggle('ok', !dirty);
@@ -3898,7 +3268,6 @@ function saveEventSettings() {
   applyTheme(APP.settings.theme);
   applyEventSettings();
   saveSettings();
-  closeModal('settingsModal');
   if (typeof setSettingsDirty === 'function') setSettingsDirty(false);
   showToast('Pengaturan berhasil disimpan!', 'success');
 }
@@ -4105,8 +3474,15 @@ async function removeBg() {
   saveSettings();
 }
 
+// Render ulang daftar hadiah dari sinkron — KECUALI operator sedang mengetik di
+// dalamnya (fokus & ketikan yang belum ter-`change` akan hilang).
+function refreshPrizeSettingsIfIdle() {
+  const list = document.getElementById('prizeSettingsList');
+  if (isDom(list) && !list.contains(document.activeElement)) renderPrizeSettings();
+}
+
 function openSettingsModal() {
-  renderPrizeSettings();
+  refreshPrizeSettingsIfIdle();
   // Populate current values
   if (document.getElementById('inputEventTitle')) document.getElementById('inputEventTitle').value = APP.settings.eventTitle || '';
   if (document.getElementById('inputEventSubtitle')) document.getElementById('inputEventSubtitle').value = APP.settings.eventSubtitle || '';
@@ -4152,7 +3528,6 @@ function openSettingsModal() {
     document.getElementById('customColorSection').classList.add('hidden');
   }
 
-  updateThemePreview(APP.settings.theme || 'professional_blue');
   updateBrandingPreview();
 
   // Show logo preview if exists
@@ -4204,7 +3579,6 @@ function openSettingsModal() {
   // Segarkan pratinjau isi editor tata letak (aman: tak menyentuh working copy/posisi).
   if (APP.layoutEditor) APP.layoutEditor.refreshContent();
 
-  openModal('settingsModal');
 }
 
 // ===================== MODAL UTILITIES =====================
@@ -4212,10 +3586,6 @@ function openModal(id) {
   const modal = document.getElementById(id);
   if (modal) {
     modal.classList.add('active');
-      // Handled entirely by openSettingsModal() which we just called, 
-      // wait, openSettingsModal calls openModal('settingsModal').
-      // Let's not duplicate logic here.
-      // We will let openSettingsModal do the populating, and only keep modal open logic.
   }
 }
 
@@ -4377,13 +3747,11 @@ window.showCustomConfirm = function(title, message, confirmText = 'Ya, Lanjutkan
 function updateUI() {
   const active = getActivePeserta();
   const pesertaCount = document.getElementById('pesertaCount');
-  const rondeCount = document.getElementById('rondeCount');
   const statusText = document.getElementById('statusText');
   const spinBtn = document.getElementById('spinBtn');
   const downloadExcelBtn = document.getElementById('downloadExcelBtn');
 
   if (pesertaCount) pesertaCount.textContent = active.length;
-  if (rondeCount) rondeCount.textContent = APP.currentRonde;
 
   // Status tag for settings page
   const uploadStatusText = document.getElementById('uploadStatusText');

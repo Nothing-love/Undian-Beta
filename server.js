@@ -9,6 +9,7 @@ const path = require('path');
 const session = require('express-session');
 const multer = require('multer');
 const { spawn } = require('child_process');
+const { drawRound, drawReplacements, resetDraw, syncTargetCache } = require('./draw');
 
 const app = express();
 const ROOT = __dirname;
@@ -31,7 +32,7 @@ const STATE_FILES = {
 
 // Rahasia autentikasi disimpan TERPISAH dari admin_state.json dan TIDAK PERNAH
 // dikirim ke klien mana pun: loginPassword (operator, diubah di Pengaturan) dan
-// adminPassword (khusus dev, diubah di halaman adm1n).
+// adminPassword (khusus dev, diubah di halaman /adm1ndev).
 const AUTH_FILE = path.join(DATA_DIR, 'auth_state.json');
 
 const DEFAULT_STATE = {
@@ -518,7 +519,7 @@ function warnAuthEnvMismatch() {
     console.warn('⚠️ ADMIN_PASSWORD di .env berbeda dari data/auth_state.json. Password login yang dipakai adalah yang di auth_state.json (ubah lewat Pengaturan). Nilai .env diabaikan.');
   }
   if (envPanel && filePanel && envPanel !== filePanel) {
-    console.warn('⚠️ ADMIN_PANEL_PASSWORD di .env berbeda dari data/auth_state.json. Password panel yang dipakai adalah yang di auth_state.json (ubah lewat /adm1n). Nilai .env diabaikan.');
+    console.warn('⚠️ ADMIN_PANEL_PASSWORD di .env berbeda dari data/auth_state.json. Password panel yang dipakai adalah yang di auth_state.json (ubah lewat /adm1ndev). Nilai .env diabaikan.');
   }
 }
 warnAuthEnvMismatch();
@@ -546,7 +547,7 @@ app.use((req, res, next) => {
     return requireAuth(req, res, () => res.sendFile(path.join(PUBLIC_DIR, '_mobile-preview.html')));
   }
   const cleanPath = req.path.slice(0, -5);
-  if (['/login', '/dashboard', '/setting', '/adm1n'].includes(cleanPath)) {
+  if (['/login', '/dashboard', '/setting', '/adm1ndev'].includes(cleanPath)) {
     return res.redirect(cleanPath);
   }
   return res.redirect('/login');
@@ -586,7 +587,7 @@ app.post('/login', (req, res) => {
 
   // Kredensial valid HANYA yang dikonfigurasi: ADMIN_USERNAME (.env) dan password
   // LOGIN dari auth_state.json → ENV ADMIN_PASSWORD → default 'admin2026' via
-  // getLoginPassword(). Password panel adm1n TERPISAH (getAdminPanelPassword) dan
+  // getLoginPassword(). Password panel adm1ndev TERPISAH (getAdminPanelPassword) dan
   // tak dipakai di sini. Tidak ada backdoor; mengganti password login benar-benar
   // menonaktifkan yang lama.
   const validUsername = String(process.env.ADMIN_USERNAME || 'admin').trim();
@@ -617,7 +618,7 @@ app.get('/logout', (req, res) => {
 app.get('/', requireAuth, (req, res) => res.redirect('/dashboard'));
 app.get('/dashboard', requireAuth, (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'dashboard.html')));
 app.get('/setting', requireAuth, (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'setting.html')));
-app.get('/adm1n', requireAuth, (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'adm1n.html')));
+app.get('/adm1ndev', requireAuth, (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'adm1ndev.html')));
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -656,72 +657,78 @@ app.delete('/api/upload/image', requireAuth, (req, res) => {
   return res.json({ success: true });
 });
 
-app.get('/api/settings', requireAuth, (req, res) => {
-  return res.json(readJson(STATE_FILES.settings, DEFAULT_STATE.settings));
-});
-
-app.post('/api/settings', requireAuth, (req, res) => {
-  const payload = {
-    ...normalizeSettings(req.body),
-    timestamp: Date.now()
-  };
-  writeJsonAtomic(STATE_FILES.settings, payload);
-  return res.json({ success: true, timestamp: payload.timestamp });
-});
-
-app.get('/api/peserta', requireAuth, (req, res) => {
-  return res.json(readJson(STATE_FILES.peserta, DEFAULT_STATE.peserta));
-});
-
-app.post('/api/peserta', requireAuth, (req, res) => {
-  const storedPeserta = readJson(STATE_FILES.peserta, DEFAULT_STATE.peserta);
-  const payload = mergePeserta(storedPeserta, req.body);
-  payload.timestamp = Date.now();
-  writeJsonAtomic(STATE_FILES.peserta, payload);
-  return res.json({ success: true, timestamp: payload.timestamp });
-});
-
-// Konfigurasi target = khusus dev (butuh unlock). Kembalikan targets saja.
+// Konfigurasi target = khusus dev (butuh unlock). SATU-SATUNYA jalan target keluar
+// dari server — /api/state TIDAK menyertakannya (layar undian tak boleh tahu target).
 app.get('/api/admin', requireAuth, requireAdminUnlocked, (req, res) => {
   const admin = normalizeAdmin(readJson(STATE_FILES.admin, DEFAULT_STATE.admin));
+  const settings = normalizeSettings(readJson(STATE_FILES.settings, DEFAULT_STATE.settings));
+  syncTargetCache(admin.targets, settings.prizes); // label ronde/nama ikut hadiah terkini
   return res.json({ targets: admin.targets });
 });
 
 // Tulis konfigurasi target penuh (tambah/ubah/hapus) — khusus dev (butuh unlock).
+// STATUS target dikelola SERVER (undian/reset): target yang sudah ada mempertahankan
+// status tersimpannya, target baru selalu 'Belum Dieksekusi'. Daftar dari panel yang
+// belum sempat sinkron tak bisa mengembalikan target yang sudah dieksekusi/dilepas.
+const targetKey = (t) =>
+  `${t.prizeId ? 'p:' + t.prizeId : 'r:' + t.ronde}|${t.cluster || 'Semua'}|${[...(Array.isArray(t.targets) ? t.targets : [])].sort().join(',')}`;
+
 app.post('/api/admin', requireAuth, requireAdminUnlocked, (req, res) => {
-  const payload = {
-    ...normalizeAdmin(req.body),
-    timestamp: Date.now()
-  };
+  const stored = normalizeAdmin(readJson(STATE_FILES.admin, DEFAULT_STATE.admin));
+  const statusByKey = new Map(stored.targets.map(t => [targetKey(t), t.status]));
+  const targets = normalizeAdmin(req.body).targets
+    .filter(t => t && typeof t === 'object' && Array.isArray(t.targets))
+    .map(t => ({ ...t, status: statusByKey.get(targetKey(t)) || 'Belum Dieksekusi' }));
+  const payload = { targets, timestamp: Date.now() };
   writeJsonAtomic(STATE_FILES.admin, payload);
   return res.json({ success: true, timestamp: payload.timestamp });
 });
 
-// Update HANYA status (dari layar undian/operator, TANPA unlock). Server hanya
-// menyalin `status` ke target yang SUDAH ada dengan keanggotaan identik; payload
-// tak bisa menambah target atau mengubah siapa yang ditarget → operator tidak
-// bisa merekayasa pemenang lewat endpoint ini.
-app.post('/api/admin/status', requireAuth, (req, res) => {
-  const stored = normalizeAdmin(readJson(STATE_FILES.admin, DEFAULT_STATE.admin));
-  const incoming = Array.isArray(req.body.targets) ? req.body.targets : [];
-  // Identitas target: bila berjangkar-hadiah, kunci ke prizeId agar sinkron status
-  // tetap cocok walau nomor ronde bergeser (operator memindah hadiah). Target lama
-  // (tanpa prizeId) tetap dicocokkan via nomor ronde.
-  const identity = (t) =>
-    `${t.prizeId ? 'p:' + t.prizeId : 'r:' + t.ronde}|${t.cluster || 'Semua'}|${[...(Array.isArray(t.targets) ? t.targets : [])].sort().join(',')}`;
+function readAllState() {
+  return {
+    settings: normalizeSettings(readJson(STATE_FILES.settings, DEFAULT_STATE.settings)),
+    peserta: normalizePeserta(readJson(STATE_FILES.peserta, DEFAULT_STATE.peserta)),
+    admin: normalizeAdmin(readJson(STATE_FILES.admin, DEFAULT_STATE.admin))
+  };
+}
 
-  const statusByKey = new Map();
-  for (const t of incoming) {
-    if (t && typeof t.status === 'string') statusByKey.set(identity(t), t.status.slice(0, 40));
-  }
-
-  stored.targets = stored.targets.map((t) => {
-    const status = statusByKey.get(identity(t));
-    return typeof status === 'string' ? { ...t, status } : t;
+// UNDIAN (server-side, lihat draw.js). Baca → undi → tulis berjalan sinkron dalam
+// satu tick Node → atomik: dua perangkat yang menekan SPIN bersamaan tak bisa
+// menghasilkan pemenang ganda (yang kedua ditolak 409 karena ronde sudah maju).
+// Respons hanya berisi daftar pemenang — tanpa penanda mana yang target.
+app.post('/api/draw', requireAuth, (req, res) => {
+  const { settings, peserta, admin } = readAllState();
+  const result = drawRound({ peserta, settings, admin, ronde: req.body.ronde, waktu: req.body.waktu });
+  if (result.error) return res.status(result.status).json({ error: result.error, currentRonde: result.currentRonde });
+  const timestamp = Date.now();
+  writeJsonAtomic(STATE_FILES.peserta, { ...peserta, timestamp });
+  if (result.adminChanged) writeJsonAtomic(STATE_FILES.admin, { targets: admin.targets, timestamp });
+  return res.json({
+    success: true,
+    winners: result.winners,
+    record: result.record,
+    currentRonde: result.currentRonde,
+    notices: result.notices
   });
-  stored.timestamp = Date.now();
-  writeJsonAtomic(STATE_FILES.admin, stored);
-  return res.json({ success: true, timestamp: stored.timestamp });
+});
+
+// Gugurkan pemenang ronde terakhir & undi penggantinya (hadiah diwarisi).
+app.post('/api/draw/replace', requireAuth, (req, res) => {
+  const { settings, peserta, admin } = readAllState();
+  const result = drawReplacements({ peserta, settings, admin, ronde: req.body.ronde, victimIds: req.body.victimIds });
+  if (result.error) return res.status(result.status).json({ error: result.error });
+  writeJsonAtomic(STATE_FILES.peserta, { ...peserta, timestamp: Date.now() });
+  return res.json({ success: true, winners: result.winners, replacements: result.replacements, record: result.record });
+});
+
+// Reset undian: generasi baru (rev) otoritatif + status semua target kembali menunggu.
+app.post('/api/reset', requireAuth, (req, res) => {
+  const { peserta, admin } = readAllState();
+  resetDraw({ peserta, admin });
+  const timestamp = Date.now();
+  writeJsonAtomic(STATE_FILES.peserta, { ...peserta, timestamp });
+  writeJsonAtomic(STATE_FILES.admin, { targets: admin.targets, timestamp });
+  return res.json({ success: true, rev: peserta.rev });
 });
 
 // Buka kunci panel admin (verifikasi server-side; password tak pernah ke klien).
@@ -756,7 +763,7 @@ app.post('/api/admin/lock', requireAuth, (req, res) => {
   return req.session.save(() => res.json({ success: true }));
 });
 
-// Ganti password panel admin (di halaman adm1n) — butuh unlock + password lama.
+// Ganti password panel admin (di halaman /adm1ndev) — butuh unlock + password lama.
 app.post('/api/admin/password', requireAuth, requireAdminUnlocked, (req, res) => {
   const current = typeof req.body.current === 'string' ? req.body.current : '';
   const next = typeof req.body.next === 'string' ? req.body.next : '';
@@ -788,6 +795,8 @@ app.get('/api/state', requireAuth, (req, res) => {
   const settings = normalizeSettings(readJson(STATE_FILES.settings, DEFAULT_STATE.settings));
   const peserta = normalizePeserta(readJson(STATE_FILES.peserta, DEFAULT_STATE.peserta));
   const admin = normalizeAdmin(readJson(STATE_FILES.admin, DEFAULT_STATE.admin));
+  // timestamp admin ikut dihitung agar panel adm1ndev tahu ada perubahan (lalu ia
+  // mengambil target lewat GET /api/admin); ISI target tidak pernah dikirim di sini.
   const timestamp = Math.max(settings.timestamp || 0, peserta.timestamp || 0, admin.timestamp || 0);
   const clientTimestamp = Number(req.query.ts) || 0;
 
@@ -795,7 +804,7 @@ app.get('/api/state', requireAuth, (req, res) => {
     return res.json({ changed: false, timestamp });
   }
 
-  return res.json({ changed: true, settings, peserta, admin, timestamp });
+  return res.json({ changed: true, settings, peserta, timestamp });
 });
 
 app.post('/api/state', requireAuth, (req, res) => {
@@ -815,10 +824,8 @@ app.post('/api/state', requireAuth, (req, res) => {
     writeJsonAtomic(STATE_FILES.peserta, mergedPeserta);
   }
 
-  // Slice `admin` sengaja TIDAK ditulis di sini. Semua perubahan target/password
-  // admin hanya melalui POST /api/admin (satu-satunya pemilik state admin), agar
-  // sinkron peserta dari dashboard tidak menimpa/menghapus target admin aktif
-  // (last-write-wins clobber antar-perangkat).
+  // Target admin TIDAK pernah ditulis di sini — hanya POST /api/admin (adm1ndev) dan
+  // endpoint undian di server.
 
   return res.json({ success: true, timestamp });
 });

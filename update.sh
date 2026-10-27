@@ -74,15 +74,22 @@ echo "🔍 Memvalidasi sintaks..."
 node --check server.js && node --check public/app.js
 
 # 5. Restart / reload server
+# PM2 global, atau PM2 lokal proyek (dependency di package.json, biasa dipanggil `npx pm2`).
+PM2=""
 if command -v pm2 >/dev/null 2>&1; then
-    if pm2 describe doorprize-satsiber >/dev/null 2>&1; then
+    PM2="pm2"
+elif [ -x node_modules/.bin/pm2 ]; then
+    PM2="node_modules/.bin/pm2"
+fi
+if [ -n "$PM2" ]; then
+    if $PM2 describe doorprize-satsiber >/dev/null 2>&1; then
         echo "🚀 Reload aplikasi via PM2 (doorprize-satsiber)..."
-        pm2 reload doorprize-satsiber --update-env
+        $PM2 reload doorprize-satsiber --update-env
     else
         echo "🚀 Aplikasi belum ada di PM2 — start via ecosystem.config.js..."
-        pm2 start ecosystem.config.js --update-env
+        $PM2 start ecosystem.config.js --update-env
     fi
-    pm2 save >/dev/null 2>&1 || true
+    $PM2 save >/dev/null 2>&1 || true
 else
     echo "⚠️  PM2 tidak terpasang — restart manual diperlukan:"
     echo "    hentikan proses node lama, lalu jalankan: node server.js   (atau: sh slim.sh)"

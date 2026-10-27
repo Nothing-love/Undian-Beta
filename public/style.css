@@ -199,32 +199,6 @@ h6 {
 }
 
 /* ===================== UPLOAD SCREEN ===================== */
-#uploadScreen {
-  align-items: center;
-  justify-content: center;
-  background: var(--color-bg);
-  background-image:
-    radial-gradient(ellipse at 20% 50%, rgba(var(--color-primary-rgb), 0.06) 0%, transparent 50%),
-    radial-gradient(ellipse at 80% 20%, rgba(var(--color-secondary-rgb), 0.06) 0%, transparent 50%),
-    radial-gradient(ellipse at 60% 80%, rgba(var(--color-accent-rgb), 0.04) 0%, transparent 50%);
-}
-
-.upload-container {
-  text-align: center;
-  max-width: 520px;
-  width: 100%;
-  padding: var(--space-2xl);
-}
-
-.upload-brand {
-  margin-bottom: var(--space-2xl);
-}
-
-.upload-logo-icon {
-  display: inline-flex;
-  margin-bottom: var(--space-md);
-  animation: floatUp 3s ease-in-out infinite;
-}
 
 @keyframes floatUp {
 
@@ -236,24 +210,6 @@ h6 {
   50% {
     transform: translateY(-8px);
   }
-}
-
-.upload-title {
-  font-family: 'Outfit', sans-serif;
-  font-size: 3rem;
-  font-weight: 900;
-  background: var(--gradient-main);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  letter-spacing: -0.02em;
-}
-
-.upload-subtitle {
-  font-size: 1.05rem;
-  color: var(--color-text-secondary);
-  margin-top: var(--space-xs);
-  font-weight: 400;
 }
 
 .upload-area {
@@ -300,32 +256,6 @@ h6 {
   font-size: 0.85rem;
   color: var(--color-text-muted);
   margin-top: var(--space-xs);
-}
-
-.upload-divider {
-  display: flex;
-  align-items: center;
-  margin: var(--space-lg) 0;
-  color: var(--color-text-muted);
-  font-size: 0.85rem;
-}
-
-.upload-divider::before,
-.upload-divider::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: var(--color-border);
-}
-
-.upload-divider span {
-  padding: 0 var(--space-md);
-}
-
-.upload-hint {
-  font-size: 0.82rem;
-  color: var(--color-text-muted);
-  margin-top: var(--space-sm);
 }
 
 /* ===================== BUTTONS ===================== */
@@ -674,18 +604,6 @@ h6 {
   stroke: var(--color-text) !important;
 }
 
-.stat-badge-accent {
-  background: var(--color-surface) !important;
-  color: var(--color-text) !important;
-  border-color: var(--color-border) !important;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-}
-
-.stat-badge-accent svg {
-  color: var(--color-text) !important;
-  stroke: var(--color-text) !important;
-}
-
 .btn-icon {
   display: inline-flex;
   align-items: center;
@@ -782,73 +700,6 @@ h6 {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-}
-
-.history-list {
-  flex: 1;
-  overflow-y: auto;
-  padding: var(--space-md);
-}
-
-.history-empty {
-  text-align: center;
-  padding: var(--space-2xl) var(--space-md);
-  color: var(--color-text-muted);
-  font-size: 0.85rem;
-}
-
-.history-item {
-  margin-bottom: var(--space-md);
-  padding: var(--space-md);
-  background: var(--color-bg);
-  border-radius: var(--radius-md);
-  border: 1px solid var(--color-border-light);
-  transition: all var(--transition-base);
-  animation: slideIn 0.3s ease;
-}
-
-.history-item:hover {
-  border-color: var(--color-border);
-  box-shadow: var(--shadow-sm);
-}
-
-.history-item-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: var(--space-sm);
-}
-
-.history-ronde {
-  font-weight: 700;
-  font-size: 0.82rem;
-  color: var(--color-primary);
-  background: rgba(var(--color-primary-rgb), 0.08);
-  padding: 2px 10px;
-  border-radius: var(--radius-full);
-}
-
-.history-time {
-  font-size: 0.72rem;
-  color: var(--color-text-muted);
-}
-
-.history-winners {
-  list-style: none;
-}
-
-.history-winner-item {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  padding: 4px 0;
-  font-size: 0.84rem;
-  color: var(--color-text-secondary);
-}
-
-.history-winner-item::before {
-  content: '🏅';
-  font-size: 0.75rem;
 }
 
 /* CENTER AREA */
@@ -1336,16 +1187,6 @@ body.dark-theme .slot-reel .slot-cell.winner-cell {
 border-color: var(--color-accent);
 background: rgba(var(--color-accent-rgb), 0.08);
 box-shadow: 0 0 20px rgba(var(--color-accent-rgb), 0.2);
-}
-
-/* Slot Strip (scrolling element) */
-.slot-strip {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  will-change: transform;
-}
 
 .slot-cell {
   height: 56px;
@@ -1412,12 +1253,6 @@ box-shadow: 0 0 20px rgba(var(--color-accent-rgb), 0.2);
 
 .btn-remove-rule:hover {
   color: #b91c1c;
-}
-
-.winner-count-control label {
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: var(--color-text-secondary);
 }
 
 .input-modern {
@@ -1541,14 +1376,6 @@ select.input-modern {
   opacity: 0.7;
 }
 
-.spin-icon {
-  font-size: 1.1rem;
-}
-
-.spin-button.spinning .spin-icon {
-  animation: rotateStar 0.6s linear infinite;
-}
-
 @keyframes rotateStar {
   from {
     transform: rotate(0deg);
@@ -1560,28 +1387,6 @@ select.input-modern {
 }
 
 /* ===================== FOOTER ===================== */
-.slot-container {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding: var(--space-xl);
-}
-
-.slot-container::-webkit-scrollbar {
-  width: 8px;
-}
-
-.slot-container::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.05);
-  border-radius: 4px;
-}
-
-.slot-container::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 4px;
-}
 
 .slot-machine.compact-reels {
   gap: var(--space-sm);
@@ -1724,14 +1529,6 @@ select.input-modern {
   flex: 1;
 }
 
-.modal-footer {
-  padding: var(--space-md) var(--space-xl) var(--space-xl);
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--space-sm);
-  flex-shrink: 0;
-}
-
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -1767,22 +1564,6 @@ select.input-modern {
 }
 
 /* ===================== SETTINGS MODAL ===================== */
-.modal-settings {
-  max-width: 600px;
-}
-
-.settings-section {
-  margin-bottom: var(--space-xl);
-}
-
-.settings-section h3 {
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: var(--color-text);
-  margin-bottom: var(--space-md);
-  padding-bottom: var(--space-sm);
-  border-bottom: 1px solid var(--color-border-light);
-}
 
 .form-group {
   margin-bottom: var(--space-md);
@@ -1818,33 +1599,6 @@ select.input-modern {
   box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.1);
 }
 
-.form-hint {
-  font-size: 0.78rem;
-  color: var(--color-text-muted);
-  margin-top: var(--space-xs);
-}
-
-.form-row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-}
-
-.form-row input {
-  flex: 1;
-  padding: 8px 12px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  font-family: 'Inter', sans-serif;
-  font-size: 0.88rem;
-  outline: none;
-  transition: border-color var(--transition-fast);
-}
-
-.form-row input:focus {
-  border-color: var(--color-primary);
-}
-
 /* Logo Upload */
 .logo-upload-area {
   border: 2px dashed var(--color-border);
@@ -1868,22 +1622,6 @@ select.input-modern {
 .logo-upload-area img {
   max-width: 100%;
   max-height: 120px;
-  object-fit: contain;
-  border-radius: var(--radius-sm);
-}
-
-.logo-placeholder {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-sm);
-  color: var(--color-text-muted);
-  font-size: 0.84rem;
-}
-
-.logo-preview {
-  max-height: 80px;
-  max-width: 200px;
   object-fit: contain;
   border-radius: var(--radius-sm);
 }
@@ -1946,28 +1684,6 @@ select.input-modern {
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
-}
-
-.color-picker-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.color-picker-row label {
-  font-size: 0.84rem;
-  font-weight: 500;
-  color: var(--color-text-secondary);
-}
-
-.color-picker-row input[type="color"] {
-  width: 40px;
-  height: 32px;
-  padding: 2px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  background: transparent;
 }
 
 /* ===================== WINNER MODAL PREMIUM GALA UPGRADE ===================== */
@@ -2592,42 +2308,6 @@ select.input-modern {
 }
 
 /* ===================== ADMIN MODAL ===================== */
-.modal-admin-login {
-  max-width: 380px;
-}
-
-.modal-admin {
-  max-width: 480px;
-}
-
-.admin-section {
-  margin-bottom: var(--space-md);
-  padding-bottom: var(--space-md);
-  border-bottom: 1px solid var(--color-border-light);
-}
-
-.admin-section:last-child {
-  border-bottom: none;
-  margin-bottom: 0;
-  padding-bottom: 0;
-}
-
-.admin-section h3 {
-  font-size: 0.82rem;
-  font-weight: 700;
-  margin-bottom: var(--space-sm);
-  color: var(--color-text);
-}
-
-.admin-target-inputs {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-sm);
-}
-
-.admin-target-inputs .form-group {
-  margin-bottom: 0;
-}
 
 .admin-table-wrap {
   overflow-x: auto;
@@ -2667,41 +2347,6 @@ select.input-modern {
   font-size: 0.75rem;
 }
 
-.remote-url-box {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  padding: 10px 14px;
-  background: var(--color-bg);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  margin-top: var(--space-sm);
-}
-
-.remote-url-box code {
-  flex: 1;
-  font-family: 'Courier New', monospace;
-  font-size: 0.82rem;
-  color: var(--color-primary);
-  word-break: break-all;
-}
-
-.config-textarea {
-  width: 100%;
-  margin-top: var(--space-sm);
-  padding: 10px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  font-family: 'Courier New', monospace;
-  font-size: 0.78rem;
-  resize: vertical;
-  outline: none;
-}
-
-.config-textarea:focus {
-  border-color: var(--color-primary);
-}
-
 /* Admin status badge */
 .admin-status {
   display: inline-flex;
@@ -2727,77 +2372,6 @@ select.input-modern {
 }
 
 /* ===================== PDF TEMPLATE ===================== */
-.pdf-template {
-  position: absolute;
-  left: -9999px;
-  top: 0;
-  width: 794px;
-  padding: 48px;
-  background: white;
-  font-family: 'Inter', 'Segoe UI', sans-serif;
-  color: #1a1a1a;
-}
-
-.pdf-header {
-  text-align: center;
-  margin-bottom: 16px;
-}
-
-.pdf-logo {
-  max-height: 72px;
-  margin-bottom: 8px;
-}
-
-.pdf-header h1 {
-  font-size: 1.5rem;
-  margin-bottom: 4px;
-}
-
-.pdf-divider {
-  border: none;
-  border-top: 2px solid #333;
-  margin: 16px 0;
-}
-
-.pdf-heading {
-  text-align: center;
-  font-size: 1.25rem;
-  margin-bottom: 12px;
-}
-
-.pdf-info {
-  text-align: center;
-  font-size: 0.92rem;
-  color: #555;
-  margin-bottom: 4px;
-}
-
-.pdf-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 20px;
-}
-
-.pdf-table th,
-.pdf-table td {
-  border: 1px solid #ccc;
-  padding: 10px 14px;
-  text-align: left;
-  font-size: 0.9rem;
-}
-
-.pdf-table th {
-  background: #f5f5f5;
-  font-weight: 600;
-}
-
-.pdf-footer-text {
-  margin-top: 28px;
-  font-size: 0.78rem;
-  color: #999;
-  text-align: center;
-  font-style: italic;
-}
 
 /* ===================== TOAST ===================== */
 .toast-container {
@@ -2952,9 +2526,7 @@ body.has-bg #appHeader,
 body.has-bg #prizeSidebar,
 body.has-bg .slot-machine-frame,
 body.has-bg .settings-header,
-body.has-bg .settings-card,
-body.has-bg .admin-header,
-body.has-bg .admin-card {
+body.has-bg .settings-card {
   background: rgba(255, 255, 255, 0.6) !important;
   background: color-mix(in srgb, var(--color-surface) 60%, transparent) !important;
   backdrop-filter: blur(12px);
@@ -2970,14 +2542,6 @@ body.has-bg #prizeSidebar {
   border-right: 1px solid rgba(255, 255, 255, 0.2) !important;
 }
 
-body.has-bg .history-item {
-  background: rgba(255, 255, 255, 0.4) !important;
-  background: color-mix(in srgb, var(--color-bg) 40%, transparent) !important;
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-  border-color: rgba(255, 255, 255, 0.2) !important;
-}
-
 body.has-bg .slot-reel {
   background: rgba(255, 255, 255, 0.75) !important;
   background: color-mix(in srgb, var(--color-surface) 75%, transparent) !important;
@@ -2990,9 +2554,7 @@ body.dark-theme.has-bg #appHeader,
 body.dark-theme.has-bg #prizeSidebar,
 body.dark-theme.has-bg .slot-machine-frame,
 body.dark-theme.has-bg .settings-header,
-body.dark-theme.has-bg .settings-card,
-body.dark-theme.has-bg .admin-header,
-body.dark-theme.has-bg .admin-card {
+body.dark-theme.has-bg .settings-card {
   background: rgba(30, 41, 59, 0.6) !important;
   background: color-mix(in srgb, var(--color-surface) 60%, transparent) !important;
   border-color: rgba(255, 255, 255, 0.05) !important;
@@ -3000,12 +2562,6 @@ body.dark-theme.has-bg .admin-card {
 
 body.dark-theme.has-bg #prizeSidebar {
   border-right: 1px solid rgba(255, 255, 255, 0.05) !important;
-}
-
-body.dark-theme.has-bg .history-item {
-  background: rgba(15, 23, 42, 0.4) !important;
-  background: color-mix(in srgb, var(--color-bg) 40%, transparent) !important;
-  border-color: rgba(255, 255, 255, 0.05) !important;
 }
 
 body.dark-theme.has-bg .slot-reel {
@@ -3070,13 +2626,6 @@ body.dark-theme .single-cell-reel {
   box-sizing: border-box;
 }
 
-.single-cell-reel.winner-reel {
-  border-color: var(--color-primary) !important;
-  background: var(--color-surface) !important;
-  box-shadow: none !important;
-  transform: none !important;
-}
-
 /* ===================== PRIZE SIDEBAR ===================== */
 .prize-display {
   display: flex;
@@ -3137,32 +2686,6 @@ body.dark-theme .single-cell-reel {
   display: flex;
   gap: var(--space-md);
   align-items: center;
-}
-
-.prize-setting-info {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.prize-setting-img-preview {
-  width: 60px;
-  height: 60px;
-  border-radius: var(--radius-sm);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  object-fit: contain;
-}
-
-.prize-image-container.small-prize {
-  width: 130px;
-  height: 130px;
-}
-
-.prize-name.small-text {
-  font-size: 1.3rem;
-  margin-top: 5px;
 }
 
 /* ===================== HADIAH ADAPTIF (jumlah hadiah fleksibel) =====================
@@ -3558,7 +3081,6 @@ input:checked+.slider:before {
 }
 .export-excel-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 22px rgba(16, 185, 129, 0.5); }
 .export-excel-btn:active { transform: translateY(0); }
-.export-excel-btn .ex-icon { font-size: 1.2rem; }
 
 /* ===================== THEME PREVIEWS & SWATCHES ===================== */
 .theme-grid {
@@ -3625,12 +3147,6 @@ input:checked+.slider:before {
   border-radius: 10px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-}
-
-.mini-dashboard-preview {
-  border: 1px solid var(--color-border);
-  position: relative;
-  overflow: hidden;
 }
 
 /* ===================== LOGO FRAME SHAPES ===================== */
@@ -4002,7 +3518,6 @@ body.bg-filter-normal::after {
   .le-panel-body { grid-template-columns: 1fr; }
 }
 
-
 /* ===================== MODE LAYAR PENUH PROYEKTOR (Layout Fase 4) =====================
    Tombol overlay halus di pojok dashboard; redup saat idle, jelas saat hover.
    z-index di bawah modal (1000+) → tersembunyi otomatis saat popup pemenang tampil. */
@@ -4053,7 +3568,6 @@ body.hud .stat-badge {
   clip-path: polygon(6px 0,100% 0,calc(100% - 6px) 100%,0 100%);
 }
 body.hud .stat-badge svg { color: var(--color-primary-light); }
-body.hud .stat-badge-accent { color: var(--color-primary-light); border-color: rgba(var(--color-primary-rgb),.5); }
 
 /* Icon buttons (Pengaturan / Reset / Layar Penuh) → HUD */
 body.hud .btn-icon, body.hud .fullscreen-toggle {
@@ -4271,18 +3785,8 @@ body.hud .stat-badge {
   backdrop-filter: none;
 }
 body.hud .stat-badge svg { width: 18px; height: 18px; color: var(--color-primary-light) !important; stroke: var(--color-primary-light) !important; }
-body.hud .chip-col { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.02; }
-body.hud .chip-col b { font-family: var(--font-number); font-weight: 600; font-size: 1.5rem; color: var(--color-text); letter-spacing: .01em; }
-body.hud .chip-col small { font-family: var(--font-tech); font-weight: 600; font-size: .62rem; letter-spacing: .08em; text-transform: uppercase; color: var(--color-text-muted); }
+
 /* Chip ronde: label + nomor dalam kotak aksen (parallelogram) */
-body.hud #rondeBadge { gap: 8px; border-color: rgba(var(--color-primary-rgb),.5) !important; }
-body.hud .chip-lbl { font-family: var(--font-tech); font-weight: 600; font-size: .66rem; letter-spacing: .1em; text-transform: uppercase; color: var(--color-text-secondary); }
-body.hud .rnd-num {
-  display: inline-grid; place-items: center; min-width: 30px; height: 30px; padding: 0 6px;
-  font-family: var(--font-number); font-weight: 600; font-size: 1.4rem; line-height: 1; color: #fff;
-  background: var(--color-primary); clip-path: polygon(16% 0, 100% 0, 84% 100%, 0 100%);
-  box-shadow: 0 0 12px rgba(var(--color-primary-rgb),.55);
-}
 
 /* Tombol ikon (Pengaturan/Reset/Layar penuh) sedikit lebih besar */
 body.hud .btn-icon, body.hud .fullscreen-toggle { width: 34px; height: 34px; border-radius: 0; }
@@ -5062,7 +4566,6 @@ body.hud #pesertaBadge:focus-visible {
   outline-offset: 2px;
 }
 
-
 /* ==================== HUD — KATALOG HADIAH (≥4 jenis, renderPrizeCatalog) ====================
    Ukuran px panggung 1920×1080 (selaras HUD v4). Nama spotlight sedikit lebih kecil dari
    kartu tunggal (41px) agar 2 baris + panggung + daftar muat di panel 384px. */
@@ -5093,3 +4596,6 @@ body.hud .pcat-noimg .pcat-hero {
   clip-path: polygon(0 15px,15px 0,100% 0,100% calc(100% - 15px),calc(100% - 15px) 100%,0 100%);
 }
 body.hud .pcat-noimg .pcat-title { font-size: 44px; height: 98px; }
+
+/* Sub-judul dikosongkan operator → sembunyikan banner kosongnya (applyEventSettings). */
+.event-subtitle:empty { display: none !important; }

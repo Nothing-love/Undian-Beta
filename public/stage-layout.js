@@ -33,6 +33,9 @@
   var LAYOUT_VERSION = 2;   // versi skema layout saat ini
 
   function clamp(v, lo, hi) { return Math.min(hi, Math.max(lo, v)); }
+  function esc(v) {
+    return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
   function round1(v) { return Math.round(v * 1000) / 10; } // fraksi -> persen 1 desimal
   function num(v, d) { var n = parseFloat(v); return isFinite(n) ? n : d; }
 
@@ -463,27 +466,28 @@
       else if (e.key === 'ArrowUp') it.y = clamp(it.y - step, -0.5, 1.5);
       else if (e.key === 'ArrowDown') it.y = clamp(it.y + step, -0.5, 1.5);
       else if (e.key === 'Delete' || e.key === 'Backspace') it.visible = !it.visible;
-      else if (e.key === 'Escape') { self.select(null); handled = true; }
+      else if (e.key === 'Escape') self.select(null);
       else handled = false;
       if (handled) { e.preventDefault(); self.render(); }
     };
     document.addEventListener('keydown', this._keyHandler);
-  };
-
-  LayoutEditor.prototype.destroy = function () {
-    if (this._keyHandler) document.removeEventListener('keydown', this._keyHandler);
+    // Klik di LUAR editor melepas pilihan → tombol panah/Backspace di bagian lain
+    // halaman tak lagi diam-diam menggeser/menyembunyikan elemen terpilih.
+    document.addEventListener('pointerdown', function (e) {
+      if (self.selectedId && !self.root.contains(e.target)) self.select(null);
+    });
   };
 
   LayoutEditor.prototype._contentHtml = function (id, c) {
     switch (id) {
-      case 'logo': return c.logoUrl ? '<img src="' + c.logoUrl + '" alt="logo">' : '🎁';
-      case 'title': return '<b>' + (c.title || 'JUDUL ACARA') + '</b>';
-      case 'subtitle': return (c.subtitle || 'Sub-judul');
+      case 'logo': return c.logoUrl ? '<img src="' + esc(c.logoUrl) + '" alt="logo">' : '🎁';
+      case 'title': return '<b>' + esc(c.title || 'JUDUL ACARA') + '</b>';
+      case 'subtitle': return esc(c.subtitle || 'Sub-judul');
       case 'stats': return '👥 120 · Ronde 1';
       case 'prize': return '🎁 HADIAH';
       case 'slot': return '777 - PST-001';
       case 'controls': return 'SPIN UNDIAN';
-      case 'footer': return (c.footer || 'Powered by Satsiber Kopassus');
+      case 'footer': return esc(c.footer || 'Powered by Satsiber Kopassus');
     }
     return '';
   };
@@ -536,9 +540,4 @@
   };
 
   window.LayoutEditor = LayoutEditor;
-  window.layoutEditorDefault = defaultLayout;
-  window.buildLayoutPreset = buildPreset;
-  window.layoutPresetKeys = Object.keys(PRESETS);
-  window.migrateLayout = migrateLayout;
-  window.LAYOUT_VERSION = LAYOUT_VERSION;
 })();
