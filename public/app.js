@@ -2830,6 +2830,13 @@ function updatePrizeSidebar() {
 
   const n = mergedPrizes.length;
 
+  // Sinkron 2 detik memanggil fungsi ini berulang kali. Hadiah ronde tak berubah →
+  // jangan render ulang (cegah kedip gambar & spotlight katalog kembali ke awal).
+  const sig = APP.currentRonde + '|' + JSON.stringify(mergedPrizes);
+  if (displayEl.dataset.sig === sig) return;
+  displayEl.dataset.sig = sig;
+  clearInterval(prizeSpotlightTimer);
+
   if (n === 0) {
     displayEl.className = 'prize-display';
     displayEl.innerHTML = `
@@ -2840,19 +2847,24 @@ function updatePrizeSidebar() {
     return;
   }
 
+  if (n >= PRIZE_CATALOG_MIN) {
+    renderPrizeCatalog(displayEl, mergedPrizes);
+    return;
+  }
+
   // Layout ADAPTIF hadiah: SATU jalur kode untuk BERAPA PUN jumlah hadiah, selalu
   // MENGISI kolom (tanpa ruang kosong). Tiap kartu flex:1 → tinggi terbagi rata.
   //  • 1–3 hadiah → kartu vertikal (foto besar di atas, nama + jumlah di bawah).
-  //  • ≥4 hadiah  → baris ringkas (thumbnail kiri, nama + jumlah kanan); scroll
-  //    otomatis bila terlalu banyak. Warna/aksen IKUT tema (bukan pink hardcode).
+  //  • 4 hadiah   → baris ringkas (thumbnail kiri, nama + jumlah kanan).
+  //  • ≥5 hadiah  → mode KATALOG (renderPrizeCatalog). Warna/aksen IKUT tema.
   const compact = n >= 4;
   const mode = compact ? ' prize-rows' : (n === 1 ? ' prize-cards prize-single' : ' prize-cards');
   displayEl.className = 'prize-display prize-adaptive' + mode;
 
   displayEl.innerHTML = mergedPrizes.map((prize) => {
     const imageHtml = prize.imageUrl
-      ? `<div class="prize-card-img"><img src="${prize.imageUrl}" alt="${prize.name}" /></div>`
-      : `<div class="prize-card-img prize-card-img--empty">🎁</div>`;
+      ? `<div class="prize-card-img"><img src="${escapeHtml(prize.imageUrl)}" alt="${escapeHtml(prize.name)}" /></div>`
+      : `<div class="prize-card-img prize-card-img--empty">${PRIZE_GIFT_ICON}</div>`;
     const countHtml = prize.count
       ? `<div class="prize-card-count"><span class="pc-num">${prize.count}</span><span class="pc-label">Pemenang</span></div>`
       : '';
@@ -2860,11 +2872,74 @@ function updatePrizeSidebar() {
       <div class="prize-card">
         ${imageHtml}
         <div class="prize-card-body">
-          <div class="prize-card-name" title="${prize.name}">${prize.name}</div>
+          <div class="prize-card-name" title="${escapeHtml(prize.name)}">${escapeHtml(prize.name)}</div>
           ${countHtml}
         </div>
       </div>`;
   }).join('');
+}
+
+// ===================== KATALOG HADIAH (banyak hadiah dalam 1 ronde) =====================
+// ≥5 jenis hadiah tak muat sebagai kartu/baris bergambar (menumpuk & terpotong). Katalog:
+// SATU panggung gambar (spotlight) yang bergiliran menampilkan tiap hadiah + nama &
+// jumlahnya, di atas DAFTAR ringkas semua hadiah. Baris yang sedang di-spotlight disorot
+// & daftar menggulir sendiri mengikutinya → semua hadiah terlihat tanpa operator scroll.
+const PRIZE_CATALOG_MIN = 5;
+const PRIZE_SPOTLIGHT_MS = 4000;
+// Pengganti foto hadiah yang belum diunggah (kartu, baris, & panggung katalog).
+const PRIZE_GIFT_ICON = '<span class="pc-gift" aria-hidden="true">🎁</span>';
+let prizeSpotlightTimer = null;
+
+function renderPrizeCatalog(displayEl, prizes) {
+  const total = prizes.reduce((sum, p) => sum + (p.count || 0), 0);
+  // Tanpa satu pun foto: panggung gambar hanya akan berisi 🎁 yang sama terus →
+  // sembunyikan; nama hadiah yang disorot jadi judul besar & daftar dapat ruang lebih.
+  const hasImage = prizes.some(p => p.imageUrl);
+  displayEl.className = 'prize-display prize-adaptive prize-catalog' + (hasImage ? '' : ' pcat-noimg');
+  const stageHtml = hasImage
+    ? `<div class="prize-card-img pcat-stage">
+        ${prizes.map(p => p.imageUrl
+          ? `<div class="pcat-layer"><img src="${escapeHtml(p.imageUrl)}" alt="${escapeHtml(p.name)}" /></div>`
+          : `<div class="pcat-layer pcat-layer--empty">${PRIZE_GIFT_ICON}</div>`).join('')}
+      </div>`
+    : '';
+  displayEl.innerHTML = `
+    <div class="pcat-hero">
+      ${stageHtml}
+      <div class="pcat-title"><div class="prize-card-name"></div></div>
+      <div class="prize-card-count"><span class="pc-num"></span><span class="pc-label">Pemenang</span></div>
+    </div>
+    <div class="pcat-summary"><b>${prizes.length}</b> Jenis Hadiah <i>·</i> <b>${total}</b> Pemenang</div>
+    <ol class="pcat-list">
+      ${prizes.map((p, i) => `
+        <li class="pcat-row">
+          <span class="pcat-no">${i + 1}</span>
+          <span class="pcat-name" title="${escapeHtml(p.name)}">${escapeHtml(p.name)}</span>
+          <span class="pcat-count">×${p.count}</span>
+        </li>`).join('')}
+    </ol>`;
+
+  const layers = displayEl.querySelectorAll('.pcat-layer');
+  const rows = displayEl.querySelectorAll('.pcat-row');
+  const list = displayEl.querySelector('.pcat-list');
+  const nameEl = displayEl.querySelector('.pcat-title .prize-card-name');
+  const numEl = displayEl.querySelector('.pcat-hero .pc-num');
+  let active = 0;
+
+  const show = (i) => {
+    active = i;
+    layers.forEach((el, k) => el.classList.toggle('is-active', k === i));
+    rows.forEach((el, k) => el.classList.toggle('is-active', k === i));
+    nameEl.textContent = prizes[i].name;
+    nameEl.title = prizes[i].name;
+    numEl.textContent = prizes[i].count;
+    // Gulir daftar (bukan halaman) agar baris aktif berada di tengah.
+    const row = rows[i];
+    list.scrollTo({ top: row.offsetTop - (list.clientHeight - row.offsetHeight) / 2, behavior: 'smooth' });
+  };
+
+  show(0);
+  prizeSpotlightTimer = setInterval(() => show((active + 1) % prizes.length), PRIZE_SPOTLIGHT_MS);
 }
 
 function renderPrizeSettings() {

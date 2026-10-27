@@ -3216,9 +3216,27 @@ body.dark-theme .single-cell-reel {
   display: block;
 }
 .prize-adaptive .prize-card-img--empty {
-  font-size: 2rem;
   background: color-mix(in srgb, var(--color-surface) 45%, transparent);
   border-style: dashed;
+}
+/* Ikon 🎁 pengganti foto: skala mengikuti kotaknya (cqmin) → MENGISI pedestal kartu
+   besar maupun thumbnail kecil, + melayang pelan agar kotak tak terasa kosong. */
+.prize-adaptive .prize-card-img--empty,
+.prize-adaptive .pcat-stage { container-type: size; }
+.pc-gift {
+  position: relative;
+  z-index: 1;
+  font-size: 50cqmin;
+  line-height: 1;
+  filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.55));
+  animation: giftFloat 3.2s ease-in-out infinite;
+}
+@keyframes giftFloat {
+  0%, 100% { transform: translateY(-4%) rotate(-3deg); }
+  50%      { transform: translateY(-12%) rotate(3deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pc-gift { animation: none; transform: translateY(-6%); }
 }
 .prize-adaptive .prize-card-body {
   flex: 0 0 auto;
@@ -3296,6 +3314,132 @@ body.dark-theme .single-cell-reel {
 }
 .prize-empty-ronde { font-size: 1.2rem; font-weight: 900; letter-spacing: 0.5px; }
 .prize-empty-sub { font-size: 0.85rem; margin-top: 4px; }
+
+/* ===================== KATALOG HADIAH (≥5 jenis hadiah, renderPrizeCatalog) =====================
+   Satu panggung gambar (spotlight bergiliran) + ringkasan + daftar ringkas yang menggulir
+   sendiri. Panggung/nama/pil memakai kelas kartu yang ada (.prize-card-img/-name/-count)
+   → otomatis senada tema & HUD. Tinggi: panggung boleh menyusut, daftar mengisi sisa. */
+.prize-adaptive.prize-catalog { gap: 10px; overflow: hidden; padding: 10px 14px 16px; }
+.pcat-hero {
+  flex: 0 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.prize-adaptive .pcat-stage {
+  position: relative;
+  flex: 0 1 240px;
+  min-height: 110px;
+  width: 100%;
+}
+.pcat-layer {
+  position: absolute;
+  inset: 8px;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transform: scale(0.94);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+.pcat-layer.is-active { opacity: 1; transform: none; }
+/* Katalog TANPA foto sama sekali: panggung disembunyikan (JS) → hero = panel judul besar
+   dengan sorot cahaya, daftar mendapat ruang lebih. */
+.pcat-noimg .pcat-hero {
+  padding: 14px 10px 16px;
+  border: 1px solid color-mix(in srgb, var(--prize-title-color, var(--color-primary)) 35%, transparent);
+  background: radial-gradient(90% 80% at 50% 0%, color-mix(in srgb, var(--prize-title-color, var(--color-primary)) 22%, transparent), transparent 75%);
+}
+.pcat-noimg .pcat-title { margin-top: 0; }
+/* Tinggi nama TETAP 2 baris → daftar di bawahnya tak naik-turun saat spotlight berganti. */
+.pcat-title {
+  flex: 0 0 auto;
+  width: 100%;
+  height: 2.2em;
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.75rem;
+}
+.pcat-title .prize-card-name { font-size: inherit; }
+.pcat-hero .prize-card-count { flex: 0 0 auto; }
+.pcat-summary {
+  flex: 0 0 auto;
+  text-align: center;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+  padding: 6px 0;
+  border-top: 1px solid color-mix(in srgb, var(--prize-title-color, var(--color-primary)) 30%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--prize-title-color, var(--color-primary)) 30%, transparent);
+}
+.pcat-summary b { color: var(--prize-title-color, var(--color-primary)); font-size: 1.15em; }
+.pcat-summary i { font-style: normal; opacity: 0.6; margin: 0 4px; }
+.pcat-list {
+  position: relative; /* acuan offsetTop baris untuk gulir otomatis */
+  flex: 1 1 0;
+  min-height: 120px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-y: auto;
+  scrollbar-width: none;
+  /* Pudarkan tepi atas/bawah → jelas bahwa daftar berlanjut. */
+  -webkit-mask-image: linear-gradient(transparent, #000 18px, #000 calc(100% - 18px), transparent);
+  mask-image: linear-gradient(transparent, #000 18px, #000 calc(100% - 18px), transparent);
+}
+.pcat-list::-webkit-scrollbar { display: none; }
+.pcat-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  margin: 3px 0;
+  text-align: left;
+  border-left: 3px solid transparent;
+  color: var(--color-text);
+  transition: background 0.4s ease, border-color 0.4s ease;
+}
+.pcat-row.is-active {
+  background: color-mix(in srgb, var(--prize-title-color, var(--color-primary)) 18%, transparent);
+  border-left-color: var(--prize-title-color, var(--color-primary));
+}
+.pcat-no {
+  flex: 0 0 auto;
+  min-width: 1.6em;
+  text-align: center;
+  font-weight: 800;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+.pcat-row.is-active .pcat-no { color: var(--prize-title-color, var(--color-primary)); }
+.pcat-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-weight: 800;
+  font-size: 1.05rem;
+  line-height: 1.15;
+  text-transform: uppercase;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+}
+.pcat-count {
+  flex: 0 0 auto;
+  font-weight: 900;
+  font-size: 1.15rem;
+  color: var(--prize-title-color, var(--color-primary));
+}
+@media (prefers-reduced-motion: reduce) {
+  .pcat-layer, .pcat-row { transition: none; }
+}
 
 /* ---- Poles Hadiah: sudut panel membulat, header lebih hidup, foto 1-hadiah proporsional ---- */
 /* (1) Panel latar hadiah: sudut membulat + bayangan lembut → tak lagi "lancip"/kaku. */
@@ -4940,3 +5084,33 @@ body.hud #pesertaBadge:focus-visible {
   outline-offset: 2px;
 }
 
+
+/* ==================== HUD — KATALOG HADIAH (≥5 jenis, renderPrizeCatalog) ====================
+   Ukuran px panggung 1920×1080 (selaras HUD v4). Nama spotlight sedikit lebih kecil dari
+   kartu tunggal (41px) agar 2 baris + panggung + daftar muat di panel 384px. */
+body.hud .prize-adaptive.prize-catalog { padding: 6px 16px 22px; gap: 12px; }
+body.hud .pcat-title { font-size: 34px; height: 76px; margin-top: 10px; }
+body.hud .prize-adaptive .pcat-title .prize-card-name { font-size: inherit; line-height: 1.08; }
+body.hud .pcat-hero .prize-card-count { height: 46px; margin-top: 6px; }
+body.hud .pcat-hero .prize-card-count .pc-num { font-size: 32px; }
+body.hud .pcat-hero .prize-card-count .pc-label { font-size: 22px; }
+body.hud .pcat-summary { font-family: var(--font-tech); font-size: 19px; letter-spacing: .12em; padding: 8px 0; }
+body.hud .pcat-summary b { font-family: var(--font-number); font-weight: 600; font-size: 26px; letter-spacing: .02em; }
+body.hud .pcat-row { padding: 8px 12px; margin: 4px 0; background: rgba(255,255,255,.03); }
+body.hud .pcat-row.is-active {
+  background: linear-gradient(90deg, rgba(var(--color-primary-rgb),.32), rgba(var(--color-primary-rgb),.06));
+  border-left-color: var(--color-primary);
+}
+body.hud .pcat-no { font-family: var(--font-number); font-weight: 600; font-size: 22px; }
+body.hud .pcat-row.is-active .pcat-no { color: var(--color-primary-light); }
+body.hud .pcat-name { font-family: var(--prize-font-family, var(--font-tech)); font-weight: 700; font-size: 23px; letter-spacing: .03em; color: var(--prize-title-color, var(--color-text)); }
+body.hud .pcat-count { font-family: var(--font-number); font-weight: 600; font-size: 28px; color: var(--color-primary-light); }
+body.hud.has-bg .pcat-name, body.hud.has-bg .pcat-summary { text-shadow: 0 2px 8px rgba(0,0,0,.85); }
+/* Katalog tanpa foto (HUD): judul sorotan lebih besar + panel bersudut ala pedestal. */
+body.hud .pcat-noimg .pcat-hero {
+  border-color: rgba(var(--color-primary-rgb),.45);
+  background: radial-gradient(90% 85% at 50% 0%, rgba(var(--color-primary-rgb),.30), transparent 72%),
+              linear-gradient(180deg, color-mix(in srgb,var(--color-surface) 88%,#000), color-mix(in srgb,var(--color-bg) 85%,#000));
+  clip-path: polygon(0 15px,15px 0,100% 0,100% calc(100% - 15px),calc(100% - 15px) 100%,0 100%);
+}
+body.hud .pcat-noimg .pcat-title { font-size: 44px; height: 98px; }
