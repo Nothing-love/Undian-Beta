@@ -2852,14 +2852,10 @@ function updatePrizeSidebar() {
     return;
   }
 
-  // Layout ADAPTIF hadiah: SATU jalur kode untuk BERAPA PUN jumlah hadiah, selalu
-  // MENGISI kolom (tanpa ruang kosong). Tiap kartu flex:1 → tinggi terbagi rata.
+  // Layout ADAPTIF hadiah, selalu MENGISI kolom (tiap kartu flex:1 → tinggi terbagi rata):
   //  • 1–3 hadiah → kartu vertikal (foto besar di atas, nama + jumlah di bawah).
-  //  • 4 hadiah   → baris ringkas (thumbnail kiri, nama + jumlah kanan).
-  //  • ≥5 hadiah  → mode KATALOG (renderPrizeCatalog). Warna/aksen IKUT tema.
-  const compact = n >= 4;
-  const mode = compact ? ' prize-rows' : (n === 1 ? ' prize-cards prize-single' : ' prize-cards');
-  displayEl.className = 'prize-display prize-adaptive' + mode;
+  //  • ≥4 hadiah  → mode KATALOG (renderPrizeCatalog). Warna/aksen IKUT tema.
+  displayEl.className = 'prize-display prize-adaptive prize-cards' + (n === 1 ? ' prize-single' : '');
 
   displayEl.innerHTML = mergedPrizes.map((prize) => {
     const imageHtml = prize.imageUrl
@@ -2880,11 +2876,11 @@ function updatePrizeSidebar() {
 }
 
 // ===================== KATALOG HADIAH (banyak hadiah dalam 1 ronde) =====================
-// ≥5 jenis hadiah tak muat sebagai kartu/baris bergambar (menumpuk & terpotong). Katalog:
+// ≥4 jenis hadiah tak muat sebagai kartu bergambar (menumpuk & terpotong). Katalog:
 // SATU panggung gambar (spotlight) yang bergiliran menampilkan tiap hadiah + nama &
 // jumlahnya, di atas DAFTAR ringkas semua hadiah. Baris yang sedang di-spotlight disorot
 // & daftar menggulir sendiri mengikutinya → semua hadiah terlihat tanpa operator scroll.
-const PRIZE_CATALOG_MIN = 5;
+const PRIZE_CATALOG_MIN = 4;
 const PRIZE_SPOTLIGHT_MS = 4000;
 // Pengganti foto hadiah yang belum diunggah (kartu, baris, & panggung katalog).
 const PRIZE_GIFT_ICON = '<span class="pc-gift" aria-hidden="true">🎁</span>';
