@@ -417,6 +417,12 @@ app.use((req, res, next) => {
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '2mb', extended: false }));
 
+// Sesi berakhir bila TIDAK ADA AKTIVITAS pengguna selama N menit (default 30). Sinkron
+// otomatis di latar (header X-Doorprize-Background) TIDAK dihitung sebagai aktivitas,
+// jadi tab yang ditinggal terbuka tetap wajib login lagi.
+const SESSION_IDLE_MINUTES = Math.max(1, Number.parseInt(process.env.SESSION_IDLE_MINUTES || '30', 10) || 30);
+const SESSION_IDLE_MS = SESSION_IDLE_MINUTES * 60 * 1000;
+
 const sessionSecret = process.env.SESSION_SECRET || 'CHANGE-ME-DOORPRIZE-SESSION-SECRET';
 if (!process.env.SESSION_SECRET) {
   console.warn('⚠️ SESSION_SECRET belum diatur di .env. Ganti sebelum produksi.');
@@ -456,8 +462,22 @@ class RobustFileStore extends session.Store {
       return cb && cb(error);
     }
   }
+  // touch = perpanjang masa berlaku SAJA. Jangan tulis ulang isi sesi: permintaan latar
+  // (sinkron 2 dtk) membawa salinan sesi yang dibaca SEBELUM permintaan lain mengubahnya
+  // (mis. lastActive dari /api/ping) → menimpanya akan mengembalikan nilai lama.
   touch(sid, sess, cb) {
-    return this.set(sid, sess, cb);
+    const filePath = this._path(sid);
+    fs.readFile(filePath, 'utf8', (err, raw) => {
+      if (err) return cb && cb(null);
+      let stored;
+      try { stored = JSON.parse(raw); } catch (parseError) { return cb && cb(null); }
+      try {
+        writeJsonAtomic(filePath, { ...stored, __expires: Date.now() + this.ttlMs });
+        return cb && cb(null);
+      } catch (error) {
+        return cb && cb(error);
+      }
+    });
   }
   destroy(sid, cb) {
     // best-effort: JANGAN pernah error agar regenerate/login tak gagal di Windows.
@@ -471,11 +491,12 @@ app.use(session({
   secret: sessionSecret,
   resave: false,
   saveUninitialized: false,
+  // Cookie SESI (tanpa maxAge): hilang saat browser ditutup. Batas tak-aktif dijaga
+  // server (requireAuth); file sesi tetap dibersihkan setelah 24 jam (RobustFileStore).
   cookie: {
     httpOnly: true,
     sameSite: 'lax',
-    secure: false,
-    maxAge: 24 * 60 * 60 * 1000
+    secure: false
   }
 }));
 
@@ -528,10 +549,32 @@ function isValidNewPassword(value) {
   return typeof value === 'string' && value.trim().length >= 4 && value.length <= 128;
 }
 
+// Sesi login masih hidup? Sesi yang melewati batas tak-aktif dihancurkan di sini.
+// Hanya permintaan NON-latar yang memperbarui waktu aktivitas terakhir.
+function sessionAlive(req, res, done) {
+  const sess = req.session;
+  if (!sess || sess.loggedIn !== true) return done(false, false);
+  const now = Date.now();
+  if (sess.lastActive && now - sess.lastActive > SESSION_IDLE_MS) {
+    return sess.destroy(() => {
+      res.clearCookie('doorprize.sid');
+      done(false, true);
+    });
+  }
+  if (!sess.lastActive || req.get('X-Doorprize-Background') !== '1') sess.lastActive = now;
+  return done(true, false);
+}
+
 function requireAuth(req, res, next) {
-  if (req.session && req.session.loggedIn === true) return next();
-  if (req.path.startsWith('/api/')) return res.status(401).json({ error: 'Unauthorized' });
-  return res.redirect('/login');
+  sessionAlive(req, res, (alive, expired) => {
+    if (alive) return next();
+    if (req.path.startsWith('/api/')) {
+      // Penanda khusus agar klien membedakan "sesi habis" dari 401 "password salah".
+      res.set('X-Doorprize-Session', 'none');
+      return res.status(401).json({ error: expired ? 'Sesi berakhir karena tidak ada aktivitas. Silakan login kembali.' : 'Unauthorized', expired });
+    }
+    return res.redirect(expired ? '/login?expired=1' : '/login');
+  });
 }
 
 // Gate tambahan untuk konfigurasi & rahasia panel admin: butuh sesi login DAN
@@ -573,9 +616,25 @@ app.use(express.static(PUBLIC_DIR, {
 }));
 
 app.get('/login', (req, res) => {
-  if (req.session && req.session.loggedIn) return res.redirect('/dashboard');
-  return res.sendFile(path.join(PUBLIC_DIR, 'login.html'));
+  sessionAlive(req, res, (alive) => {
+    if (alive) return res.redirect('/dashboard');
+    return res.sendFile(path.join(PUBLIC_DIR, 'login.html'));
+  });
 });
+
+// Tampilan tema untuk halaman Login (pra-login). SENGAJA hanya nama tema & warna
+// kustom — tak ada data acara/peserta/target.
+app.get('/api/public/theme', (req, res) => {
+  const settings = readJson(STATE_FILES.settings, DEFAULT_STATE.settings);
+  return res.json({
+    theme: typeof settings.theme === 'string' ? settings.theme : 'komando',
+    customColors: settings.customColors && typeof settings.customColors === 'object' ? settings.customColors : null
+  });
+});
+
+// Penanda aktivitas pengguna nyata (klik/ketik/gerak) dari halaman yang terbuka,
+// agar operator yang sedang memakai layar tak ikut ter-logout.
+app.post('/api/ping', requireAuth, (req, res) => res.json({ success: true, idleMinutes: SESSION_IDLE_MINUTES }));
 
 app.post('/login', (req, res) => {
   const username = typeof req.body.username === 'string' ? req.body.username.trim() : '';
@@ -600,6 +659,7 @@ app.post('/login', (req, res) => {
     return req.session.regenerate((error) => {
       if (error) return res.redirect('/login?error=1');
       req.session.loggedIn = true;
+      req.session.lastActive = Date.now();
       return req.session.save(() => res.redirect('/dashboard'));
     });
   }

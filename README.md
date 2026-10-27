@@ -63,6 +63,12 @@ Nilai default ini dipakai **hanya bila** belum diatur lewat `.env` atau file
 - **Password login** → menu **Pengaturan** di aplikasi (butuh password lama), atau `ADMIN_PASSWORD` di `.env`.
 - **Password panel adm1ndev** → halaman **/adm1ndev** (butuh password lama), atau `ADMIN_PANEL_PASSWORD` di `.env`.
 
+### Sesi login
+Sesi berakhir otomatis bila **tidak ada aktivitas** (klik/ketik/gerak/sentuh) selama
+`SESSION_IDLE_MINUTES` menit (default **30**, atur di `.env`), dan saat browser ditutup.
+Sinkron otomatis tiap 2 detik tidak dihitung sebagai aktivitas. Halaman yang sesinya
+habis otomatis kembali ke Login.
+
 Perubahan lewat UI disimpan ke `data/auth_state.json` (server-only, tidak di-commit).
 Setelah file itu ada, password di `.env` **tidak menimpa** `auth_state.json` — `.env` hanya *fallback* bila file belum berisi password. Server menuliskan peringatan di konsol bila keduanya berbeda.
 
@@ -117,7 +123,8 @@ public/
   dashboard.html       # Layar undian (SPIN)
   setting.html         # Pengaturan (peserta, hadiah, tema, tata letak)
   adm1ndev.html        # Panel target pemenang (khusus dev)
-  login.html
+  login.html           # Login (tema mengikuti tema acara)
+  theme.js             # Token warna tema (dipakai semua halaman)
   app.js               # Logika klien (undian, UI, sinkronisasi)
   stage-layout.js      # Editor tata letak panggung
   style.css

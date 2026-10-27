@@ -7,16 +7,29 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600&family=Rajdhani:wght@500;600;700&family=Teko:wght@500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=2026.10.27.20">
+  <link rel="stylesheet" href="style.css?v=2026.10.27.21">
+  <script src="theme.js?v=2026.10.27.21"></script>
+  <script>
+    // Tema login MENGIKUTI tema acara. Pra-login → app.js tak jalan; tema diambil dari
+    // GET /api/public/theme (hanya nama tema + warna kustom). Tema terakhir disimpan di
+    // browser agar langsung tampil benar tanpa kedip saat halaman dibuka lagi.
+    (function () {
+      var KEY = 'doorprize_login_theme';
+      try {
+        var cached = JSON.parse(localStorage.getItem(KEY) || 'null');
+        applyThemeTokens(cached && cached.theme || 'komando', cached && cached.customColors);
+      } catch (e) { applyThemeTokens('komando'); }
+      fetch('/api/public/theme').then(function (r) { return r.ok ? r.json() : null; }).then(function (t) {
+        if (!t) return;
+        applyThemeTokens(t.theme, t.customColors);
+        try { localStorage.setItem(KEY, JSON.stringify(t)); } catch (e) { /* ignore */ }
+      }).catch(function () { /* luring: pakai tema terakhir */ });
+    })();
+  </script>
   <style>
-    /* Login pintu masuk — bahasa desain HUD (tema komando/gelap-merah, senada Dashboard).
-       app.js tak jalan di sini (pra-login) → set token tema komando inline. UI-only. */
+    /* Login pintu masuk — bahasa desain HUD senada Dashboard. Warna dari token tema
+       (theme.js) → mengikuti tema terang maupun gelap. */
     :root {
-      --color-primary:#DC2626; --color-primary-light:#F04444; --color-primary-dark:#B01B1B; --color-primary-rgb:220,38,38;
-      --color-secondary:#7F1D1D; --color-secondary-rgb:127,29,29;
-      --color-accent:#F97316; --color-accent-rgb:249,115,22;
-      --color-bg:#0A0E15; --color-bg-secondary:#0F141D; --color-surface:#111826;
-      --color-text:#E9EEF6; --color-text-secondary:#B3C1D1; --color-text-muted:#7F93A8; --color-border:#1F2A3A;
       --font-display:'Bebas Neue','Oswald',sans-serif; --font-tech:'Rajdhani','Segoe UI',sans-serif;
       --font-number:'Teko','Oswald',sans-serif; --font-ui:'Inter','Segoe UI',sans-serif;
     }
@@ -27,28 +40,28 @@
       background:
         radial-gradient(58% 78% at 50% 30%, rgba(var(--color-primary-rgb),.13), transparent 60%),
         radial-gradient(50% 60% at 88% 92%, rgba(var(--color-primary-rgb),.10), transparent 62%),
-        linear-gradient(160deg, #05080d, var(--color-bg));
+        linear-gradient(160deg, var(--color-bg-secondary), var(--color-bg));
     }
     body::before {
       content:""; position: fixed; inset: 0; z-index: 0; pointer-events: none; opacity: .5;
       background-image:
-        linear-gradient(rgba(233,238,246,.05) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(233,238,246,.05) 1px, transparent 1px);
+        linear-gradient(color-mix(in srgb, var(--color-text) 7%, transparent) 1px, transparent 1px),
+        linear-gradient(90deg, color-mix(in srgb, var(--color-text) 7%, transparent) 1px, transparent 1px);
       background-size: 46px 46px, 46px 46px;
       -webkit-mask-image: radial-gradient(120% 100% at 50% 40%, #000 18%, transparent 90%);
               mask-image: radial-gradient(120% 100% at 50% 40%, #000 18%, transparent 90%);
     }
     body::after {
       content:""; position: fixed; inset: 0; z-index: 0; pointer-events: none; opacity: .32;
-      background: repeating-linear-gradient(0deg, rgba(233,238,246,.05) 0 2px, transparent 2px 4px);
+      background: repeating-linear-gradient(0deg, color-mix(in srgb, var(--color-text) 5%, transparent) 0 2px, transparent 2px 4px);
     }
 
     .login-box {
       position: relative; z-index: 2; width: 100%; max-width: 410px; padding: 46px 38px 34px; text-align: center;
-      background: linear-gradient(160deg, var(--color-surface), #0c121d);
+      background: linear-gradient(160deg, var(--color-surface), var(--color-bg-secondary));
       border: 1.5px solid rgba(var(--color-primary-rgb),.5);
       clip-path: polygon(0 20px, 20px 0, calc(100% - 26px) 0, 100% 26px, 100% calc(100% - 20px), calc(100% - 20px) 100%, 26px 100%, 0 calc(100% - 26px));
-      box-shadow: 0 26px 64px -22px rgba(0,0,0,.75), 0 0 44px rgba(var(--color-primary-rgb),.16);
+      box-shadow: 0 26px 64px -22px rgba(0,0,0,.45), 0 0 44px rgba(var(--color-primary-rgb),.16);
     }
     .cnr { position: absolute; width: 22px; height: 22px; z-index: 3; border: 2px solid var(--color-primary-light);
       filter: drop-shadow(0 0 3px rgba(var(--color-primary-rgb),.7)); pointer-events: none; }
@@ -57,8 +70,8 @@
     .cnr.bl { bottom: 12px; left: 12px; border-right: 0; border-top: 0; }
     .cnr.br { bottom: 12px; right: 12px; border-left: 0; border-top: 0; }
 
-    .login-eyebrow { font-family: var(--font-tech); font-weight: 600; font-size: .72rem; letter-spacing: .32em; text-transform: uppercase; color: var(--color-primary-light); margin-bottom: 8px; }
-    .login-box h1 { font-family: var(--font-display); font-weight: 400; font-size: 3rem; line-height: 1; letter-spacing: .06em; color: var(--color-primary-light);
+    .login-eyebrow { font-family: var(--font-tech); font-weight: 600; font-size: .72rem; letter-spacing: .32em; text-transform: uppercase; color: var(--color-primary); margin-bottom: 8px; }
+    .login-box h1 { font-family: var(--font-display); font-weight: 400; font-size: 3rem; line-height: 1; letter-spacing: .06em; color: var(--color-primary);
       text-shadow: 0 0 28px rgba(var(--color-primary-rgb),.5); margin: 0 0 3px; }
     .login-sub { font-family: var(--font-tech); font-weight: 600; font-size: .82rem; letter-spacing: .3em; text-transform: uppercase; color: var(--color-text-muted); margin-bottom: 26px; }
 
@@ -86,11 +99,11 @@
 
     .error-msg {
       display: none; margin-bottom: 18px; padding: 10px 12px; font-family: var(--font-tech); font-weight: 600; font-size: .82rem; letter-spacing: .03em;
-      color: #fff; background: rgba(var(--color-primary-rgb),.18); border: 1px solid rgba(var(--color-primary-rgb),.6);
+      color: var(--color-text); background: rgba(var(--color-primary-rgb),.14); border: 1px solid rgba(var(--color-primary-rgb),.6);
       clip-path: polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px);
     }
     .login-foot { margin-top: 24px; font-family: var(--font-tech); font-weight: 600; font-size: .64rem; letter-spacing: .28em; text-transform: uppercase; color: var(--color-text-muted); }
-    .login-foot b { color: var(--color-primary-light); font-weight: 700; }
+    .login-foot b { color: var(--color-primary); font-weight: 700; }
 
     @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
   </style>
@@ -132,6 +145,9 @@
       }
       if (window.location.search.includes('error=1') && err) {
         err.textContent = 'Username atau Password salah!';
+        err.style.display = 'block';
+      } else if (window.location.search.includes('expired=1') && err) {
+        err.textContent = 'Sesi berakhir karena tidak ada aktivitas. Silakan login kembali.';
         err.style.display = 'block';
       }
     })();
