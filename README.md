@@ -12,6 +12,8 @@ target pemenang (khusus developer).
 
 ## ✨ Fitur
 - Undian **multi-ronde** dengan aturan per kategori (Jenis / Grup / Kelompok).
+- **Beberapa hadiah dalam satu ronde** (mis. 30 TV + 20 Botol Air): sekali SPIN langsung
+  menentukan siapa dapat apa — popup, histori, dan export Excel mencantumkan hadiah tiap pemenang.
 - **Anti-duplikat** pemenang + sinkronisasi multi-perangkat (polling tiap 2 detik).
 - Impor peserta via **Excel**, ekspor hasil ke **Excel** (ada tombol Download Template).
 - Kustomisasi **tema, logo, background**, dan **tata letak panggung** (geser & ubah ukuran).

@@ -294,8 +294,15 @@ function mergeHasilUndian(stored, incoming) {
   for (const rec of Array.isArray(incoming) ? incoming : []) {
     if (!rec || rec.Ronde_Ke === undefined) continue;
     const prev = byRonde.get(rec.Ronde_Ke);
-    // Keep whichever record for a round has more winners; ties keep the first stored.
-    if (!prev || (Number(rec.Jumlah_Pemenang) || 0) > (Number(prev.Jumlah_Pemenang) || 0)) {
+    // Records stamped with `updatedAt` (client edit time): the newest edit wins, so a
+    // disqualify / replacement draw (same or fewer winners) is not reverted to the old
+    // list. Unstamped legacy records keep the old rule: more winners wins, ties keep stored.
+    const recAt = Number(rec.updatedAt) || 0;
+    const prevAt = prev ? (Number(prev.updatedAt) || 0) : 0;
+    const newer = recAt || prevAt
+      ? recAt > prevAt
+      : (Number(rec.Jumlah_Pemenang) || 0) > (Number(prev && prev.Jumlah_Pemenang) || 0);
+    if (!prev || newer) {
       byRonde.set(rec.Ronde_Ke, rec);
     }
   }

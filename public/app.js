@@ -927,11 +927,7 @@ window.applyEventSettings = function() {
     }
   }
 
-  // Terapkan tata letak kustom panggung (null → mode flex bawaan). WAJIB di sini:
-  // INILAH applyEventSettings yang AKTIF — assignment window.* ini menimpa deklarasi
-  // `function applyEventSettings()` di bawah (yang jadi dead-code). Semua pemanggil
-  // memakai versi ini, jadi applyLayout harus dipanggil DI SINI agar layout benar-
-  // benar diterapkan di dashboard (bukan di kembarannya yang tak pernah dipakai).
+  // Terapkan tata letak kustom panggung (null → mode flex bawaan).
   applyLayout(APP.settings.layout);
 };
 
@@ -1052,11 +1048,6 @@ window.updateThemePreview = function(themeKey) {
   }
 };
 
-window.updateCustomThemePreview = function() {
-  updateThemePreview('custom');
-  applyTheme('custom');
-};
-
 function hexToRgb(hex) {
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);
@@ -1080,90 +1071,6 @@ function darkenColor(hex, percent) {
   const G = Math.max(0, ((num >> 8) & 0x00FF) - amt);
   const B = Math.max(0, (num & 0x0000FF) - amt);
   return `#${(1 << 24 | R << 16 | G << 8 | B).toString(16).slice(1)}`;
-}
-
-// ⚠️ DEAD CODE — JANGAN dipakai untuk perubahan. Deklarasi ini DITIMPA oleh
-// `window.applyEventSettings = function(){...}` di atas (assignment berjalan setelah
-// hoisting), jadi versi INI tak pernah dipanggil. Logika aktif + applyLayout ada di
-// versi window.* di atas. (Dulu applyLayout keliru ditaruh di sini → layout tak muncul.)
-function applyEventSettings() {
-  const titleEl = document.getElementById('eventTitle');
-  const subtitleEl = document.getElementById('eventSubtitle');
-  const customLogoEl = document.getElementById('customLogo');
-  const defaultLogoEl = document.getElementById('headerLogo');
-
-  // Update Main App Header
-  if (titleEl) titleEl.textContent = APP.settings.eventTitle || 'DOORPRIZE';
-  if (subtitleEl) {
-    subtitleEl.textContent = APP.settings.eventSubtitle || 'Aplikasi Undian Digital';
-    if (APP.settings.subtitleColor) {
-      subtitleEl.style.color = APP.settings.subtitleColor;
-    } else {
-      subtitleEl.style.color = '';
-    }
-    if (APP.settings.subtitleSize) {
-      subtitleEl.style.fontSize = APP.settings.subtitleSize + 'rem';
-    } else {
-      subtitleEl.style.fontSize = '';
-    }
-  }
-  
-  if (typeof updatePrizeSidebar === 'function') updatePrizeSidebar();
-
-  if (APP.settings.logoUrl) {
-    if (customLogoEl) customLogoEl.src = APP.settings.logoUrl;
-    if (customLogoEl) customLogoEl.classList.remove('hidden');
-    if (defaultLogoEl) defaultLogoEl.classList.add('hidden');
-  } else {
-    if (customLogoEl) customLogoEl.classList.add('hidden');
-    if (defaultLogoEl) defaultLogoEl.classList.remove('hidden');
-  }
-
-  // Update Upload Screen (Initial Screen)
-  const upTitle = document.getElementById('uploadTitleText');
-  const upSubtitle = document.getElementById('uploadSubtitleText');
-  const upLogoImg = document.getElementById('uploadLogoImg');
-  const upDefLogo = document.getElementById('uploadDefaultLogo');
-
-  if (upTitle) upTitle.textContent = APP.settings.eventTitle || 'DOORPRIZE';
-  if (upSubtitle) {
-    upSubtitle.textContent = APP.settings.eventSubtitle || 'Aplikasi Undian Digital Profesional';
-    if (APP.settings.subtitleColor) {
-      upSubtitle.style.color = APP.settings.subtitleColor;
-    } else {
-      upSubtitle.style.color = '';
-    }
-    if (APP.settings.subtitleSize) {
-      upSubtitle.style.fontSize = APP.settings.subtitleSize + 'rem';
-    } else {
-      upSubtitle.style.fontSize = '';
-    }
-  }
-
-  if (APP.settings.logoUrl) {
-    if (upLogoImg) {
-      upLogoImg.src = APP.settings.logoUrl;
-      upLogoImg.style.display = 'block';
-    }
-    if (upDefLogo) upDefLogo.style.display = 'none';
-  } else {
-    if (upLogoImg) upLogoImg.style.display = 'none';
-    if (upDefLogo) upDefLogo.style.display = 'block';
-  }
-
-  // Apply Background Image to body
-  if (APP.settings.bgUrl) {
-    document.documentElement.style.setProperty('--bg-image', `url("${APP.settings.bgUrl}")`);
-    document.documentElement.style.setProperty('--bg-opacity', APP.settings.bgOpacity !== undefined ? APP.settings.bgOpacity : 0.15);
-    document.body.classList.add('has-bg');
-  } else {
-    document.documentElement.style.setProperty('--bg-image', 'none');
-    document.body.classList.remove('has-bg');
-  }
-
-  // Terapkan tata letak kustom (null → mode flex bawaan). Fase 1: layout selalu
-  // null sampai editor (Fase 2) menghasilkannya, jadi tampilan belum berubah.
-  applyLayout(APP.settings.layout);
 }
 
 // ===================== EVENT BINDINGS =====================
@@ -1588,24 +1495,29 @@ function loadExcelFile(file) {
                 Ronde_Ke: rondeNum,
                 Waktu_Pengundian: row['Waktu Pengundian'] || row.Waktu_Pengundian || row.Waktu || '',
                 Cluster_Diundi: row.Cluster_Diundi || row['Cluster Diundi'] || 'Semua',
-                Jumlah_Pemenang: 0,
-                winners: [],
-                Hadiah: row.Hadiah || 'Hadiah Spesial'
+                winners: []
               });
             }
-            const rec = roundMap.get(rondeNum);
-            rec.Jumlah_Pemenang++;
-            const winnerStr = `${row['ID Peserta'] || row.ID_Peserta || ''} - ${row.Nama || ''} (${row['Jenis Peserta'] || row.Jenis_Peserta || 'Umum'} | ${row.Grup || row.Group || 'Umum'} | ${row.Kelompok || 'Umum'})`;
-            rec.winners.push(winnerStr);
+            // Kolom Hadiah kini PER PEMENANG (satu ronde bisa berisi beberapa hadiah).
+            roundMap.get(rondeNum).winners.push({
+              id: String(row['ID Peserta'] || row.ID_Peserta || ''),
+              nama: String(row.Nama || ''),
+              jenisPeserta: row['Jenis Peserta'] || row.Jenis_Peserta || 'Umum',
+              grup: row.Grup || row.Group || 'Umum',
+              kelompok: row.Kelompok || 'Umum',
+              hadiah: String(row.Hadiah || '').trim()
+            });
           });
-          APP.hasilUndian = Array.from(roundMap.values()).map(r => ({
-            Ronde_Ke: r.Ronde_Ke,
-            Waktu_Pengundian: r.Waktu_Pengundian,
-            Cluster_Diundi: r.Cluster_Diundi,
-            Jumlah_Pemenang: r.Jumlah_Pemenang,
-            Daftar_Pemenang_Keluar: r.winners.join(', '),
-            Hadiah: r.Hadiah
-          }));
+          APP.hasilUndian = Array.from(roundMap.values()).map(r => {
+            const record = {
+              Ronde_Ke: r.Ronde_Ke,
+              Waktu_Pengundian: r.Waktu_Pengundian,
+              Cluster_Diundi: r.Cluster_Diundi,
+              Hadiah: uniquePrizeNames(r.winners.map(w => w.hadiah)).join(', ') || 'Hadiah Spesial'
+            };
+            setRecordWinners(record, r.winners);
+            return record;
+          });
         } else {
           APP.hasilUndian = rawHistory;
         }
@@ -1844,8 +1756,25 @@ function structWinners(winners) {
     nama: w.nama || '',
     jenisPeserta: w.jenisPeserta || w.cluster || '',
     grup: w.grup || '',
-    kelompok: w.kelompok || ''
+    kelompok: w.kelompok || '',
+    hadiah: w.hadiah || ''
   }));
+}
+
+// Format string histori lama ("id - nama (jenis | grup | kelompok), ..."). Formatnya
+// DIPERTAHANKAN karena dibaca refreshAdminTable & parser export record lama.
+function winnersToHistoryStr(winners) {
+  return (winners || []).map(w => `${w.id} - ${w.nama} (${w.jenisPeserta || w.cluster || 'Umum'} | ${w.grup || 'Umum'} | ${w.kelompok || 'Umum'})`).join(', ');
+}
+
+// Tulis ulang daftar pemenang sebuah record histori. `updatedAt` dipakai server
+// (mergeHasilUndian) agar perubahan TERBARU yang menang — termasuk gugur/undi ulang
+// yang jumlah pemenangnya sama atau lebih sedikit dari versi sebelumnya.
+function setRecordWinners(record, winners) {
+  record.Daftar_Pemenang_Keluar = winnersToHistoryStr(winners) || 'DIBATALKAN';
+  record.pemenang = structWinners(winners); // andal utk export (tahan koma di nama)
+  record.Jumlah_Pemenang = winners.length;
+  record.updatedAt = Date.now();
 }
 
 function appendHasilUndian(ronde, winners) {
@@ -1857,19 +1786,13 @@ function appendHasilUndian(ronde, winners) {
 
   const prizes = APP.settings.prizes || [];
   const currentPrizes = prizes.filter(p => parseInt(p.ronde) === ronde);
-  const prizeNames = currentPrizes.map(p => p.name).filter(name => name).join(', ') || 'Hadiah Spesial';
-
-  const winnerStr = winners.map(w => `${w.id} - ${w.nama} (${w.jenisPeserta || w.cluster || 'Umum'} | ${w.grup || 'Umum'} | ${w.kelompok || 'Umum'})`).join(', ');
-  const pemenang = structWinners(winners); // andal utk export (tahan koma di nama)
+  const prizeNames = uniquePrizeNames(currentPrizes.map(p => p.name)).join(', ') || 'Hadiah Spesial';
 
   // ANTI-DUPLIKASI: Cek apakah ronde ini sudah ada di histori
-  const existingIdx = APP.hasilUndian.findIndex(r => r.Ronde_Ke === ronde);
-  if (existingIdx !== -1) {
+  const existing = APP.hasilUndian.find(r => r.Ronde_Ke === ronde);
+  if (existing) {
     // Ronde sudah ada — update record yang ada, jangan push duplikat
-    const existing = APP.hasilUndian[existingIdx];
-    existing.Daftar_Pemenang_Keluar = winnerStr;
-    existing.pemenang = pemenang;
-    existing.Jumlah_Pemenang = winners.length;
+    setRecordWinners(existing, winners);
     existing.Waktu_Pengundian = waktu;
     existing.Hadiah = prizeNames;
     return;
@@ -1879,13 +1802,22 @@ function appendHasilUndian(ronde, winners) {
     Ronde_Ke: ronde,
     Waktu_Pengundian: waktu,
     Cluster_Diundi: APP.currentCluster,
-    Jumlah_Pemenang: winners.length,
-    Daftar_Pemenang_Keluar: winnerStr,
-    pemenang: pemenang,
     Hadiah: prizeNames
   };
+  setRecordWinners(record, winners);
 
   APP.hasilUndian.push(record);
+}
+
+// Nama hadiah unik (abaikan kosong & beda huruf besar/kecil), urutan dipertahankan.
+function uniquePrizeNames(names) {
+  const seen = new Set();
+  return (names || []).map(n => String(n || '').trim()).filter(n => {
+    const key = n.toLowerCase();
+    if (!n || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 function downloadUpdatedExcel() {
@@ -1915,26 +1847,30 @@ function downloadUpdatedExcel() {
       const dash = head.indexOf(' - '); // id sebelum ' - ' pertama
       if (dash > -1) { id = head.slice(0, dash).trim(); nama = head.slice(dash + 3).trim(); }
       else { nama = head; }
-      return { id, nama, jenisPeserta, grup, kelompok };
+      return { id, nama, jenisPeserta, grup, kelompok, hadiah: '' };
     });
   }
+  // Hadiah per pemenang (record baru) → kolom Hadiah tepat per orang; record lama
+  // tanpa hadiah per pemenang jatuh ke ringkasan hadiah ronde.
   function getWinners(record) {
-    if (Array.isArray(record.pemenang) && record.pemenang.length) {
-      return record.pemenang.map(w => ({
-        id: w.id || '', nama: w.nama || '',
-        jenisPeserta: w.jenisPeserta || 'Umum', grup: w.grup || 'Umum', kelompok: w.kelompok || 'Umum'
-      }));
-    }
-    return parseWinnersList(record.Daftar_Pemenang_Keluar);
+    const roundPrize = record.Hadiah ||
+      uniquePrizeNames((APP.settings.prizes || []).filter(p => parseInt(p.ronde) === record.Ronde_Ke).map(p => p.name)).join(', ') ||
+      'Hadiah Spesial';
+    const list = (Array.isArray(record.pemenang) && record.pemenang.length)
+      ? record.pemenang.map(w => ({
+          id: w.id || '', nama: w.nama || '',
+          jenisPeserta: w.jenisPeserta || 'Umum', grup: w.grup || 'Umum', kelompok: w.kelompok || 'Umum',
+          hadiah: w.hadiah || ''
+        }))
+      : parseWinnersList(record.Daftar_Pemenang_Keluar);
+    list.forEach(w => { w.hadiah = w.hadiah || roundPrize; });
+    return list;
   }
 
   // 1. Sheet Master: Semua Ronde
   const masterRows = [];
   APP.hasilUndian.forEach(record => {
     const winners = getWinners(record);
-    const prizes = APP.settings.prizes || [];
-    const currentPrizes = prizes.filter(p => parseInt(p.ronde) === record.Ronde_Ke);
-    const prizeName = record.Hadiah || currentPrizes.map(p => p.name).filter(n => n).join(', ') || 'Hadiah Spesial';
 
     winners.forEach((w, idx) => {
       masterRows.push({
@@ -1945,7 +1881,7 @@ function downloadUpdatedExcel() {
         'Jenis Peserta': w.jenisPeserta,
         'Grup': w.grup,
         'Kelompok': w.kelompok,
-        'Hadiah': prizeName,
+        'Hadiah': w.hadiah,
         'Waktu Pengundian': record.Waktu_Pengundian
       });
     });
@@ -1958,9 +1894,6 @@ function downloadUpdatedExcel() {
   // 2. Sheet per Ronde (Ronde 1, Ronde 2, etc.)
   APP.hasilUndian.forEach(record => {
     const winners = getWinners(record);
-    const prizes = APP.settings.prizes || [];
-    const currentPrizes = prizes.filter(p => parseInt(p.ronde) === record.Ronde_Ke);
-    const prizeName = record.Hadiah || currentPrizes.map(p => p.name).filter(n => n).join(', ') || 'Hadiah Spesial';
 
     const roundRows = winners.map((w, idx) => ({
       'No': idx + 1,
@@ -1969,7 +1902,7 @@ function downloadUpdatedExcel() {
       'Jenis Peserta': w.jenisPeserta,
       'Grup': w.grup,
       'Kelompok': w.kelompok,
-      'Hadiah': prizeName,
+      'Hadiah': w.hadiah,
       'Waktu Pengundian': record.Waktu_Pengundian
     }));
 
@@ -2024,93 +1957,8 @@ function updatePesertaDatalist() {
 }
 
 // ===================== SLOT MACHINE ENGINE =====================
-let CELL_HEIGHT = 56; // must match CSS .slot-cell height
-const VISIBLE_CELLS = 5; // number of cells visible in each reel
-const BASE_STRIP_LENGTH = 70; // base number of cells in each strip
-const EXTRA_PER_COLUMN = 12; // extra cells per column index for stagger
 const BASE_DURATION = 3500; // base animation duration in ms
 const STAGGER_DELAY = 450; // delay between each column stopping
-
-// MULTI-CLUSTER DRAW RULES UI
-window.addDrawRule = function() {
-  const container = document.getElementById('drawRulesContainer');
-  const row = document.createElement('div');
-  row.className = 'draw-rule-row';
-  
-  let jenisOptions = '<option value="Semua">Semua Jenis</option>';
-  if (APP.uniqueJenis) {
-    APP.uniqueJenis.forEach(j => {
-      jenisOptions += `<option value="${j}">${j === '' ? '(Kosong)' : j}</option>`;
-    });
-  }
-  
-  let grupOptions = '<option value="Semua">Semua Grup</option>';
-  if (APP.uniqueGrup) {
-    APP.uniqueGrup.forEach(g => {
-      grupOptions += `<option value="${g}">${g === '' ? '(Kosong)' : g}</option>`;
-    });
-  }
-  
-  let kelompokOptions = '<option value="Semua">Semua Kelompok</option>';
-  if (APP.uniqueKelompok) {
-    APP.uniqueKelompok.forEach(k => {
-      kelompokOptions += `<option value="${k}">${k === '' ? '(Kosong)' : k}</option>`;
-    });
-  }
-
-  row.innerHTML = `
-    <select class="jenis-select input-modern" style="flex: 1; min-width: 90px; height: 36px; padding: 0 8px; font-size: 0.85rem;">
-      ${jenisOptions}
-    </select>
-    <select class="grup-select input-modern" style="flex: 1; min-width: 90px; height: 36px; padding: 0 8px; font-size: 0.85rem;">
-      ${grupOptions}
-    </select>
-    <select class="kelompok-select input-modern" style="flex: 1; min-width: 90px; height: 36px; padding: 0 8px; font-size: 0.85rem;">
-      ${kelompokOptions}
-    </select>
-    <div class="number-input-group">
-      <button class="btn-num rule-decrease" onclick="decreaseRule(this)">-</button>
-      <input type="number" class="rule-count" value="1" min="1" max="50" style="width: 40px; text-align: center;" />
-      <button class="btn-num rule-increase" onclick="increaseRule(this)">+</button>
-    </div>
-    <button class="btn-remove-rule" onclick="removeRule(this)" title="Hapus">&times;</button>
-  `;
-  container.appendChild(row);
-  
-  const rows = container.querySelectorAll('.draw-rule-row');
-  if (rows.length > 1) {
-    rows.forEach(r => {
-      const btn = r.querySelector('.btn-remove-rule');
-      if (btn) btn.style.display = 'block';
-    });
-  }
-}
-
-window.removeRule = function(btn) {
-  const container = document.getElementById('drawRulesContainer');
-  const row = btn.closest('.draw-rule-row');
-  if (container.querySelectorAll('.draw-rule-row').length > 1) {
-    row.remove();
-  }
-  
-  const rows = container.querySelectorAll('.draw-rule-row');
-  if (rows.length === 1) {
-    const removeBtn = rows[0].querySelector('.btn-remove-rule');
-    if (removeBtn) removeBtn.style.display = 'none';
-  }
-}
-
-window.decreaseRule = function(btn) {
-  const input = btn.nextElementSibling;
-  let val = parseInt(input.value) || 1;
-  if (val > 1) input.value = val - 1;
-}
-
-window.increaseRule = function(btn) {
-  const input = btn.previousElementSibling;
-  let val = parseInt(input.value) || 1;
-  if (val < 100) input.value = val + 1;
-}
 
 window.handleSpin = function() {
   if (APP.isSpinning) {
@@ -2133,7 +1981,7 @@ window.handleSpin = function() {
     currentPrizes.forEach(p => {
       rules.push({
         prizeId: p.id || null,          // identitas hadiah → penempatan target presisi per hadiah
-        prizeName: p.name || '',
+        prizeName: (p.name || '').trim(), // dicap ke tiap pemenang (keterangan hadiah di popup/export)
         jenis: p.jenis || 'Semua',
         grup: p.grup || 'Semua',
         kelompok: p.kelompok || 'Semua',
@@ -2283,14 +2131,12 @@ window.finishSpinMulti = function() {
         existingIds.add(identifier);
       }
     });
+    // Pengganti masuk ke kelompok hadiahnya (bukan menumpuk di akhir daftar).
+    APP.lastWinners = sortWinnersByPrize(APP.lastWinners);
 
     const rondeIndex = APP.currentRonde - 1;
     const record = APP.hasilUndian.find(r => r.Ronde_Ke === rondeIndex);
-    if (record) {
-      record.Daftar_Pemenang_Keluar = APP.lastWinners.map(w => `${w.id} - ${w.nama} (${w.jenisPeserta || w.cluster || 'Umum'} | ${w.grup || 'Umum'} | ${w.kelompok || 'Umum'})`).join(', ');
-      record.pemenang = structWinners(APP.lastWinners);
-      record.Jumlah_Pemenang = APP.lastWinners.length;
-    }
+    if (record) setRecordWinners(record, APP.lastWinners);
   } else {
     appendHasilUndian(APP.currentRonde, winners);
     APP.lastWinners = winners;
@@ -2343,6 +2189,23 @@ function determineWinnersMulti(rules) {
 
   rules.forEach(rule => {
     let ruleWinners = [];
+    // Tiap pemenang DICAP hadiah dari aturannya → satu ronde berisi beberapa hadiah
+    // (mis. 30 TV + 20 Botol Air) langsung menghasilkan siapa dapat apa.
+    const toWinner = (p) => ({
+      id: p.id,
+      nama: p.nama,
+      jenisPeserta: p.jenisPeserta,
+      grup: p.grup,
+      kelompok: p.kelompok,
+      cluster: p.cluster,
+      prizeId: rule.prizeId || null,
+      hadiah: rule.prizeName || '',
+      originalRule: {
+        jenis: rule.jenis || 'Semua',
+        grup: rule.grup || 'Semua',
+        kelompok: rule.kelompok || 'Semua'
+      }
+    });
 
     // 1. Eksekusi target adm1n untuk ronde ini (jika ada)
     targetStates.forEach(state => {
@@ -2365,19 +2228,7 @@ function determineWinnersMulti(rules) {
         const targetPeserta = APP.dataPeserta.find(p => p.id === targetId && p.status === 'Belum Diundi');
         if (targetPeserta && !batchWinnerIds.has(targetPeserta.id)) {
           batchWinnerIds.add(targetPeserta.id);
-          ruleWinners.push({
-            id: targetPeserta.id,
-            nama: targetPeserta.nama,
-            jenisPeserta: targetPeserta.jenisPeserta,
-            grup: targetPeserta.grup,
-            kelompok: targetPeserta.kelompok,
-            cluster: targetPeserta.cluster,
-            originalRule: {
-              jenis: rule.jenis || 'Semua',
-              grup: rule.grup || 'Semua',
-              kelompok: rule.kelompok || 'Semua'
-            }
-          });
+          ruleWinners.push(toWinner(targetPeserta));
 
           // Hapus dari currentActive jika ada
           const pIdx = currentActive.findIndex(p => p.id === targetPeserta.id);
@@ -2401,19 +2252,7 @@ function determineWinnersMulti(rules) {
         const candidate = shuffled[i];
         if (!batchWinnerIds.has(candidate.id)) {
           batchWinnerIds.add(candidate.id);
-          ruleWinners.push({
-            id: candidate.id,
-            nama: candidate.nama,
-            jenisPeserta: candidate.jenisPeserta,
-            grup: candidate.grup,
-            kelompok: candidate.kelompok,
-            cluster: candidate.cluster,
-            originalRule: {
-              jenis: rule.jenis || 'Semua',
-              grup: rule.grup || 'Semua',
-              kelompok: rule.kelompok || 'Semua'
-            }
-          });
+          ruleWinners.push(toWinner(candidate));
           const pIdx = currentActive.findIndex(p => p.id === candidate.id);
           if (pIdx > -1) currentActive.splice(pIdx, 1);
         }
@@ -2431,25 +2270,19 @@ function determineWinnersMulti(rules) {
         const candidate = remainingShuffled[i];
         if (!batchWinnerIds.has(candidate.id)) {
           batchWinnerIds.add(candidate.id);
-          ruleWinners.push({
-            id: candidate.id,
-            nama: candidate.nama,
-            jenisPeserta: candidate.jenisPeserta,
-            grup: candidate.grup,
-            kelompok: candidate.kelompok,
-            cluster: candidate.cluster,
-            originalRule: {
-              jenis: rule.jenis || 'Semua',
-              grup: rule.grup || 'Semua',
-              kelompok: rule.kelompok || 'Semua'
-            }
-          });
+          ruleWinners.push(toWinner(candidate));
           const pIdx = currentActive.findIndex(p => p.id === candidate.id);
           if (pIdx > -1) currentActive.splice(pIdx, 1);
         }
       }
     }
 
+    // Acak urutan DI DALAM hadiah ini saja (target rig tak terlihat selalu di depan),
+    // tanpa mencampur pemenang antar-hadiah.
+    for (let i = ruleWinners.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [ruleWinners[i], ruleWinners[j]] = [ruleWinners[j], ruleWinners[i]];
+    }
     allWinners = allWinners.concat(ruleWinners);
   });
 
@@ -2475,21 +2308,27 @@ function determineWinnersMulti(rules) {
     saveAdminStatus();
   }
 
-  // Acak urutan tampilan pemenang di reel
-  for (let i = allWinners.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [allWinners[i], allWinners[j]] = [allWinners[j], allWinners[i]];
-  }
-  return allWinners;
+  // Urutan reel = urutan kartu popup: berkelompok per hadiah (#1–30 TV, #31–50 Botol Air).
+  return sortWinnersByPrize(allWinners);
 }
 
-function getAdminTarget(ronde, clusterName) {
-  if (!APP.adminTargets) return null;
-  return APP.adminTargets.find(t =>
-    effectiveRonde(t) === ronde &&
-    (t.cluster === 'Semua' || clusterName === 'Semua' || t.cluster === clusterName) &&
-    t.status !== 'Sudah Dieksekusi'
-  );
+// Urutkan pemenang berkelompok per HADIAH (mengikuti urutan hadiah di Pengaturan;
+// nama sama = satu kelompok, seperti sidebar hadiah). Stabil: urutan di dalam
+// kelompok dipertahankan. Hadiah tak dikenal (mis. sudah dihapus) di akhir.
+function sortWinnersByPrize(winners) {
+  const order = new Map();
+  (APP.settings.prizes || []).forEach(p => {
+    const key = normalizeStr(p && p.name);
+    if (!order.has(key)) order.set(key, order.size);
+  });
+  const rank = w => {
+    const key = normalizeStr(w && w.hadiah);
+    return order.has(key) ? order.get(key) : order.size;
+  };
+  return (winners || [])
+    .map((w, i) => ({ w, i }))
+    .sort((a, b) => (rank(a.w) - rank(b.w)) || (a.i - b.i))
+    .map(x => x.w);
 }
 
 // Fase MENGACAK: pakai ukuran SERAGAM (kelas is-shuffle) — TIDAK menukar
@@ -2552,7 +2391,6 @@ function buildSlotReels(count, winners, isManual = false) {
   const slotMachine = document.getElementById('slotMachine');
   slotMachine.innerHTML = '';
   slotMachine.classList.remove('compact-reels', 'micro-reels', 'massive-reel', 'large-reels');
-  CELL_HEIGHT = 56;
   if (count === 1) {
     slotMachine.classList.add('massive-reel');
   } else if (count >= 2 && count <= 4) {
@@ -2645,13 +2483,31 @@ function fitWinnerName(el, minPx, maxPx) {
   el.style.setProperty('overflow-wrap', 'normal', 'important');
   el.style.setProperty('flex', '0 0 auto', 'important');
   el.style.setProperty('line-height', '1.13', 'important');
+  // Mode roster HUD (header display:contents → nomor/kategori/hadiah jadi item grid):
+  // baris kartu setinggi isinya, jadi tinggi kartu bukan patokan. Nama SATU baris,
+  // sebesar mungkin (≤15px) & mengecil bila melebihi lebar; bila di 8px pun masih
+  // kelebaran, boleh membungkus (baris ikut memanjang) → utuh, tak terpotong.
+  if (header && getComputedStyle(header).display === 'contents') {
+    el.style.setProperty('white-space', 'nowrap', 'important');
+    let rfs = Math.min(maxPx, 15);
+    el.style.setProperty('font-size', rfs + 'px', 'important');
+    while (rfs > 8 && el.scrollWidth > el.clientWidth + 1) {
+      rfs -= 1;
+      el.style.setProperty('font-size', rfs + 'px', 'important');
+    }
+    if (el.scrollWidth > el.clientWidth + 1) el.style.setProperty('white-space', 'normal', 'important');
+    return;
+  }
   // Ukur ruang tersedia dgn font minimum dulu (agar tinggi kartu = tinggi baris grid,
   // stabil & tak dipengaruhi tinggi nama itu sendiri).
   el.style.setProperty('font-size', minPx + 'px', 'important');
   const cardH = card ? card.clientHeight : el.clientHeight;
   const cs = card ? getComputedStyle(card) : null;
   const padV = cs ? (parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom)) : 0;
-  const headerH = header ? header.offsetHeight : 0;
+  // Ruang nama = kartu − header − baris keterangan hadiah (beserta margin bawahnya).
+  const prizeEl = card ? card.querySelector('.winner-card-prize') : null;
+  const headerH = (header ? header.offsetHeight : 0) +
+    (prizeEl ? prizeEl.offsetHeight + (parseFloat(getComputedStyle(prizeEl).marginBottom) || 0) : 0);
   let avail = cardH - headerH - padV - 6;
   if (avail < minPx * 1.2) avail = minPx * 1.2;
   // Naikkan font sebesar mungkin selama teks utuh masih muat TINGGI dan LEBAR kartu.
@@ -2679,11 +2535,49 @@ function fitWinnerName(el, minPx, maxPx) {
     fs -= 1;
     el.style.setProperty('font-size', fs + 'px', 'important');
   }
+  // Ruang SANGAT sempit (layar kecil + nama, kategori & hadiah panjang): nama di font
+  // minimum pun melebihi kartu → turunkan di bawah minimum (≥8px) daripada terpotong
+  // tepi kartu. Hanya bila ruang terukur wajar (modal tampil, kartu berukuran).
+  const rawAvail = cardH - headerH - padV - 6;
+  if (rawAvail >= 10) {
+    while (fs > 8 && el.scrollHeight > rawAvail) {
+      fs -= 1;
+      el.style.setProperty('font-size', fs + 'px', 'important');
+    }
+  }
+}
+
+// Teks dari Excel/Pengaturan disisipkan ke innerHTML → escape agar nama berisi
+// tanda kutip / < > tidak merusak kartu.
+function escapeHtml(str) {
+  return String(str == null ? '' : str)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+// Ringkasan hadiah popup, mis. "TV ×30 · Botol Air ×20" (urutan = urutan kartu).
+function prizeSummaryText(winners) {
+  const groups = new Map();
+  (winners || []).forEach(w => {
+    const name = String((w && w.hadiah) || '').trim();
+    if (!name) return;
+    const key = name.toLowerCase();
+    if (!groups.has(key)) groups.set(key, { name, count: 0 });
+    groups.get(key).count++;
+  });
+  return Array.from(groups.values()).map(g => g.name + ' ×' + g.count).join('  ·  ');
 }
 
 function showWinnerModal(winners) {
   const rondeSpan = document.getElementById('winnerRonde');
   if (rondeSpan) rondeSpan.textContent = APP.currentRonde - 1;
+
+  const summaryEl = document.getElementById('winnerPrizeSummary');
+  if (summaryEl) {
+    const summary = prizeSummaryText(winners);
+    summaryEl.textContent = summary;
+    summaryEl.hidden = !summary;
+  }
 
   const cardsContainer = document.getElementById('winnerCards');
   if (cardsContainer) {
@@ -2708,14 +2602,22 @@ function showWinnerModal(winners) {
       if (winner.grup && winner.grup.trim()) categoryParts.push(winner.grup.trim());
       if (winner.kelompok && winner.kelompok.trim()) categoryParts.push(winner.kelompok.trim());
       const categoryText = categoryParts.join('  ·  ');
-      const categoryBadge = categoryText ? `<span class="winner-card-cluster">${categoryText}</span>` : '';
+      const categoryBadge = categoryText ? `<span class="winner-card-cluster">${escapeHtml(categoryText)}</span>` : '';
+      // Keterangan hadiah yang didapat: baris sendiri di antara header & nama
+      // (fitWinnerName ikut mengurangi tingginya dari ruang nama).
+      const prizeName = String(winner.hadiah || '').trim();
+      const prizeBadge = prizeName
+        ? `<div class="winner-card-prize" title="${escapeHtml(prizeName)}">🎁 ${escapeHtml(prizeName)}</div>`
+        : '';
+      const nama = escapeHtml(winner.nama);
 
       card.innerHTML =
         '<div class="winner-card-header">' +
           '<span class="winner-card-number">#' + (idx + 1) + '</span>' +
           categoryBadge +
         '</div>' +
-        '<div class="winner-card-name" title="' + winner.nama + '">' + winner.nama + '</div>' +
+        prizeBadge +
+        '<div class="winner-card-name" title="' + nama + '">' + nama + '</div>' +
         '<button class="btn-disqualify" title="Tandai untuk digugurkan" onclick="toggleDisqualifyMark(' + idx + ')">&times;</button>';
       cardsContainer.appendChild(card);
     });
@@ -2757,8 +2659,19 @@ function showWinnerModal(winners) {
     // undian 1-4 digit) tampil BESAR & jelas; teks panjang otomatis mengecil/membungkus
     // dalam rentang ini agar selalu utuh (dibatasi tinggi & lebar kartu oleh fitWinnerName).
     const range = wn <= 1 ? [22, 120] : (wn <= 6 ? [15, 76] : (wn <= 12 ? [13, 52] : (wn <= 24 ? [11, 40] : [10, 30])));
+    const fitAll = () => document.querySelectorAll('#winnerCards .winner-card-name').forEach(el => fitWinnerName(el, range[0], range[1]));
     requestAnimationFrame(() => requestAnimationFrame(() => {
-      document.querySelectorAll('#winnerCards .winner-card-name').forEach(el => fitWinnerName(el, range[0], range[1]));
+      fitAll();
+      // Ruang tak cukup walau nama sudah minimum (layar sempit + kategori & hadiah
+      // panjang) → baris kartu setinggi isinya & daftar menggulir, daripada terpotong.
+      // Diukur via offset (bukan getBoundingClientRect) agar kebal animasi cardPop.
+      const clipped = Array.from(document.querySelectorAll('#winnerCards .winner-card')).some(card =>
+        Array.from(card.children).some(ch => ch.offsetHeight > 0 && !ch.classList.contains('btn-disqualify') &&
+          (ch.offsetTop < -1 || ch.offsetTop + ch.offsetHeight > card.clientHeight + 1)));
+      if (clipped && modalEl) {
+        modalEl.classList.add('wn-fit-content');
+        fitAll();
+      }
     }));
   })();
   fireConfetti();
@@ -2790,16 +2703,17 @@ function fireConfetti() {
 
 // Aturan pengganti untuk satu pemenang gugur: utamakan aturan hadiah aslinya
 // (originalRule) agar pengganti tetap sesuai kategori hadiah; jika tak ada, bebas.
+// Hadiahnya DIWARISI → pengganti pemenang TV tetap mendapat TV.
 function replacementRuleFromWinner(w) {
-  if (w && w.originalRule) {
-    return {
-      jenis: w.originalRule.jenis || 'Semua',
-      grup: w.originalRule.grup || 'Semua',
-      kelompok: w.originalRule.kelompok || 'Semua',
-      count: 1
-    };
-  }
-  return { jenis: 'Semua', grup: 'Semua', kelompok: 'Semua', count: 1 };
+  const rule = (w && w.originalRule) || {};
+  return {
+    prizeId: (w && w.prizeId) || null,
+    prizeName: (w && w.hadiah) || '',
+    jenis: rule.jenis || 'Semua',
+    grup: rule.grup || 'Semua',
+    kelompok: rule.kelompok || 'Semua',
+    count: 1
+  };
 }
 
 // Segarkan tombol undi-ulang sesuai jumlah kartu yang ditandai gugur.
@@ -2847,14 +2761,7 @@ window.executeBatchDisqualify = async function() {
   // 3) Perbarui histori ronde.
   const rondeIndex = APP.currentRonde - 1;
   const record = APP.hasilUndian.find(r => r.Ronde_Ke === rondeIndex);
-  if (record) {
-    const sisa = APP.lastWinners.map(w =>
-      `${w.id} - ${w.nama} (${w.jenisPeserta || w.cluster || 'Umum'} | ${w.grup || 'Umum'} | ${w.kelompok || 'Umum'})`
-    ).join(', ');
-    record.Daftar_Pemenang_Keluar = sisa || 'DIBATALKAN';
-    record.pemenang = structWinners(APP.lastWinners);
-    record.Jumlah_Pemenang = APP.lastWinners.length;
-  }
+  if (record) setRecordWinners(record, APP.lastWinners);
 
   saveSettings();
   if (typeof updateUI === 'function') updateUI();
@@ -4433,13 +4340,13 @@ function updateUI() {
 
 function previewWinnerModal(count) {
   if (count === 1) {
-    showWinnerModal([{ nama: '66 (Bapak Ahmad - Militer)', jenisPeserta: 'Militer', grup: 'Batalyon 1', kelompok: 'Kelompok Utama' }]);
+    showWinnerModal([{ nama: '66 (Bapak Ahmad - Militer)', jenisPeserta: 'Militer', grup: 'Batalyon 1', kelompok: 'Kelompok Utama', hadiah: 'Sepeda Motor' }]);
   } else {
     showWinnerModal([
-      { nama: '66 (Bapak Ahmad)', jenisPeserta: 'Militer', grup: 'Grup A', kelompok: 'Kelompok 1' },
-      { nama: '14 (Ibu Siti)', jenisPeserta: 'Warga', grup: 'Grup B', kelompok: 'Kelompok 2' },
-      { nama: '236 (Budi Santoso)', jenisPeserta: 'Warga', grup: 'Grup C', kelompok: 'Kelompok 3' },
-      { nama: '110 (Letda Dian)', jenisPeserta: 'Militer', grup: 'Grup A', kelompok: 'Kelompok 1' }
+      { nama: '66 (Bapak Ahmad)', jenisPeserta: 'Militer', grup: 'Grup A', kelompok: 'Kelompok 1', hadiah: 'Televisi' },
+      { nama: '14 (Ibu Siti)', jenisPeserta: 'Warga', grup: 'Grup B', kelompok: 'Kelompok 2', hadiah: 'Televisi' },
+      { nama: '236 (Budi Santoso)', jenisPeserta: 'Warga', grup: 'Grup C', kelompok: 'Kelompok 3', hadiah: 'Botol Air' },
+      { nama: '110 (Letda Dian)', jenisPeserta: 'Militer', grup: 'Grup A', kelompok: 'Kelompok 1', hadiah: 'Botol Air' }
     ]);
   }
 }

@@ -1401,34 +1401,6 @@ box-shadow: 0 0 20px rgba(var(--color-accent-rgb), 0.2);
   gap: var(--space-sm);
 }
 
-.draw-rules-container {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-sm);
-  max-height: 180px;
-  overflow-y: auto;
-  padding-right: 4px;
-}
-
-.draw-rules-container::-webkit-scrollbar {
-  width: 4px;
-}
-
-.draw-rules-container::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.1);
-  border-radius: 4px;
-}
-
-.draw-rule-row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  background: var(--color-surface);
-  padding: 6px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--color-border);
-}
-
 .btn-remove-rule {
   background: transparent;
   border: none;
@@ -1498,55 +1470,6 @@ select.input-modern {
   background-size: 16px !important;
   padding-right: 36px !important;
   cursor: pointer;
-}
-
-.number-input-group {
-  display: flex;
-  align-items: center;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  box-shadow: var(--shadow-xs);
-}
-
-.number-input-group input {
-  width: 52px;
-  height: 40px;
-  border: none;
-  text-align: center;
-  font-family: 'Outfit', sans-serif;
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: var(--color-text);
-  background: transparent;
-  outline: none;
-  -moz-appearance: textfield;
-}
-
-.number-input-group input::-webkit-outer-spin-button,
-.number-input-group input::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-}
-
-.btn-num {
-  width: 40px;
-  height: 40px;
-  border: none;
-  background: var(--color-bg);
-  color: var(--color-text-secondary);
-  font-size: 1.2rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all var(--transition-fast);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.btn-num:hover {
-  background: rgba(var(--color-primary-rgb), 0.08);
-  color: var(--color-primary);
 }
 
 /* SPIN BUTTON */
@@ -2299,6 +2222,9 @@ select.input-modern {
    muat utuh di ruang kartu. */
 #winnerModal.wn-sm .winner-cards,
 #winnerModal.wn-md .winner-cards { grid-auto-rows: minmax(0, 1fr); }
+/* Dipasang showWinnerModal bila isi kartu tetap meluber setelah autofit (layar sempit
+   + kategori/hadiah panjang): baris setinggi isinya, daftar menggulir. */
+#winnerModal.wn-fit-content .winner-cards { grid-auto-rows: max-content !important; }
 /* Header modal (trofi/judul) dikompakkan utk sm/md agar kartu dapat ruang lebih →
    nama panjang tampil lebih besar tanpa terpotong. */
 #winnerModal.wn-sm .winner-header-area,
@@ -2556,6 +2482,44 @@ select.input-modern {
   opacity: 0.9;
   line-height: 1.25 !important;
 }
+
+/* KETERANGAN HADIAH per pemenang: baris sendiri di antara header & nama (tingginya
+   ikut dikurangi fitWinnerName dari ruang nama → nama tak tertimpa). */
+.winner-card-prize {
+  flex: 0 0 auto;
+  width: 100%;
+  min-width: 0;
+  margin-bottom: 2px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  text-align: center;
+  line-height: 1.2;
+  color: #FDE68A;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#winnerModal.wn-lg .winner-card-prize { font-size: 0.66rem; }
+#winnerModal.wn-xl .winner-card-prize { font-size: 0.6rem; }
+.winner-card.single-winner-card .winner-card-prize { font-size: 1.05rem; white-space: normal; }
+
+/* Ringkasan hadiah ronde di bawah sub-judul, mis. "TV ×30 · Botol Air ×20". */
+.winner-prize-summary {
+  margin: 4px auto 0;
+  max-width: 92%;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #FDE68A;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+  line-height: 1.3;
+}
+.winner-prize-summary[hidden] { display: none; }
+#winnerModal.wn-lg .winner-prize-summary,
+#winnerModal.wn-xl .winner-prize-summary { font-size: 0.72rem; margin-top: 0; }
 
 .winner-card-name {
   font-family: var(--font-event, 'Outfit', sans-serif);
@@ -4471,6 +4435,11 @@ body.hud #winnerModal .winner-card-name {
 body.hud #winnerModal .winner-card-cluster {
   font-family: var(--font-tech) !important; font-weight: 600 !important; letter-spacing: .04em !important; text-transform: uppercase !important; color: var(--winner-number-color, #9fb0c2) !important;
 }
+/* Keterangan hadiah + ringkasan: Rajdhani, aksen primary terang */
+body.hud #winnerModal .winner-card-prize,
+body.hud #winnerModal .winner-prize-summary {
+  font-family: var(--font-tech) !important; letter-spacing: .06em !important; color: var(--color-primary-light) !important;
+}
 /* Tombol × gugur */
 body.hud #winnerModal .btn-disqualify { background: rgba(220,38,38,.92) !important; border-radius: 3px !important; color: #fff !important; }
 
@@ -4495,7 +4464,10 @@ body.hud #winnerModal .winner-cards::-webkit-scrollbar-thumb { background: rgba(
    CSS-ONLY (display:contents membuka .winner-card-header → nomor & klaster jadi item grid). Mode/preset/markup TETAP. */
 body.hud #winnerModal.wn-lg .winner-cards,
 body.hud #winnerModal.wn-xl .winner-cards {
-  grid-auto-rows: minmax(44px, auto) !important;
+  /* max-content murni: dgn minmax(44px, auto|max-content) baris tak pernah tumbuh saat
+     grid sudah penuh (tak ada ruang sisa) → isi kartu terhimpit & nama/hadiah/kategori
+     terpotong. Baris kini setinggi isinya; batas 44px pindah ke min-height kartu. */
+  grid-auto-rows: max-content !important;
   align-content: start !important;
   gap: 8px 12px !important;
   padding: 10px 20px !important;
@@ -4512,13 +4484,13 @@ body.hud #winnerModal.wn-lg .winner-card,
 body.hud #winnerModal.wn-xl .winner-card {
   display: grid !important;
   grid-template-columns: auto minmax(0, 1fr) !important;
-  grid-template-areas: "num name" "num cluster" !important;
+  grid-template-areas: "num name" "num prize" "num cluster" !important;
   align-items: center !important;
   align-content: center !important;
   column-gap: 11px !important;
   row-gap: 1px !important;
   text-align: left !important;
-  min-height: 0 !important;
+  min-height: 44px !important;
   padding: 7px 32px 7px 11px !important; /* ruang kanan utk tombol × absolut */
 }
 body.hud #winnerModal.wn-lg .winner-card-header,
@@ -4537,6 +4509,10 @@ body.hud #winnerModal.wn-lg .winner-card-cluster,
 body.hud #winnerModal.wn-xl .winner-card-cluster {
   grid-area: cluster !important; align-self: start !important; text-align: left !important;
   -webkit-line-clamp: 2 !important; max-width: 100% !important; margin: 0 !important;
+}
+body.hud #winnerModal.wn-lg .winner-card-prize,
+body.hud #winnerModal.wn-xl .winner-card-prize {
+  grid-area: prize !important; align-self: start !important; text-align: left !important; margin: 0 !important;
 }
 /* Tombol × di-tengah vertikal baris ringkas */
 body.hud #winnerModal.wn-lg .btn-disqualify,
