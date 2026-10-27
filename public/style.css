@@ -2867,20 +2867,25 @@ body.dark-theme .single-cell-reel {
 }
 .pcat-title .prize-card-name { font-size: inherit; }
 .pcat-hero .prize-card-count { flex: 0 0 auto; }
+/* Ringkasan = PITA berlatar warna utama tema + teks PUTIH → selalu kontras (tema
+   terang, gelap, maupun gambar latar). Dulu teks memakai warna sekunder tema yang
+   bisa gelap di atas panel gelap (mis. hijau tua) → nyaris tak terbaca. */
 .pcat-summary {
   flex: 0 0 auto;
   text-align: center;
   font-size: 0.95rem;
-  font-weight: 700;
+  font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--color-text-secondary);
-  padding: 6px 0;
-  border-top: 1px solid color-mix(in srgb, var(--prize-title-color, var(--color-primary)) 30%, transparent);
-  border-bottom: 1px solid color-mix(in srgb, var(--prize-title-color, var(--color-primary)) 30%, transparent);
+  color: #fff;
+  padding: 7px 10px;
+  border-radius: 8px;
+  background: linear-gradient(100deg, var(--color-primary-dark, var(--color-primary)), var(--color-primary));
+  box-shadow: 0 6px 16px -6px rgba(var(--color-primary-rgb), .55);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, .35);
 }
-.pcat-summary b { color: var(--prize-title-color, var(--color-primary)); font-size: 1.15em; }
-.pcat-summary i { font-style: normal; opacity: 0.6; margin: 0 4px; }
+.pcat-summary b { color: #fff; font-size: 1.25em; }
+.pcat-summary i { font-style: normal; opacity: 0.75; margin: 0 6px; }
 .pcat-list {
   position: relative; /* acuan offsetTop baris untuk gulir otomatis */
   flex: 0 1000 auto;
@@ -4575,8 +4580,13 @@ body.hud .prize-adaptive .pcat-title .prize-card-name { font-size: inherit; line
 body.hud .pcat-hero .prize-card-count { height: 46px; margin-top: 6px; }
 body.hud .pcat-hero .prize-card-count .pc-num { font-size: 32px; }
 body.hud .pcat-hero .prize-card-count .pc-label { font-size: 22px; }
-body.hud .pcat-summary { font-family: var(--font-tech); font-size: 19px; letter-spacing: .12em; padding: 8px 0; }
+body.hud .pcat-summary {
+  font-family: var(--font-tech); font-weight: 700; font-size: 18px; letter-spacing: .05em; padding: 8px 16px; border-radius: 0;
+  white-space: nowrap; /* satu baris rapi: "15 JENIS HADIAH · 125 PEMENANG" */
+  clip-path: polygon(12px 0, 100% 0, calc(100% - 12px) 100%, 0 100%);   /* parallelogram senada pil pemenang */
+}
 body.hud .pcat-summary b { font-family: var(--font-number); font-weight: 600; font-size: 26px; letter-spacing: .02em; }
+body.hud .pcat-summary i { margin: 0 4px; }
 body.hud .pcat-row { padding: 8px 12px; margin: 4px 0; background: rgba(255,255,255,.03); }
 body.hud .pcat-row.is-active {
   background: linear-gradient(90deg, rgba(var(--color-primary-rgb),.32), rgba(var(--color-primary-rgb),.06));
@@ -4586,7 +4596,7 @@ body.hud .pcat-no { font-family: var(--font-number); font-weight: 600; font-size
 body.hud .pcat-row.is-active .pcat-no { color: var(--color-primary-light); }
 body.hud .pcat-name { font-family: var(--prize-font-family, var(--font-tech)); font-weight: 700; font-size: 23px; letter-spacing: .03em; color: var(--prize-title-color, var(--color-text)); }
 body.hud .pcat-count { font-family: var(--font-number); font-weight: 600; font-size: 28px; color: var(--color-primary-light); }
-body.hud.has-bg .pcat-name, body.hud.has-bg .pcat-summary { text-shadow: 0 2px 8px rgba(0,0,0,.85); }
+body.hud.has-bg .pcat-name { text-shadow: 0 2px 8px rgba(0,0,0,.85); }
 /* Katalog tanpa foto (HUD): judul sorotan lebih besar + panel bersudut ala pedestal. */
 body.hud .pcat-noimg .pcat-hero {
   border-color: rgba(var(--color-primary-rgb),.45);
